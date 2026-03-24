@@ -126,8 +126,10 @@ class RobotFactory:
         if model == "panda":
             from Robotics_API.Bestman_sim_panda_with_gripper import Bestman_sim_panda_with_gripper
             
-            # 构建配置对象
+            # 构建配置对象 - 固定机械臂也需要 base_urdf_path
+            # 使用一个简单的平面作为基座
             cfg = self._build_config(config, {
+                'base_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf"),
                 'arm_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/arm/franka/urdf/panda.urdf"),
                 'arm_num_dofs': 7,
                 'eef_id': 7,
