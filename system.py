@@ -289,7 +289,18 @@ class DynaHMRCSystem:
     def _init_coordinator(self):
         """初始化 LLM 协调器"""
         # 创建 LLM 客户端
-        llm_client = create_llm_client(**self.llm_config)
+        # 转换配置参数以适配 create_llm_client
+        llm_config = self.llm_config.copy()
+        provider = llm_config.pop("provider", "mock")
+        
+        # 将 provider 映射为 client_type
+        client_type = "kimi" if provider == "kimi" else "mock"
+        
+        # 移除不需要的参数
+        llm_config.pop("enable_replanning", None)
+        llm_config.pop("max_replan_attempts", None)
+        
+        llm_client = create_llm_client(client_type=client_type, **llm_config)
         
         # 创建 dyna_hmrc_web 的 BaseRobot 包装
         base_robots = []
