@@ -137,6 +137,13 @@ class RobotFactory:
                 'tcp_height': 0.05,
                 'arm_place_height': 1.0,
                 'arm_reset_jointValues': [0.0, -0.5, 0.0, -2.5, 0.0, 2.0, 0.0],
+                # Camera 配置
+                'fov': 60,
+                'width': 640,
+                'height': 480,
+                'nearVal': 0.1,
+                'farVal': 10.0,
+                'head_tilt': 0.0,
             })
             
             return Bestman_sim_panda_with_gripper(self.client, self.visualizer, cfg)
