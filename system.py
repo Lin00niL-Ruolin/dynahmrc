@@ -131,6 +131,19 @@ class DynaHMRCSystem:
         
         print("[DynaHMRCSystem] 系统实例已创建")
     
+    def _ensure_working_directory(self):
+        """确保工作目录是项目根目录"""
+        import os
+        # 获取 dynahmrc 包的路径
+        current_file = os.path.abspath(__file__)
+        # dynahmrc/system.py -> 项目根目录
+        root_dir = os.path.dirname(os.path.dirname(current_file))
+        
+        # 如果当前目录不是根目录，切换到根目录
+        if os.getcwd() != root_dir:
+            os.chdir(root_dir)
+            print(f"[DynaHMRCSystem] 切换工作目录到: {root_dir}")
+    
     def initialize(self) -> bool:
         """
         初始化系统（初始化 BestMan 场景和机器人）
@@ -140,6 +153,9 @@ class DynaHMRCSystem:
         """
         try:
             print("[DynaHMRCSystem] 开始初始化...")
+            
+            # 确保工作目录正确（Config/utils.py 使用相对路径）
+            self._ensure_working_directory()
             
             # 1. 初始化 PyBullet 客户端和可视化器
             self._init_pybullet()
