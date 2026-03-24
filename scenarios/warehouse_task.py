@@ -51,7 +51,7 @@ class WarehouseTaskScenario:
             {
                 "name": "box_1",
                 "type": "box",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/004_sugar_box/decomp.obj",
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Box/100129/mobility.urdf",
                 "position": [1.5, 0, 1.0],
                 "orientation": [0, 0, 0, 1]
             },
@@ -59,16 +59,16 @@ class WarehouseTaskScenario:
             {
                 "name": "box_2",
                 "type": "box",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/004_sugar_box/decomp.obj",
-                "position": [1.5, 0.3, 1.0],
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Box/100154/mobility.urdf",
+                "position": [1.5, 0.5, 1.0],
                 "orientation": [0, 0, 0, 1]
             },
             # 箱子 3
             {
                 "name": "box_3",
                 "type": "box",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/004_sugar_box/decomp.obj",
-                "position": [1.5, -0.3, 1.0],
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Box/100162/mobility.urdf",
+                "position": [1.5, -0.5, 1.0],
                 "orientation": [0, 0, 0, 1]
             },
         ]
