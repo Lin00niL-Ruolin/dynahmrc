@@ -296,9 +296,11 @@ class DynaHMRCSystem:
         # 将 provider 映射为 client_type
         client_type = "kimi" if provider == "kimi" else "mock"
         
-        # 移除不需要的参数
+        # 移除不需要的参数（这些参数由协调器管理，不传递给 LLM 客户端）
         llm_config.pop("enable_replanning", None)
         llm_config.pop("max_replan_attempts", None)
+        llm_config.pop("temperature", None)
+        llm_config.pop("model", None)
         
         llm_client = create_llm_client(client_type=client_type, **llm_config)
         
