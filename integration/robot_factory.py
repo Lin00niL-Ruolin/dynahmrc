@@ -134,6 +134,7 @@ class RobotFactory:
                 'arm_num_dofs': 7,
                 'eef_id': 7,
                 'tcp_link': 7,
+                'tcp_height': 0.05,
                 'arm_place_height': 1.0,
                 'arm_reset_jointValues': [0.0, -0.5, 0.0, -2.5, 0.0, 2.0, 0.0],
             })
