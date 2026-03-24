@@ -19,7 +19,8 @@ from enum import Enum
 # 导入 BestMan 核心组件
 from Env.Client import Client
 from Visualization.Visualizer import Visualizer
-from Config import load_config
+# 注：不直接使用 Config.load_config，因为它使用相对路径
+# 我们将在 _init_pybullet 中自己加载配置
 
 # 导入 dyna_hmrc_web 的 LLM 逻辑层
 from Dyna_hmrc_web.dynahmrc_web.dynahmrc.coordinator import (
@@ -184,10 +185,39 @@ class DynaHMRCSystem:
             traceback.print_exc()
             return False
     
+    def _load_config_directly(self, config_path: str = "Config/default.yaml"):
+        """
+        直接加载配置文件（避免 Config.utils.load_config 的相对路径问题）
+        """
+        from yacs.config import CfgNode as CN
+        
+        # 获取当前文件所在目录（dynahmrc/）
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        # 项目根目录
+        root_dir = os.path.dirname(current_dir)
+        
+        # 构建绝对路径
+        if config_path.startswith("Config"):
+            default_config_path = os.path.join(root_dir, "Config", "default.yaml")
+            user_config_path = os.path.join(root_dir, config_path) if config_path else None
+        else:
+            default_config_path = os.path.join(root_dir, "Config", "default.yaml")
+            user_config_path = config_path if os.path.isabs(config_path) else os.path.join(root_dir, config_path)
+        
+        # 加载默认配置
+        with open(default_config_path, "r") as f:
+            cfg = CN.load_cfg(f)
+        
+        # 合并用户配置
+        if user_config_path and os.path.exists(user_config_path) and user_config_path != default_config_path:
+            cfg.merge_from_file(user_config_path)
+        
+        return cfg
+    
     def _init_pybullet(self):
         """初始化 PyBullet"""
         config_path = self.scene_config.get("config_path", "Config/default.yaml")
-        cfg = load_config(config_path)
+        cfg = self._load_config_directly(config_path)
         
         # 覆盖 GUI 设置
         if not self.enable_visualization:
