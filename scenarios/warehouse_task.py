@@ -143,6 +143,18 @@ class WarehouseTaskScenario:
         
         print("[WarehouseTask] 仓储协作场景已创建")
     
+    def _ensure_working_directory(self):
+        """确保工作目录是项目根目录"""
+        # 获取 dynahmrc 包的路径
+        current_file = os.path.abspath(__file__)
+        # dynahmrc/scenarios/warehouse_task.py -> 项目根目录
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        
+        # 如果当前目录不是根目录，切换到根目录
+        if os.getcwd() != root_dir:
+            os.chdir(root_dir)
+            print(f"[WarehouseTask] 切换工作目录到: {root_dir}")
+    
     def setup(self) -> bool:
         """
         设置场景
@@ -153,6 +165,9 @@ class WarehouseTaskScenario:
         print("\n" + "="*60)
         print("[WarehouseTask] 设置仓储协作场景")
         print("="*60 + "\n")
+        
+        # 确保工作目录正确
+        self._ensure_working_directory()
         
         try:
             # 创建 DynaHMRC 系统
