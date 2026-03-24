@@ -71,13 +71,34 @@ def run_warehouse_demo(
         >>> result = run_warehouse_demo(enable_gui=True, llm_provider="mock")
         >>> print(f"成功: {result.success}, 耗时: {result.execution_time:.2f}s")
     """
-    from dynahmrc.scenarios.warehouse_task import run_warehouse_demo as _run_demo
+    from dynahmrc.scenarios.warehouse_task import WarehouseTaskScenario
     
-    return _run_demo(
-        enable_gui=enable_gui,
-        llm_provider=llm_provider,
-        task_description=task_description
-    )
+    print("\n" + "="*70)
+    print(" DynaHMRC 仓储协作场景演示")
+    print("="*70)
+    print("\n场景描述:")
+    print("  - 仓库中有货架（A区）和手推车（B区）")
+    print("  - 3 个箱子需要搬运")
+    print("  - 使用异构机器人协作完成任务")
+    print("\n机器人配置:")
+    print("  1. mobile_base_1: 移动基座（负责导航和运输）")
+    print("  2. arm_1: 固定机械臂（负责抓取）")
+    print("  3. mobile_manipulator_1: 移动操作复合机器人（全能型）")
+    print("\n" + "="*70 + "\n")
+    
+    # 创建场景
+    scenario = WarehouseTaskScenario(enable_visualization=enable_gui)
+    
+    try:
+        # 运行任务
+        result = scenario.run_task(num_boxes=3)
+    except KeyboardInterrupt:
+        print("\n[WarehouseTask] 用户中断")
+        result = None
+    finally:
+        scenario.shutdown()
+    
+    return result
 
 
 def run_assembly_demo(
@@ -102,9 +123,35 @@ def run_assembly_demo(
         >>> result = run_assembly_demo(enable_gui=True)
         >>> print(f"成功: {result.success}")
     """
-    from dynahmrc.scenarios.assembly_task import run_assembly_demo as _run_demo
+    from dynahmrc.scenarios.assembly_task import AssemblyTaskScenario
     
-    return _run_demo(enable_gui=enable_gui, llm_provider=llm_provider)
+    print("\n" + "="*70)
+    print(" DynaHMRC 装配任务场景演示")
+    print("="*70)
+    print("\n场景描述:")
+    print("  - 装配底座位于中心")
+    print("  - 3 个零件需要按顺序装配")
+    print("  - 使用异构机器人协作完成精细装配")
+    print("\n机器人配置:")
+    print("  1. precision_arm_1: 精密机械臂（主要装配）")
+    print("  2. precision_arm_2: 精密机械臂（辅助装配）")
+    print("  3. helper_mobile_manipulator: 移动操作机器人（搬运零件）")
+    print("  4. logistics_mobile_base: 物流机器人（运输）")
+    print("\n" + "="*70 + "\n")
+    
+    # 创建场景
+    scenario = AssemblyTaskScenario(enable_visualization=enable_gui)
+    
+    try:
+        # 运行任务
+        result = scenario.run_task()
+    except KeyboardInterrupt:
+        print("\n[AssemblyTask] 用户中断")
+        result = None
+    finally:
+        scenario.shutdown()
+    
+    return result
 
 
 def run_custom_task(
