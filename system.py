@@ -228,9 +228,15 @@ class DynaHMRCSystem:
         
         print(f"[DynaHMRCSystem] PyBullet 客户端已创建 (GUI={cfg.Client.enable_GUI})")
     
+    def _get_project_root(self) -> str:
+        """获取项目根目录"""
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.dirname(current_dir)
+    
     def _load_scene(self):
         """加载场景物体"""
         objects = self.scene_config.get("objects", [])
+        root_dir = self._get_project_root()
         
         for obj in objects:
             obj_name = obj.get("name", "object")
@@ -239,9 +245,20 @@ class DynaHMRCSystem:
             orientation = obj.get("orientation", [0, 0, 0, 1])
             
             if model_path:
+                # 将相对路径转换为绝对路径
+                if not os.path.isabs(model_path):
+                    abs_model_path = os.path.join(root_dir, model_path)
+                else:
+                    abs_model_path = model_path
+                
+                # 检查文件是否存在
+                if not os.path.exists(abs_model_path):
+                    print(f"[DynaHMRCSystem] 警告: 模型文件不存在: {abs_model_path}")
+                    continue
+                
                 self.client.load_object(
                     obj_name=obj_name,
-                    model_path=model_path,
+                    model_path=abs_model_path,
                     object_position=position,
                     object_orientation=orientation
                 )
