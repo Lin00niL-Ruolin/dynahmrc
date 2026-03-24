@@ -198,6 +198,17 @@ class RobotFactory:
         # 合并默认配置和自定义配置
         merged = {**defaults, **custom_config}
         
+        # 提取 Camera 配置
+        camera_config = {
+            'fov': merged.pop('fov', 60),
+            'width': merged.pop('width', 640),
+            'height': merged.pop('height', 480),
+            'nearVal': merged.pop('nearVal', 0.1),
+            'farVal': merged.pop('farVal', 10.0),
+            'head_tilt': merged.pop('head_tilt', 0.0),
+            'enabled': merged.pop('camera_enabled', True),
+        }
+        
         # 创建简单的配置对象
         class Config:
             pass
@@ -210,7 +221,7 @@ class RobotFactory:
             'Kd': 0.05,
             'target_distance': 0.0
         })()
-        cfg.Camera = type('Camera', (), {'enabled': False})()
+        cfg.Camera = type('Camera', (), camera_config)()
         
         return cfg
     
