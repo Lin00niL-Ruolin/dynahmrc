@@ -288,9 +288,8 @@ class MobileBaseAdapter:
     
     def sim_get_current_base_pose(self):
         """获取当前基座位姿"""
-        from Robotics_API.Pose import Pose
-        pos, orn = self.client.get_object_pose(self.base_id)
-        return Pose(pos, orn)
+        # client.get_object_pose() 返回 Pose 对象
+        return self.client.get_object_pose(self.base_id)
     
     def sim_stop_base(self):
         """停止基座"""
