@@ -207,6 +207,8 @@ class RobotFactory:
             'farVal': merged.pop('farVal', 10.0),
             'head_tilt': merged.pop('head_tilt', 0.0),
             'enabled': merged.pop('camera_enabled', True),
+            'min_depth': merged.pop('min_depth', 0.1),
+            'max_depth': merged.pop('max_depth', 10.0),
         }
         
         # 创建简单的配置对象
