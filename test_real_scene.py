@@ -26,6 +26,24 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 from dynahmrc_web.dynahmrc.utils.llm_api import MockLLMClient
 
 
+def load_config(config_path: str = "Config/default.yaml"):
+    """加载配置文件"""
+    from yacs.config import CfgNode as CN
+    
+    # 获取项目根目录
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
+    # 构建绝对路径
+    if not os.path.isabs(config_path):
+        config_path = os.path.join(project_root, config_path)
+    
+    # 加载配置
+    with open(config_path, "r") as f:
+        cfg = CN.load_cfg(f)
+    
+    return cfg
+
+
 def test_real_scene():
     """在真实 BestMan 场景中测试"""
     print("\n" + "="*60)
@@ -42,17 +60,25 @@ def test_real_scene():
     # 检查配置文件是否存在
     if not os.path.exists(config_path):
         print(f"   [WARN] 配置文件不存在: {config_path}")
-        print("   使用默认配置...")
-        config_path = None
+        print("   请确保 Config/default.yaml 存在")
+        return None
     else:
         print(f"   找到配置文件: {config_path}")
     
     try:
-        client = Client(config_path=config_path, gui=False)  # 无 GUI 模式，适合测试
+        # 加载配置
+        cfg = load_config(config_path)
+        
+        # 禁用 GUI 用于测试
+        cfg.Client.enable_GUI = False
+        
+        # 创建 Client（传入 cfg.Client 而不是 config_path）
+        client = Client(cfg.Client)
         print("   ✓ BestMan 客户端初始化成功")
     except Exception as e:
         print(f"   [ERROR] 初始化失败: {e}")
-        print("   请确保 BestMan 环境已正确安装")
+        import traceback
+        traceback.print_exc()
         return None
     
     # 2. 创建测试场景
