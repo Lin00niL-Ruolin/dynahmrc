@@ -243,6 +243,7 @@ class DynaHMRCSystem:
             model_path = obj.get("model_path")
             position = obj.get("position", [0, 0, 0])
             orientation = obj.get("orientation", [0, 0, 0, 1])
+            scale = obj.get("scale", 1)
             
             if model_path:
                 # 将相对路径转换为绝对路径
@@ -260,7 +261,8 @@ class DynaHMRCSystem:
                     obj_name=obj_name,
                     model_path=abs_model_path,
                     object_position=position,
-                    object_orientation=orientation
+                    object_orientation=orientation,
+                    scale=scale
                 )
         
         print(f"[DynaHMRCSystem] 已加载 {len(objects)} 个场景物体")
