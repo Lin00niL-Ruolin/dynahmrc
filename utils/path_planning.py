@@ -203,7 +203,15 @@ class AStarPlanner:
         else:
             print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
         print(f"[A*] 已探索节点数: {len(closed_set)}")
-        return None
+        
+        # 尝试扩大搜索范围：清除起点和终点周围的障碍物后重试
+        print(f"[A*] 尝试扩大搜索范围，清除起点和终点周围障碍物...")
+        self._clear_nearby_obstacles(start_node.x, start_node.y, radius=3)
+        self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=3)
+        
+        # 重新规划
+        print(f"[A*] 重新规划路径...")
+        return self._plan_with_current_obstacles(start_node, goal_node)
     
     def _clear_nearby_obstacles(self, x: int, y: int, radius: int = 2):
         """清除指定位置附近的障碍物"""
@@ -224,6 +232,63 @@ class AStarPlanner:
             print(f"[A*] 清除的障碍物位置: {cleared_positions}")
         else:
             print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
+    
+    def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node) -> Optional[List[List[float]]]:
+        """使用当前的障碍物地图重新规划路径（不重置障碍物）"""
+        open_set = []
+        heapq.heappush(open_set, start_node)
+        closed_set: Set[Tuple[int, int]] = set()
+        open_set_dict: Dict[Tuple[int, int], Node] = {(start_node.x, start_node.y): start_node}
+        
+        iteration = 0
+        max_iterations = 5000
+        
+        while open_set and iteration < max_iterations:
+            current = heapq.heappop(open_set)
+            iteration += 1
+            
+            if (current.x, current.y) in open_set_dict:
+                del open_set_dict[(current.x, current.y)]
+            
+            if current == goal_node:
+                path = self._reconstruct_path(current)
+                print(f"[A*] 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点")
+                return path
+            
+            closed_set.add((current.x, current.y))
+            
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1), 
+                           (-1, -1), (-1, 1), (1, -1), (1, 1)]:
+                neighbor_x = current.x + dx
+                neighbor_y = current.y + dy
+                
+                if (neighbor_x, neighbor_y) in closed_set:
+                    continue
+                if (neighbor_x, neighbor_y) in self.obstacles:
+                    continue
+                
+                move_cost = math.sqrt(dx * dx + dy * dy) * self.resolution
+                g = current.g + move_cost
+                h = self._heuristic(neighbor_x, neighbor_y, goal_node)
+                
+                neighbor_key = (neighbor_x, neighbor_y)
+                if neighbor_key in open_set_dict:
+                    existing = open_set_dict[neighbor_key]
+                    if g < existing.g:
+                        existing.g = g
+                        existing.f = g + h
+                        existing.parent = current
+                else:
+                    neighbor = Node(neighbor_x, neighbor_y, g, h)
+                    neighbor.parent = current
+                    heapq.heappush(open_set, neighbor)
+                    open_set_dict[neighbor_key] = neighbor
+        
+        if iteration >= max_iterations:
+            print(f"[A*] 重新规划超时!")
+        else:
+            print(f"[A*] 重新规划仍无法找到路径!")
+        return None
     
     def _heuristic(self, x: int, y: int, goal: Node) -> float:
         """启发式函数（欧几里得距离）"""
