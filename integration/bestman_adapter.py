@@ -273,13 +273,28 @@ class BestManAdapter:
             # 尝试从场景对象映射中查找
             object_id = self._resolve_object_id(object_id)
         
-        success = robot.pick(object_id)
-        
-        state = robot.get_state()
-        return success, f"抓取物体 {object_name}", {
-            "is_holding_object": state.get("is_holding_object", False),
-            "held_object_id": state.get("held_object_id")
-        }
+        try:
+            success = robot.pick(object_id)
+            
+            state = robot.get_state()
+            
+            if not success:
+                error_info = getattr(robot, 'error_status', 'Unknown error')
+                return False, f"抓取物体 {object_name}", {
+                    "is_holding_object": state.get("is_holding_object", False),
+                    "held_object_id": state.get("held_object_id"),
+                    "error": error_info
+                }
+            
+            return True, f"抓取物体 {object_name}", {
+                "is_holding_object": state.get("is_holding_object", False),
+                "held_object_id": state.get("held_object_id")
+            }
+        except Exception as e:
+            import traceback
+            error_msg = f"{str(e)}\n{traceback.format_exc()}"
+            print(f"[ERROR] 抓取失败: {error_msg}")
+            return False, f"抓取异常: {str(e)}", {"error": error_msg}
     
     def _handle_place(self, robot: Any, params: Dict) -> tuple:
         """处理放置动作"""
@@ -292,13 +307,28 @@ class BestManAdapter:
         else:
             return False, f"不支持的目标格式: {type(target)}", {}
         
-        success = robot.place(position)
-        
-        state = robot.get_state()
-        return success, f"放置到 {position}", {
-            "is_holding_object": state.get("is_holding_object", False),
-            "held_object_id": state.get("held_object_id")
-        }
+        try:
+            success = robot.place(position)
+            
+            state = robot.get_state()
+            
+            if not success:
+                error_info = getattr(robot, 'error_status', 'Unknown error')
+                return False, f"放置到 {position}", {
+                    "is_holding_object": state.get("is_holding_object", False),
+                    "held_object_id": state.get("held_object_id"),
+                    "error": error_info
+                }
+            
+            return True, f"放置到 {position}", {
+                "is_holding_object": state.get("is_holding_object", False),
+                "held_object_id": state.get("held_object_id")
+            }
+        except Exception as e:
+            import traceback
+            error_msg = f"{str(e)}\n{traceback.format_exc()}"
+            print(f"[ERROR] 放置失败: {error_msg}")
+            return False, f"放置异常: {str(e)}", {"error": error_msg}
     
     def _handle_transport(self, robot: Any, params: Dict) -> tuple:
         """处理运输动作"""
