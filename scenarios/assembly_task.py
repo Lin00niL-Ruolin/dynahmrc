@@ -44,7 +44,7 @@ class AssemblyTaskScenario:
             {
                 "name": "part_A",
                 "type": "part",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3558/result.json",
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3558/mobility.urdf",
                 "position": [1.0, 1.0, 0.5],
                 "orientation": [0, 0, 0, 1]
             },
@@ -52,7 +52,7 @@ class AssemblyTaskScenario:
             {
                 "name": "part_B",
                 "type": "part",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3574/result.json",
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3574/mobility.urdf",
                 "position": [1.2, 1.0, 0.5],
                 "orientation": [0, 0, 0, 1]
             },
@@ -60,7 +60,7 @@ class AssemblyTaskScenario:
             {
                 "name": "part_C",
                 "type": "part",
-                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3614/result.json",
+                "model_path": "Asset/Scene/Object/Kitchen_world_models/Bottle/3614/mobility.urdf",
                 "position": [1.4, 1.0, 0.5],
                 "orientation": [0, 0, 0, 1]
             },
