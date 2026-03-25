@@ -447,20 +447,18 @@ class MobileManipulator:
     
     def _create_grasp_constraint(self, object_id: int):
         """创建抓取约束"""
-        if hasattr(self.bestman, 'sim_create_gripper_constraint'):
-            self.bestman.sim_create_gripper_constraint(object_id, -1)
-        else:
-            self.constraint_id = p.createConstraint(
-                parentBodyUniqueId=self.bestman.arm_id,
-                parentLinkIndex=self.bestman.eef_id,
-                childBodyUniqueId=object_id,
-                childLinkIndex=-1,
-                jointType=p.JOINT_FIXED,
-                jointAxis=[0, 0, 0],
-                parentFramePosition=[0, 0, 0],
-                childFramePosition=[0, 0, 0],
-                physicsClientId=self.bestman.client_id
-            )
+        # 直接使用 PyBullet 创建约束，避免 BestMan 方法中的 getLinkState 问题
+        self.constraint_id = p.createConstraint(
+            parentBodyUniqueId=self.bestman.arm_id,
+            parentLinkIndex=self.bestman.eef_id,
+            childBodyUniqueId=object_id,
+            childLinkIndex=-1,  # -1 表示 base
+            jointType=p.JOINT_FIXED,
+            jointAxis=[0, 0, 0],
+            parentFramePosition=[0, 0, 0],
+            childFramePosition=[0, 0, 0],
+            physicsClientId=self.bestman.client_id
+        )
     
     def _remove_grasp_constraint(self):
         """移除抓取约束"""
