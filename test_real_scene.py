@@ -164,10 +164,19 @@ def test_real_scene():
     print("\n4. 创建 BestManAdapter...")
     try:
         all_robots = robot_factory.get_all_robots()
-        adapter = BestManAdapter(all_robots)
+        adapter = BestManAdapter(all_robots, client)
+        
+        # 注册场景物体
+        adapter.register_scene_object("table", table_id, "furniture")
+        adapter.register_scene_object("box", box_id, "graspable")
+        adapter.register_scene_object("target_zone", target_id, "marker")
+        
         print(f"   ✓ Adapter 创建成功，管理 {len(all_robots)} 个机器人")
+        print(f"   ✓ 注册 {len(adapter.scene_objects)} 个场景物体")
     except Exception as e:
         print(f"   [ERROR] 创建 Adapter 失败: {e}")
+        import traceback
+        traceback.print_exc()
         return None
     
     # 5. 测试 Scene Graph 获取

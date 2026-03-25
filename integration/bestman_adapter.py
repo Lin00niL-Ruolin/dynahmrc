@@ -78,14 +78,17 @@ class BestManAdapter:
     - 维护机器人状态映射
     """
     
-    def __init__(self, robot_registry: Dict[str, Any]):
+    def __init__(self, robot_registry: Dict[str, Any], client: Any = None):
         """
         初始化适配器
         
         Args:
             robot_registry: 机器人注册表 {robot_id: robot_instance}
+            client: BestMan Client 实例（可选），用于获取场景信息
         """
         self.robot_registry = robot_registry
+        self.client = client
+        self.scene_objects: Dict[str, Dict] = {}  # 存储场景物体信息
         self.action_handlers: Dict[ActionType, Callable] = {
             ActionType.NAVIGATE: self._handle_navigate,
             ActionType.PICK: self._handle_pick,
@@ -455,6 +458,22 @@ class BestManAdapter:
             for rid, robot in self.robot_registry.items()
         }
     
+    def register_scene_object(self, obj_name: str, obj_id: int, obj_type: str = "object"):
+        """
+        注册场景物体
+        
+        Args:
+            obj_name: 物体名称
+            obj_id: PyBullet 物体 ID
+            obj_type: 物体类型
+        """
+        self.scene_objects[obj_name] = {
+            'id': obj_id,
+            'type': obj_type,
+            'name': obj_name
+        }
+        print(f"[BestManAdapter] 注册场景物体: {obj_name} (ID: {obj_id})")
+    
     def get_scene_graph(self) -> Dict[str, Dict]:
         """
         获取场景图（Scene Graph）
@@ -465,34 +484,25 @@ class BestManAdapter:
         """
         scene_graph = {}
         
-        # Try to get scene objects from the first robot's environment
-        # In BestMan, scene objects are typically managed by the simulation environment
+        # 从注册的物体中获取信息
         try:
-            # Get the first robot to access the simulation
-            first_robot = next(iter(self.robot_registry.values()), None)
-            if first_robot and hasattr(first_robot, 'env'):
-                env = first_robot.env
-                
-                # Try to get objects from environment
-                if hasattr(env, 'get_objects'):
-                    objects = env.get_objects()
-                    for obj_id, obj_info in objects.items():
-                        scene_graph[obj_info.get('name', f'object_{obj_id}')] = {
-                            'id': obj_id,
-                            'position': obj_info.get('position', [0, 0, 0]),
-                            'orientation': obj_info.get('orientation', [0, 0, 0, 1]),
-                            'type': obj_info.get('type', 'unknown'),
-                            'is_grasped': obj_info.get('is_grasped', False)
-                        }
-                elif hasattr(env, 'scene_objects'):
-                    # Alternative: directly access scene_objects
-                    for obj_name, obj_data in env.scene_objects.items():
+            import pybullet as p
+            
+            for obj_name, obj_info in self.scene_objects.items():
+                obj_id = obj_info.get('id')
+                if obj_id is not None:
+                    try:
+                        # 从 PyBullet 获取物体当前位置和朝向
+                        pos, orn = p.getBasePositionAndOrientation(obj_id)
                         scene_graph[obj_name] = {
-                            'position': obj_data.get('position', [0, 0, 0]),
-                            'orientation': obj_data.get('orientation', [0, 0, 0, 1]),
-                            'type': obj_data.get('type', 'unknown'),
-                            'model_path': obj_data.get('model_path', '')
+                            'id': obj_id,
+                            'position': list(pos),
+                            'orientation': list(orn),
+                            'type': obj_info.get('type', 'unknown'),
+                            'is_grasped': False  # TODO: 检查是否被抓取
                         }
+                    except Exception as e:
+                        print(f"[BestManAdapter] 获取物体 {obj_name} 状态失败: {e}")
         except Exception as e:
             print(f"[BestManAdapter] Failed to get scene graph: {e}")
         
