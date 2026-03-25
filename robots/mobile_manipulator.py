@@ -462,6 +462,10 @@ class MobileManipulator:
                     obj_pos[1] - approach_distance * math.sin(angle),
                     self.position[2]
                 ]
+                
+                print(f"[MobileManipulator] pick: 物体距离 {distance:.3f}m，超出操作范围 {self.manipulation_range}m")
+                print(f"[MobileManipulator] pick: 物体位置 {obj_pos[:2]}，机器人位置 {self.position[:2]}")
+                print(f"[MobileManipulator] pick: 计算接近位置 {approach_pos[:2]}，角度 {math.degrees(angle):.1f}°")
 
                 if not self.navigate_to(approach_pos, scene_objects=scene_objects):
                     self.error_status = f"pick_failed: 导航到抓取位置失败"
