@@ -166,6 +166,13 @@ class BestManAdapter:
             # 获取传感器数据
             sensor_data = self._get_sensor_data(robot)
             
+            # 提取错误信息（如果有）
+            error_code = None
+            error_details = None
+            if not success:
+                error_code = "ACTION_FAILED"
+                error_details = state_changes.get("error", "Unknown error")
+            
             return ExecutionFeedback(
                 success=success,
                 action_type=action,
@@ -173,7 +180,9 @@ class BestManAdapter:
                 message=message,
                 execution_time=execution_time,
                 state_changes=state_changes,
-                sensor_data=sensor_data
+                sensor_data=sensor_data,
+                error_code=error_code,
+                error_details=error_details
             )
             
         except Exception as e:
@@ -228,13 +237,28 @@ class BestManAdapter:
         else:
             return False, f"不支持的目标格式: {type(target)}", {}
         
-        success = robot.navigate_to(position, orientation)
-        
-        state = robot.get_state()
-        return success, f"导航到 {position}", {
-            "position": state.get("position"),
-            "orientation": state.get("orientation")
-        }
+        try:
+            success = robot.navigate_to(position, orientation)
+            
+            state = robot.get_state()
+            
+            if not success:
+                error_info = getattr(robot, 'error_status', 'Unknown error')
+                return False, f"导航到 {position}", {
+                    "position": state.get("position"),
+                    "orientation": state.get("orientation"),
+                    "error": error_info
+                }
+            
+            return True, f"导航到 {position}", {
+                "position": state.get("position"),
+                "orientation": state.get("orientation")
+            }
+        except Exception as e:
+            import traceback
+            error_msg = f"{str(e)}\n{traceback.format_exc()}"
+            print(f"[ERROR] 导航失败: {error_msg}")
+            return False, f"导航异常: {str(e)}", {"error": error_msg}
     
     def _handle_pick(self, robot: Any, params: Dict) -> tuple:
         """处理抓取动作"""
