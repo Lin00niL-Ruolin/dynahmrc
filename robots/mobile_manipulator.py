@@ -201,8 +201,19 @@ class MobileManipulator:
                 scene_objects
             )
             
+            # 调试信息：显示每一步的速度
+            if step % 10 == 0 or v > 0.001:
+                print(f"[MobileManipulator] Step {step}: v={v:.4f}m/s, yaw_rate={yaw_rate:.4f}rad/s, pos=[{self.position[0]:.3f}, {self.position[1]:.3f}]")
+            
             # 应用速度
+            old_pos = self.position.copy()
             self._apply_velocity(v, yaw_rate, obstacle_positions)
+            
+            # 检查位置是否变化
+            self._update_pose()
+            pos_change = math.sqrt((self.position[0] - old_pos[0])**2 + (self.position[1] - old_pos[1])**2)
+            if v > 0.001 and pos_change < 0.001:
+                print(f"[MobileManipulator] ⚠️ 警告: 速度 {v:.4f} 但位置未变化 {pos_change:.6f}m")
             
             current_v = v
             current_yaw_rate = yaw_rate
@@ -254,7 +265,9 @@ class MobileManipulator:
         )
         
         # 同时移动机械臂（如果有的话）
+        print(f"[_apply_velocity] 检查机械臂: arm_id={getattr(self.bestman, 'arm_id', None)}, gripper_id={getattr(self.bestman, 'gripper_id', None)}")
         if hasattr(self.bestman, 'arm_id') and self.bestman.arm_id is not None:
+            print(f"[_apply_velocity] 移动机械臂 ID: {self.bestman.arm_id}")
             # 获取机械臂当前位置
             arm_pos, arm_orn = p.getBasePositionAndOrientation(
                 self.bestman.arm_id, physicsClientId=self.bestman.client_id
