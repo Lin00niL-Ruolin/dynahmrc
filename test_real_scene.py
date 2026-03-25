@@ -200,20 +200,75 @@ def test_real_scene():
     print("\n   7.1 测试 navigate 动作...")
     try:
         feedback = adapter.execute_action(
-            'robot_1', 
-            'navigate', 
+            'robot_1',
+            'navigate',
             {'target': [0.3, 0, 0]}  # 导航到桌子附近
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
             print("   ✓ 导航成功")
         else:
-            print(f"   ✗ 导航失败: {feedback.error_details}")
+            print(f"   ✗ 导航失败!")
+            print(f"      error_code: {feedback.error_code}")
+            print(f"      error_details: {feedback.error_details}")
     except Exception as e:
         print(f"   [ERROR] 导航测试失败: {e}")
-    
-    # 7.2 等待测试
-    print("\n   7.2 测试 wait 动作...")
+        import traceback
+        traceback.print_exc()
+
+    # 7.2 抓取测试
+    print("\n   7.2 测试 pick 动作...")
+    try:
+        # 先导航到箱子附近
+        print("      先导航到箱子附近...")
+        feedback = adapter.execute_action(
+            'robot_1',
+            'navigate',
+            {'target': [0.5, 0, 0]}
+        )
+        print(f"      导航结果: success={feedback.success}")
+
+        # 尝试抓取箱子 (box_id 是 1)
+        print("      尝试抓取箱子...")
+        feedback = adapter.execute_action(
+            'robot_1',
+            'pick',
+            {'object_id': 1, 'object_name': 'box'}
+        )
+        print(f"   结果: success={feedback.success}, message={feedback.message}")
+        if feedback.success:
+            print("   ✓ 抓取成功")
+        else:
+            print(f"   ✗ 抓取失败!")
+            print(f"      error_code: {feedback.error_code}")
+            print(f"      error_details: {feedback.error_details}")
+    except Exception as e:
+        print(f"   [ERROR] 抓取测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # 7.3 放置测试
+    print("\n   7.3 测试 place 动作...")
+    try:
+        feedback = adapter.execute_action(
+            'robot_1',
+            'place',
+            {'target': [1.0, 0, 0.5]}
+        )
+        print(f"   结果: success={feedback.success}, message={feedback.message}")
+        if feedback.success:
+            print("   ✓ 放置成功")
+        else:
+            print(f"   ✗ 放置失败!")
+            print(f"      error_code: {feedback.error_code}")
+            print(f"      error_details: {feedback.error_details}")
+    except Exception as e:
+        print(f"   [ERROR] 放置测试失败: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # 7.4 等待测试
+    print("\n   7.4 测试 wait 动作...")
     try:
         feedback = adapter.execute_action(
             'robot_2',
