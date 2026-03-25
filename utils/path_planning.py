@@ -204,14 +204,42 @@ class AStarPlanner:
             print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
         print(f"[A*] 已探索节点数: {len(closed_set)}")
         
+        # 检查起点和终点的可达性
+        start_reachable = self._count_reachable_cells(start_node.x, start_node.y)
+        goal_reachable = self._count_reachable_cells(goal_node.x, goal_node.y)
+        print(f"[A*] 起点可达区域: {start_reachable} 个栅格")
+        print(f"[A*] 终点可达区域: {goal_reachable} 个栅格")
+        
         # 尝试扩大搜索范围：清除起点和终点周围的障碍物后重试
         print(f"[A*] 尝试扩大搜索范围，清除起点和终点周围障碍物...")
-        self._clear_nearby_obstacles(start_node.x, start_node.y, radius=3)
-        self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=3)
+        self._clear_nearby_obstacles(start_node.x, start_node.y, radius=5)
+        self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=5)
         
         # 重新规划
         print(f"[A*] 重新规划路径...")
         return self._plan_with_current_obstacles(start_node, goal_node)
+    
+    def _count_reachable_cells(self, x: int, y: int, max_depth: int = 50) -> int:
+        """从指定位置开始，计算可达的栅格数量（使用BFS）"""
+        if (x, y) in self.obstacles:
+            return 0
+        
+        visited = set()
+        queue = [(x, y)]
+        visited.add((x, y))
+        count = 0
+        
+        while queue and count < max_depth:
+            cx, cy = queue.pop(0)
+            count += 1
+            
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nx, ny = cx + dx, cy + dy
+                if (nx, ny) not in visited and (nx, ny) not in self.obstacles:
+                    visited.add((nx, ny))
+                    queue.append((nx, ny))
+        
+        return count
     
     def _clear_nearby_obstacles(self, x: int, y: int, radius: int = 2):
         """清除指定位置附近的障碍物"""
