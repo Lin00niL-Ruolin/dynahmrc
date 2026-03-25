@@ -73,6 +73,20 @@ class MobileManipulator:
             euler = p.getEulerFromQuaternion(self.orientation)
             self.yaw = euler[2]
     
+    def _update_camera(self):
+        """更新相机位置跟随机器人"""
+        if hasattr(self.bestman, 'visualizer') and self.bestman.visualizer:
+            visualizer = self.bestman.visualizer
+            if hasattr(visualizer, 'set_camera_pose'):
+                # 获取当前相机配置
+                camera_cfg = type('Camera', (), {})()
+                # 设置相机距离、角度和位置
+                camera_cfg.dist = 2.0  # 距离机器人2米
+                camera_cfg.yaw = math.degrees(self.yaw) + 90  # 从机器人后方看
+                camera_cfg.pitch = -30  # 俯视角度
+                camera_cfg.position = self.position  # 相机看向机器人位置
+                visualizer.set_camera_pose(camera_cfg)
+    
     def get_state(self) -> Dict[str, Any]:
         """获取机器人当前状态"""
         self._update_pose()
@@ -204,6 +218,9 @@ class MobileManipulator:
             
             # 应用速度
             self._apply_velocity(v, yaw_rate, obstacle_positions)
+            
+            # 更新相机跟随
+            self._update_camera()
             
             current_v = v
             current_yaw_rate = yaw_rate
