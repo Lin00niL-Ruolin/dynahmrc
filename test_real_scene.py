@@ -237,12 +237,12 @@ def test_real_scene():
         )
         print(f"      导航结果: success={feedback.success}")
 
-        # 尝试抓取箱子 (box_id 是 1)
+        # 尝试抓取箱子（使用物体名称）
         print("      尝试抓取箱子...")
         feedback = adapter.execute_action(
             'robot_1',
             'pick',
-            {'object_id': 1, 'object_name': 'box'}
+            {'object_id': 'box', 'object_name': 'box'}  # 使用物体名称
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:

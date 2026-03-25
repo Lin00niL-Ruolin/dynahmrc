@@ -436,13 +436,32 @@ class BestManAdapter:
         return sensor_data
     
     def _resolve_object_id(self, object_name: str) -> int:
-        """解析物体名称到 PyBullet ID"""
-        # 这里应该实现物体名称到 ID 的映射
-        # 简化实现：假设名称就是 ID 的字符串形式
+        """
+        解析物体名称到 PyBullet ID
+        
+        Args:
+            object_name: 物体名称（如 "box"）或 ID 字符串（如 "1"）
+        
+        Returns:
+            PyBullet 物体 ID，如果找不到返回 -1
+        """
+        # 1. 首先尝试从 scene_objects 中查找
+        if object_name in self.scene_objects:
+            return self.scene_objects[object_name].get('id', -1)
+        
+        # 2. 尝试将名称作为整数 ID 解析
         try:
             return int(object_name)
         except ValueError:
-            return -1
+            pass
+        
+        # 3. 尝试模糊匹配（忽略大小写）
+        for name, info in self.scene_objects.items():
+            if name.lower() == object_name.lower():
+                return info.get('id', -1)
+        
+        print(f"[BestManAdapter] 警告: 找不到物体 '{object_name}'")
+        return -1
     
     def get_robot_states(self) -> Dict[str, Dict]:
         """获取所有机器人状态"""
