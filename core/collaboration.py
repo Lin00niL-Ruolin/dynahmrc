@@ -17,13 +17,9 @@ from dataclasses import dataclass, field
 
 from .robot_agent import RobotAgent, CollaborationPhase
 
-# Import visualization (with fallback)
-try:
-    from ..visualization.speech_bubble import SpeechBubbleVisualizer
-    VISUALIZATION_AVAILABLE = True
-except ImportError:
-    VISUALIZATION_AVAILABLE = False
-    SpeechBubbleVisualizer = None
+# Visualization disabled
+VISUALIZATION_AVAILABLE = False
+SpeechBubbleVisualizer = None
 
 
 class CollaborationPhase(Enum):
