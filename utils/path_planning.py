@@ -439,17 +439,10 @@ class PathPlanner:
                 # 获取物体尺寸（如果有）
                 size = obj_info.get('size', [0.1, 0.1, 0.1])
                 # 使用 x-y 平面的最大半径
-                raw_radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
-                
-                # 对家具类障碍物使用更小的膨胀半径（避免过度膨胀）
-                if obj_type == 'furniture':
-                    # 家具只膨胀其实际尺寸的一半，因为 AABB 往往比实际占用空间大
-                    radius = raw_radius * 0.5
-                    print(f"[PathPlanner] 家具 '{obj_name}': 原始半径 {raw_radius:.2f}m -> 使用半径 {radius:.2f}m")
-                else:
-                    radius = raw_radius
+                radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
                 
                 obstacle_sizes.append(radius)
+                print(f"[PathPlanner] 障碍物 '{obj_name}': 位置 [{pos[0]:.2f}, {pos[1]:.2f}], 半径 {radius:.2f}m")
         
         self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
     
