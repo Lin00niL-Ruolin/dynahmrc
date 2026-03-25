@@ -14,6 +14,8 @@ import json
 from typing import Dict, List, Any, Optional, Tuple, Callable
 from enum import Enum
 from dataclasses import dataclass, field
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 
 from .robot_agent import RobotAgent, CollaborationPhase
 
@@ -103,7 +105,10 @@ class FourStageCollaboration:
         robots: List[RobotAgent],
         max_execution_steps: int = 100,
         enable_communication: bool = True,
-        enable_visualization: bool = True
+        enable_visualization: bool = True,
+        max_workers: int = 4,
+        reflection_interval: int = 10,
+        enable_reflection: bool = True
     ):
         """
         Initialize four-stage collaboration
@@ -113,11 +118,17 @@ class FourStageCollaboration:
             max_execution_steps: Maximum execution steps
             enable_communication: Whether to enable inter-robot communication
             enable_visualization: Whether to enable speech bubble visualization
+            max_workers: Maximum number of worker threads for parallel processing
+            reflection_interval: Steps between reflection stages (∆t in paper)
+            enable_reflection: Whether to enable periodic reflection
         """
         self.robots: Dict[str, RobotAgent] = {r.name: r for r in robots}
         self.max_execution_steps = max_execution_steps
         self.enable_communication = enable_communication
         self.enable_visualization = enable_visualization and VISUALIZATION_AVAILABLE
+        self.max_workers = max_workers
+        self.reflection_interval = reflection_interval
+        self.enable_reflection = enable_reflection
         
         # Collaboration state
         self.manager = CollaborationManager()
@@ -127,6 +138,11 @@ class FourStageCollaboration:
         # Results
         self.execution_history: List[Dict] = []
         self.start_time: Optional[float] = None
+        self.reflection_history: List[Dict] = []
+        
+        # Thread safety
+        self._visualizer_lock = Lock()
+        self._history_lock = Lock()
         
         # Visualization
         self.visualizer: Optional[SpeechBubbleVisualizer] = None
@@ -258,27 +274,41 @@ class FourStageCollaboration:
     def _run_self_description(self, task: str) -> Dict[str, str]:
         """
         Stage 1: Self-Description
-        Each robot generates its self-introduction
+        Each robot generates its self-introduction in parallel
         
         Returns:
             Dict of {robot_name: description}
         """
         print("\n" + "="*60)
-        print("Stage 1: Self-Description")
+        print("Stage 1: Self-Description (Parallel)")
         print("="*60)
         
         descriptions = {}
         
-        for name, robot in self.robots.items():
+        def describe_robot(name_robot_pair: Tuple[str, RobotAgent]) -> Tuple[str, str]:
+            """Worker function for parallel self-description"""
+            name, robot = name_robot_pair
             print(f"\n[Self-Description] Robot {name} is introducing itself...")
             thought, description = robot.self_describe(task)
-            descriptions[name] = description
             print(f"[Self-Description] {name}: {description}")
             
-            # Show speech bubble
+            # Show speech bubble (thread-safe)
             if self.visualizer:
-                self.visualizer.show_self_description(name, description)
-                time.sleep(0.5)  # Small delay for visual effect
+                with self._visualizer_lock:
+                    self.visualizer.show_self_description(name, description)
+            
+            return name, description
+        
+        # Execute self-descriptions in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(describe_robot, (name, robot)): name 
+                for name, robot in self.robots.items()
+            }
+            
+            for future in as_completed(futures):
+                name, description = future.result()
+                descriptions[name] = description
         
         self.manager.transition_to(CollaborationPhase.TASK_ALLOCATION)
         return descriptions
@@ -290,7 +320,7 @@ class FourStageCollaboration:
     ) -> Dict[str, Tuple[Dict, str]]:
         """
         Stage 2: Task Allocation
-        Each robot proposes a task allocation plan and leadership bid
+        Each robot proposes a task allocation plan and leadership bid in parallel
         
         Args:
             task: Task description
@@ -300,26 +330,40 @@ class FourStageCollaboration:
             Dict of {robot_name: (plan, campaign_speech)}
         """
         print("\n" + "="*60)
-        print("Stage 2: Task Allocation & Leadership Bidding")
+        print("Stage 2: Task Allocation & Leadership Bidding (Parallel)")
         print("="*60)
         
         proposals = {}
         
-        for name, robot in self.robots.items():
+        def allocate_task(name_robot_pair: Tuple[str, RobotAgent]) -> Tuple[str, Dict, str]:
+            """Worker function for parallel task allocation"""
+            name, robot = name_robot_pair
             # Exclude self from teammates
             teammates = {k: v for k, v in descriptions.items() if k != name}
             
             print(f"\n[TaskAllocation] Robot {name} is proposing allocation...")
             plan, thought, speech = robot.propose_allocation(task, teammates)
-            proposals[name] = (plan, speech)
             
             print(f"[TaskAllocation] {name}'s campaign speech: {speech}")
             print(f"[TaskAllocation] {name}'s plan: {json.dumps(plan, indent=2)}")
             
-            # Show speech bubble for campaign speech
+            # Show speech bubble for campaign speech (thread-safe)
             if self.visualizer and speech:
-                self.visualizer.show_campaign_speech(name, speech)
-                time.sleep(0.5)
+                with self._visualizer_lock:
+                    self.visualizer.show_campaign_speech(name, speech)
+            
+            return name, plan, speech
+        
+        # Execute task allocations in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(allocate_task, (name, robot)): name 
+                for name, robot in self.robots.items()
+            }
+            
+            for future in as_completed(futures):
+                name, plan, speech = future.result()
+                proposals[name] = (plan, speech)
         
         self.manager.transition_to(CollaborationPhase.LEADER_ELECTION)
         return proposals
@@ -330,7 +374,7 @@ class FourStageCollaboration:
     ) -> str:
         """
         Stage 3: Leader Election
-        Each robot votes for the leader
+        Each robot votes for the leader in parallel
         
         Args:
             proposals: Dict of robot proposals
@@ -339,21 +383,37 @@ class FourStageCollaboration:
             Name of the elected leader
         """
         print("\n" + "="*60)
-        print("Stage 3: Leader Election")
+        print("Stage 3: Leader Election (Parallel)")
         print("="*60)
         
         votes = {name: 0 for name in self.robots.keys()}
+        votes_lock = Lock()
         
-        for name, robot in self.robots.items():
+        def cast_vote(name_robot_pair: Tuple[str, RobotAgent]) -> Tuple[str, str]:
+            """Worker function for parallel voting"""
+            name, robot = name_robot_pair
             print(f"\n[LeaderElection] Robot {name} is voting...")
             voted_for = robot.vote_leader(proposals)
-            votes[voted_for] = votes.get(voted_for, 0) + 1
             print(f"[LeaderElection] {name} voted for {voted_for}")
             
-            # Show speech bubble for voting
+            # Show speech bubble for voting (thread-safe)
             if self.visualizer:
-                self.visualizer.show_vote(name, voted_for)
-                time.sleep(0.3)
+                with self._visualizer_lock:
+                    self.visualizer.show_vote(name, voted_for)
+            
+            return name, voted_for
+        
+        # Execute voting in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(cast_vote, (name, robot)): name 
+                for name, robot in self.robots.items()
+            }
+            
+            for future in as_completed(futures):
+                name, voted_for = future.result()
+                with votes_lock:
+                    votes[voted_for] = votes.get(voted_for, 0) + 1
         
         # Count votes and determine winner
         leader = max(votes.keys(), key=lambda k: votes[k])
@@ -369,8 +429,8 @@ class FourStageCollaboration:
     
     def _run_execution(self, task: str) -> bool:
         """
-        Stage 4: Closed-Loop Execution
-        Execute the task with continuous feedback
+        Stage 4: Closed-Loop Execution with Periodic Reflection
+        Execute the task with continuous feedback using parallel processing
         
         Args:
             task: Task description
@@ -379,7 +439,7 @@ class FourStageCollaboration:
             True if execution successful, False otherwise
         """
         print("\n" + "="*60)
-        print("Stage 4: Closed-Loop Execution")
+        print("Stage 4: Closed-Loop Execution with Reflection (Parallel)")
         print("="*60)
         
         if not self.leader_name or not self.task_plan:
@@ -391,51 +451,72 @@ class FourStageCollaboration:
         while step < self.max_execution_steps:
             print(f"\n[Execution] Step {step + 1}/{self.max_execution_steps}")
             
+            # Stage 5: Reflection (triggered at fixed intervals)
+            if self.enable_reflection and step > 0 and step % self.reflection_interval == 0:
+                self._run_reflection(task)
+            
             # Get current observation (would come from simulation in real implementation)
             observation = self._get_observation()
             
-            # Each robot executes one step
-            all_robots_done = True
+            # Execute robot steps in parallel
+            active_robots = [
+                (name, robot) for name, robot in self.robots.items() 
+                if not self._is_robot_done(robot)
+            ]
             
-            for name, robot in self.robots.items():
-                # Skip if robot has completed its tasks
-                if self._is_robot_done(robot):
-                    continue
-                
-                all_robots_done = False
+            if not active_robots:
+                print("[Execution] All robots have completed their tasks")
+                return True
+            
+            def execute_robot_step(name_robot_pair: Tuple[str, RobotAgent]) -> Optional[Dict]:
+                """Worker function for parallel execution"""
+                name, robot = name_robot_pair
                 
                 # Get action from robot
                 action = robot.execute_step(observation, self.task_plan)
                 print(f"[Execution] {name} action: {action}")
                 
-                # Show speech bubble for action
+                # Show speech bubble for action (thread-safe)
                 if self.visualizer:
                     action_str = action.get('action', 'wait')
                     reasoning = action.get('reasoning', '')
-                    self.visualizer.show_action(name, action_str, reasoning)
+                    with self._visualizer_lock:
+                        self.visualizer.show_action(name, action_str, reasoning)
                 
-                # Execute action and get feedback (would use BestMan APIs in real implementation)
+                # Execute action and get feedback
                 feedback = self._execute_action(name, action)
                 
                 # Store result in robot's memory
                 robot.store_action_result(action, feedback)
                 
-                # Record in history
-                self.execution_history.append({
+                return {
                     'step': step,
                     'robot': name,
                     'action': action,
                     'feedback': feedback,
                     'timestamp': time.time()
-                })
-                
-                # Check if task is complete
-                if self._is_task_complete():
-                    print("[Execution] Task completed!")
-                    return True
+                }
             
-            if all_robots_done:
-                print("[Execution] All robots have completed their tasks")
+            # Execute all robot steps in parallel
+            step_results = []
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                futures = {
+                    executor.submit(execute_robot_step, (name, robot)): name 
+                    for name, robot in active_robots
+                }
+                
+                for future in as_completed(futures):
+                    result = future.result()
+                    if result:
+                        step_results.append(result)
+            
+            # Record all results in history (thread-safe)
+            with self._history_lock:
+                self.execution_history.extend(step_results)
+            
+            # Check if task is complete
+            if self._is_task_complete():
+                print("[Execution] Task completed!")
                 return True
             
             step += 1
@@ -443,6 +524,94 @@ class FourStageCollaboration:
         
         print(f"[Execution] Reached maximum steps ({self.max_execution_steps})")
         return False
+    
+    def _run_reflection(self, task: str):
+        """
+        Stage 5: Reflection and Group Discussion
+        Periodic team reflection to improve task planning
+        """
+        print("\n" + "="*60)
+        print("Stage 5: Reflection & Group Discussion (Parallel)")
+        print("="*60)
+        
+        # Aggregate team history
+        team_history = self._aggregate_team_history()
+        
+        # Each robot reflects in parallel
+        reflections = {}
+        
+        def reflect_robot(name_robot_pair: Tuple[str, RobotAgent]) -> Tuple[str, str, str]:
+            """Worker function for parallel reflection"""
+            name, robot = name_robot_pair
+            print(f"\n[Reflection] Robot {name} is reflecting...")
+            
+            summary, adjustments = robot.reflect(task, team_history)
+            
+            print(f"[Reflection] {name}'s summary: {summary[:100]}...")
+            print(f"[Reflection] {name}'s adjustments: {adjustments[:100]}...")
+            
+            return name, summary, adjustments
+        
+        # Execute reflections in parallel
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(reflect_robot, (name, robot)): name 
+                for name, robot in self.robots.items()
+            }
+            
+            for future in as_completed(futures):
+                name, summary, adjustments = future.result()
+                reflections[name] = (summary, adjustments)
+        
+        # Leader integrates reflections and updates plan
+        if self.leader_name and self.leader_name in self.robots:
+            print(f"\n[Reflection] Leader {self.leader_name} is updating plan...")
+            leader = self.robots[self.leader_name]
+            
+            updated_plan = leader.update_leader_plan(reflections, self.task_plan)
+            
+            if updated_plan and updated_plan != self.task_plan:
+                print(f"[Reflection] Plan updated successfully")
+                self.task_plan = updated_plan
+                
+                # Show speech bubble for plan update
+                if self.visualizer:
+                    with self._visualizer_lock:
+                        self.visualizer.show_speech(
+                            self.leader_name,
+                            "📋 Plan updated based on team reflection!",
+                            duration=3.0
+                        )
+            else:
+                print(f"[Reflection] No plan changes needed")
+        
+        # Record reflection
+        self.reflection_history.append({
+            'step': len(self.execution_history),
+            'reflections': reflections,
+            'updated_plan': self.task_plan,
+            'timestamp': time.time()
+        })
+        
+        self.manager.transition_to(CollaborationPhase.EXECUTION)
+    
+    def _aggregate_team_history(self) -> Dict:
+        """Aggregate history from all team members for reflection"""
+        max_steps = max([robot.step_count for robot in self.robots.values()])
+        
+        robot_states = {}
+        for name, robot in self.robots.items():
+            robot_states[name] = {
+                'actions': robot.step_count,
+                'current_task': robot.current_action,
+                'is_leader': robot.is_leader
+            }
+        
+        return {
+            'total_steps': max_steps,
+            'robot_states': robot_states,
+            'execution_history_length': len(self.execution_history)
+        }
     
     def _get_observation(self) -> Dict:
         """Get current observation from the environment"""

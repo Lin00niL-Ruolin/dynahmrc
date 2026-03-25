@@ -294,7 +294,7 @@ Campaign Speech: <Your leadership campaign speech (2-3 sentences)>"""
         
         for attempt in range(max_retries):
             try:
-                response = self.llm_client.generate(prompt, temperature=0.5, max_tokens=500)
+                response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=500)
                 
                 print(f"[DEBUG] Leader Election Response (attempt {attempt+1}): {response}")
                 
@@ -372,7 +372,7 @@ Vote: <Name of the robot you vote for>"""
         """
         prompt = self._build_execution_prompt(observation, leader_plan)
         
-        response = self.llm_client.generate(prompt, temperature=0.3, max_tokens=500)
+        response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=500)
         
         print(f"[DEBUG] Execution Response: {response}")
         
@@ -481,6 +481,179 @@ Valid action types: {', '.join(self.available_actions)}"""
         """Send message to another robot"""
         if self.send_message_callback:
             self.send_message_callback(self.name, to_robot, content)
+    
+    # ========== Stage 5: Reflection ==========
+    def reflect(self, task: str, team_history: Dict) -> Tuple[str, str]:
+        """
+        Stage 5: Reflection
+        Analyze past experiences and generate future plan improvements
+        
+        Args:
+            task: Task description
+            team_history: Aggregated team history including actions and feedback
+            
+        Returns:
+            Tuple of (reflection_summary, future_plan_adjustments)
+        """
+        prompt = self._build_reflection_prompt(task, team_history)
+        
+        response = self.llm_client.generate(prompt, temperature=0.7, max_tokens=1000)
+        
+        print(f"[DEBUG] Reflection Response: {response}")
+        
+        summary, adjustments = self._parse_reflection_response(response)
+        
+        self.current_phase = CollaborationPhase.REFLECTION
+        
+        return summary, adjustments
+    
+    def _build_reflection_prompt(self, task: str, team_history: Dict) -> str:
+        """Build prompt for Reflection stage"""
+        history_str = self.memory.format_history_for_prompt(k=10)
+        messages_str = self.memory.format_messages_for_prompt()
+        
+        team_progress = team_history.get('total_steps', 0)
+        robot_states = team_history.get('robot_states', {})
+        
+        team_status = "\n".join([
+            f"  - {name}: {info.get('actions', 0)} actions taken"
+            for name, info in robot_states.items()
+        ])
+        
+        return f"""You are {self.name}, a {self.robot_type} robot.
+Your capabilities: {', '.join(self.capabilities)}
+
+Task: {task}
+
+Team Progress:
+- Total steps taken: {team_progress}
+- Team member status:
+{team_status}
+
+Your History:
+{history_str}
+
+Messages:
+{messages_str}
+
+## Instructions
+Reflect on the task execution so far:
+1. Compare current task state with the target objectives
+2. Analyze what has been accomplished and what remains
+3. Identify successful strategies and lessons learned
+4. Identify any failures or inefficiencies
+5. Propose adjustments to future task allocation and coordination
+
+## Output Format
+Reflection Summary: <Your analysis of progress, successes, and issues>
+Future Plan Adjustments: <Specific recommendations for improving the plan>"""
+    
+    def _parse_reflection_response(self, response: str) -> Tuple[str, str]:
+        """Parse Reflection response"""
+        summary = ""
+        adjustments = ""
+        
+        response = response.strip()
+        
+        # Extract Reflection Summary
+        if "Reflection Summary:" in response:
+            summary_part = response.split("Reflection Summary:")[1]
+            if "Future Plan Adjustments:" in summary_part:
+                summary = summary_part.split("Future Plan Adjustments:")[0].strip()
+            else:
+                summary = summary_part.strip()
+        
+        # Extract Future Plan Adjustments
+        if "Future Plan Adjustments:" in response:
+            adjustments_part = response.split("Future Plan Adjustments:")[1]
+            adjustments = adjustments_part.strip()
+        
+        return summary, adjustments
+    
+    def update_leader_plan(self, reflections: Dict[str, Tuple[str, str]], current_plan: Dict) -> Dict:
+        """
+        Leader integrates team reflections and updates the plan
+        
+        Args:
+            reflections: Dict of {robot_name: (summary, adjustments)}
+            current_plan: Current task plan
+            
+        Returns:
+            Updated task plan
+        """
+        if not self.is_leader:
+            return current_plan
+        
+        prompt = self._build_plan_update_prompt(reflections, current_plan)
+        
+        response = self.llm_client.generate(prompt, temperature=0.5, max_tokens=1500)
+        
+        print(f"[DEBUG] Plan Update Response: {response}")
+        
+        updated_plan = self._parse_plan_update_response(response, current_plan)
+        
+        return updated_plan
+    
+    def _build_plan_update_prompt(self, reflections: Dict[str, Tuple[str, str]], current_plan: Dict) -> str:
+        """Build prompt for leader plan update"""
+        reflections_str = ""
+        for name, (summary, adjustments) in reflections.items():
+            reflections_str += f"\n=== {name} ===\n"
+            reflections_str += f"Summary: {summary}\n"
+            reflections_str += f"Adjustments: {adjustments}\n"
+        
+        return f"""You are {self.name}, the leader of the team.
+Your role: Integrate team reflections and update the task plan.
+
+Current Plan:
+{json.dumps(current_plan, indent=2)}
+
+Team Reflections:
+{reflections_str}
+
+## Instructions
+As the leader, analyze all team reflections and:
+1. Identify common issues or patterns
+2. Determine necessary adjustments to the task plan
+3. Reallocate tasks if needed
+4. Update coordination points
+5. Maintain the overall goal while improving efficiency
+
+## Output Format
+```json
+{{
+  "task_decomposition": [
+    {{"id": "subtask_1", "description": "...", "assigned_to": "robot_name", "estimated_steps": 5}}
+  ],
+  "coordination_points": ["point_1", "point_2"],
+  "adjustment_reasoning": "<why these changes were made>"
+}}
+```"""
+    
+    def _parse_plan_update_response(self, response: str, fallback_plan: Dict) -> Dict:
+        """Parse Plan Update response"""
+        response = response.strip()
+        
+        # Extract JSON
+        if "```json" in response:
+            try:
+                json_str = response.split("```json")[1].split("```")[0].strip()
+                return json.loads(json_str)
+            except:
+                pass
+        elif "```" in response:
+            try:
+                json_str = response.split("```")[1].split("```")[0].strip()
+                return json.loads(json_str)
+            except:
+                pass
+        elif response.startswith("{"):
+            try:
+                return json.loads(response)
+            except:
+                pass
+        
+        return fallback_plan
     
     def get_status(self) -> Dict[str, Any]:
         """Get current status of the robot agent"""
