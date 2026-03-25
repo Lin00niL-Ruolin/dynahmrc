@@ -419,47 +419,29 @@ class MobileManipulator:
     ) -> bool:
         """移动机械臂到目标位置"""
         try:
-            print(f"[_move_arm_to_position] 目标位置: {target_position}, 朝向: {target_orientation}")
-            
             from Robotics_API.Pose import Pose
             target_pose = Pose(target_position, target_orientation or [0, 0, 0, 1])
             
             if hasattr(self.bestman, 'sim_move_arm_to_target_pose'):
-                print(f"[_move_arm_to_position] 使用 BestMan 的 sim_move_arm_to_target_pose")
                 self.bestman.sim_move_arm_to_target_pose(target_pose)
                 return True
             else:
-                print(f"[_move_arm_to_position] 使用简单 IK 移动")
                 return self._simple_ik_move(target_position, target_orientation)
                 
         except Exception as e:
-            import traceback
-            error_msg = f"{str(e)}\n{traceback.format_exc()}"
-            print(f"[_move_arm_to_position] 异常: {error_msg}")
-            self.error_status = f"move_arm_failed: {error_msg}"
             return False
     
     def _simple_ik_move(self, target_pos, target_orn):
         """简单的 IK 移动"""
         try:
-            print(f"[_simple_ik_move] 计算 IK，目标: {target_pos}")
-            
-            # 检查目标位置是否有效
-            if any(math.isnan(v) or math.isinf(v) for v in target_pos):
-                print(f"[_simple_ik_move] 错误: 目标位置包含无效值 {target_pos}")
-                self.error_status = "move_arm_failed: 目标位置包含无效值"
-                return False
-            
             joint_positions = p.calculateInverseKinematics(
                 self.bestman.arm_id,
                 self.bestman.eef_id,
                 target_pos,
-                targetOrientation=target_orn or [0, 0, 0, 1],
+                targetOrientation=target_orn,
                 maxNumIterations=100,
                 physicsClientId=self.bestman.client_id
             )
-            
-            print(f"[_simple_ik_move] IK 计算完成，关节数: {len(joint_positions)}")
             
             for i, pos in enumerate(joint_positions[:self.bestman.arm_num_dofs]):
                 p.setJointMotorControl2(
@@ -471,16 +453,10 @@ class MobileManipulator:
                     physicsClientId=self.bestman.client_id
                 )
             
-            print(f"[_simple_ik_move] 运行仿真 50 步")
             self.bestman.client.run(50)
-            print(f"[_simple_ik_move] 移动完成")
             return True
             
         except Exception as e:
-            import traceback
-            error_msg = f"{str(e)}\n{traceback.format_exc()}"
-            print(f"[_simple_ik_move] 异常: {error_msg}")
-            self.error_status = f"move_arm_failed: {error_msg}"
             return False
     
     def open_gripper(self):
