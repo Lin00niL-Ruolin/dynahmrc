@@ -56,6 +56,8 @@ class AStarPlanner:
         """
         self.obstacles.clear()
         
+        print(f"[A*] 更新障碍物地图: {len(obstacle_positions)} 个障碍物")
+        
         for i, pos in enumerate(obstacle_positions):
             # 将障碍物位置转换为栅格坐标
             grid_x = int(pos[0] / self.resolution)
@@ -69,10 +71,15 @@ class AStarPlanner:
             total_radius = self.robot_radius + obj_radius + 0.05  # 额外 5cm 安全距离
             radius_cells = int(total_radius / self.resolution) + 1
             
+            print(f"[A*] 障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.2f}) -> 栅格 ({grid_x}, {grid_y}), "
+                  f"物体半径 {obj_radius:.2f}m, 膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
+            
             for dx in range(-radius_cells, radius_cells + 1):
                 for dy in range(-radius_cells, radius_cells + 1):
                     if dx * dx + dy * dy <= radius_cells * radius_cells:
                         self.obstacles.add((grid_x + dx, grid_y + dy))
+        
+        print(f"[A*] 障碍物地图更新完成: 共 {len(self.obstacles)} 个栅格被标记为障碍物")
     
     def plan(self, start: List[float], goal: List[float]) -> Optional[List[List[float]]]:
         """
@@ -104,12 +111,19 @@ class AStarPlanner:
         heapq.heappush(open_set, start_node)
         closed_set: Set[Tuple[int, int]] = set()
         
+        print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
+        
+        iteration = 0
         while open_set:
             current = heapq.heappop(open_set)
+            iteration += 1
             
             # 到达目标
             if current == goal_node:
-                return self._reconstruct_path(current)
+                path = self._reconstruct_path(current)
+                print(f"[A*] 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点")
+                print(f"[A*] 路径: {path[:5]}{'...' if len(path) > 5 else ''}")
+                return path
             
             closed_set.add((current.x, current.y))
             
@@ -135,15 +149,29 @@ class AStarPlanner:
                 
                 heapq.heappush(open_set, neighbor)
         
-        print("[A*] 无法找到路径")
+        print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
+        print(f"[A*] 已探索节点数: {len(closed_set)}")
         return None
     
     def _clear_nearby_obstacles(self, x: int, y: int, radius: int = 2):
         """清除指定位置附近的障碍物"""
+        cleared_count = 0
+        cleared_positions = []
+        
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 if dx * dx + dy * dy <= radius * radius:
-                    self.obstacles.discard((x + dx, y + dy))
+                    pos = (x + dx, y + dy)
+                    if pos in self.obstacles:
+                        self.obstacles.discard(pos)
+                        cleared_count += 1
+                        cleared_positions.append(pos)
+        
+        if cleared_count > 0:
+            print(f"[A*] 清除障碍物: 位置 ({x}, {y}) 周围 {radius} 格，共清除 {cleared_count} 个障碍物")
+            print(f"[A*] 清除的障碍物位置: {cleared_positions}")
+        else:
+            print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
     
     def _heuristic(self, x: int, y: int, goal: Node) -> float:
         """启发式函数（欧几里得距离）"""
