@@ -162,7 +162,11 @@ class BestManAdapter:
         # 执行动作
         try:
             handler = self.action_handlers[action_type]
-            success, message, state_changes = handler(robot, params)
+            # 对于需要 robot_id 的 handler，传递 robot_id
+            if action_type in [ActionType.NAVIGATE, ActionType.PICK]:
+                success, message, state_changes = handler(robot, params, robot_id)
+            else:
+                success, message, state_changes = handler(robot, params)
             
             execution_time = time.time() - start_time
             
@@ -241,8 +245,8 @@ class BestManAdapter:
             return False, f"不支持的目标格式: {type(target)}", {}
         
         try:
-            # 获取场景物体信息用于避障
-            scene_objects = self.get_scene_graph()
+            # 获取场景物体信息用于避障（排除当前机器人自身）
+            scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
             
             # 调用导航方法，传递场景物体信息
             success = robot.navigate_to(position, orientation, scene_objects)
@@ -267,7 +271,7 @@ class BestManAdapter:
             print(f"[ERROR] 导航失败: {error_msg}")
             return False, f"导航异常: {str(e)}", {"error": error_msg}
     
-    def _handle_pick(self, robot: Any, params: Dict) -> tuple:
+    def _handle_pick(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
         """处理抓取动作"""
         object_id = params.get("object_id")
         object_name = params.get("object_name", str(object_id))
@@ -281,8 +285,8 @@ class BestManAdapter:
             object_id = self._resolve_object_id(object_id)
         
         try:
-            # 获取场景物体信息用于导航避障
-            scene_objects = self.get_scene_graph()
+            # 获取场景物体信息用于导航避障（排除当前机器人自身）
+            scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
             
             success = robot.pick(object_id, scene_objects=scene_objects)
             
@@ -503,10 +507,13 @@ class BestManAdapter:
         }
         print(f"[BestManAdapter] 注册场景物体: {obj_name} (ID: {obj_id})")
     
-    def get_scene_graph(self) -> Dict[str, Dict]:
+    def get_scene_graph(self, exclude_robot_id: str = None) -> Dict[str, Dict]:
         """
         获取场景图（Scene Graph）
-        包含场景中所有物体的位置和状态信息
+        包含场景中所有物体和其他机器人的位置和状态信息
+        
+        Args:
+            exclude_robot_id: 要排除的机器人ID（通常是当前正在规划的机器人）
         
         Returns:
             Dict: {object_name: {position, orientation, type, size, ...}}
@@ -545,6 +552,33 @@ class BestManAdapter:
                         }
                     except Exception as e:
                         print(f"[BestManAdapter] 获取物体 {obj_name} 状态失败: {e}")
+            
+            # 添加其他机器人作为动态障碍物
+            for robot_id, robot in self.robots.items():
+                if robot_id == exclude_robot_id:
+                    continue  # 排除当前机器人自身
+                
+                try:
+                    state = robot.get_state()
+                    pos = state.get('position', [0, 0, 0])
+                    orn = state.get('orientation', [0, 0, 0, 1])
+                    
+                    # 机器人尺寸（近似为圆柱体）
+                    robot_size = [0.6, 0.6, 1.0]  # 默认机器人尺寸
+                    
+                    scene_graph[f"robot_{robot_id}"] = {
+                        'id': -1,  # 机器人没有PyBullet ID
+                        'position': pos,
+                        'orientation': orn,
+                        'type': 'robot',
+                        'size': robot_size,
+                        'robot_id': robot_id,
+                        'is_grasped': False
+                    }
+                    print(f"[BestManAdapter] 添加机器人障碍物: {robot_id} 位置 {pos[:2]}")
+                except Exception as e:
+                    print(f"[BestManAdapter] 获取机器人 {robot_id} 状态失败: {e}")
+                    
         except Exception as e:
             print(f"[BestManAdapter] Failed to get scene graph: {e}")
         
