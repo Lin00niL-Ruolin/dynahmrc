@@ -232,6 +232,7 @@ class MobileManipulator:
                 ]
                 
                 if not self.navigate_to(approach_pos):
+                    self.error_status = f"pick_failed: 导航到抓取位置失败"
                     return False
                 
                 # 转向物体
@@ -243,6 +244,7 @@ class MobileManipulator:
             
             # 1. 移动到预抓取位置
             if not self._move_arm_to_position(pre_grasp_pos):
+                self.error_status = f"pick_failed: 移动到预抓取位置失败"
                 return False
             
             # 2. 打开夹爪
@@ -250,6 +252,7 @@ class MobileManipulator:
             
             # 3. 下降到抓取位置
             if not self._move_arm_to_position(grasp_pos):
+                self.error_status = f"pick_failed: 下降到抓取位置失败"
                 return False
             
             # 4. 关闭夹爪
@@ -260,6 +263,7 @@ class MobileManipulator:
             
             # 6. 抬升
             if not self._move_arm_to_position(pre_grasp_pos):
+                self.error_status = f"pick_failed: 抬升物体失败"
                 return False
             
             self.is_holding_object = True
@@ -268,7 +272,8 @@ class MobileManipulator:
             return True
             
         except Exception as e:
-            self.error_status = f"pick_failed: {str(e)}"
+            import traceback
+            self.error_status = f"pick_failed: {str(e)}\n{traceback.format_exc()}"
             return False
         finally:
             self.is_busy = False
