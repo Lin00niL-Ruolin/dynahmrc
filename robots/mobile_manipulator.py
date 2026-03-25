@@ -104,19 +104,8 @@ class MobileManipulator:
             self.is_busy = True
             self.current_task = f"navigate_to_{target_position}"
             
-            from Robotics_API.Pose import Pose
-            if target_orientation:
-                target_pose = Pose(target_position, target_orientation)
-            else:
-                target_pose = Pose(target_position, self.orientation)
-            
-            if hasattr(self.bestman, 'sim_move_base_to_waypoint'):
-                self.bestman.sim_move_base_to_waypoint(
-                    target_pose,
-                    threshold=self.navigation_threshold
-                )
-            else:
-                self._simple_navigation(target_position)
+            # 使用简单导航实现（更稳定）
+            self._simple_navigation(target_position)
             
             if target_orientation:
                 target_yaw = p.getEulerFromQuaternion(target_orientation)[2]
@@ -126,7 +115,8 @@ class MobileManipulator:
             return True
             
         except Exception as e:
-            self.error_status = f"navigation_failed: {str(e)}"
+            import traceback
+            self.error_status = f"navigation_failed: {str(e)}\n{traceback.format_exc()}"
             return False
         finally:
             self.is_busy = False
