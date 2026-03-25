@@ -114,42 +114,20 @@ class MobileManipulator:
             print(f"[MobileManipulator] 开始导航到 {target_position}")
             
             # 更新障碍物信息
-            print(f"[MobileManipulator] 更新障碍物信息...")
             if scene_objects:
                 self.path_planner.update_obstacles_from_scene(scene_objects)
             
             # 规划全局路径（A*）
             start_pos = [self.position[0], self.position[1]]
             goal_pos = [target_position[0], target_position[1]]
-            print(f"[MobileManipulator] 规划路径: {start_pos} -> {goal_pos}")
             
             global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
-            print(f"[MobileManipulator] 路径规划结果: {global_path is not None}")
             
             if global_path is None:
                 print("[MobileManipulator] 全局路径规划失败，使用简单导航")
                 self._simple_navigation(target_position)
             else:
                 print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
-                
-                # 检查路径是否经过其他机器人
-                if scene_objects:
-                    for obj_name, obj_info in scene_objects.items():
-                        if obj_info.get('type') == 'robot':
-                            robot_pos = obj_info.get('position', [0, 0, 0])
-                            min_dist_to_robot = float('inf')
-                            closest_point = None
-                            for i, path_point in enumerate(global_path):
-                                dist = math.sqrt(
-                                    (path_point[0] - robot_pos[0])**2 + 
-                                    (path_point[1] - robot_pos[1])**2
-                                )
-                                if dist < min_dist_to_robot:
-                                    min_dist_to_robot = dist
-                                    closest_point = (i, path_point)
-                            print(f"[MobileManipulator] 路径与机器人 {obj_name} 的最小距离: {min_dist_to_robot:.3f}m")
-                            if min_dist_to_robot < 0.5:  # 小于安全距离
-                                print(f"[MobileManipulator] ⚠️ 警告: 路径经过机器人 {obj_name} 附近! 最近点 {closest_point}")
                 
                 # 使用 DWA 沿路径导航
                 self._dwa_navigation(global_path, scene_objects or {})
@@ -224,19 +202,8 @@ class MobileManipulator:
                 scene_objects
             )
             
-            # 调试信息：显示每一步的速度
-            if step % 10 == 0 or v > 0.001:
-                print(f"[MobileManipulator] Step {step}: v={v:.4f}m/s, yaw_rate={yaw_rate:.4f}rad/s, pos=[{self.position[0]:.3f}, {self.position[1]:.3f}]")
-            
             # 应用速度
-            old_pos = self.position.copy()
             self._apply_velocity(v, yaw_rate, obstacle_positions)
-            
-            # 检查位置是否变化
-            self._update_pose()
-            pos_change = math.sqrt((self.position[0] - old_pos[0])**2 + (self.position[1] - old_pos[1])**2)
-            if v > 0.001 and pos_change < 0.001:
-                print(f"[MobileManipulator] ⚠️ 警告: 速度 {v:.4f} 但位置未变化 {pos_change:.6f}m")
             
             current_v = v
             current_yaw_rate = yaw_rate
@@ -477,10 +444,6 @@ class MobileManipulator:
                     obj_pos[1] - approach_distance * math.sin(angle),
                     self.position[2]
                 ]
-                
-                print(f"[MobileManipulator] pick: 物体距离 {distance:.3f}m，超出操作范围 {self.manipulation_range}m")
-                print(f"[MobileManipulator] pick: 物体位置 {obj_pos[:2]}，机器人位置 {self.position[:2]}")
-                print(f"[MobileManipulator] pick: 计算接近位置 {approach_pos[:2]}，角度 {math.degrees(angle):.1f}°")
 
                 if not self.navigate_to(approach_pos, scene_objects=scene_objects):
                     self.error_status = f"pick_failed: 导航到抓取位置失败"
