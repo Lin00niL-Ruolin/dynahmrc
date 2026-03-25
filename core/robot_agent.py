@@ -108,7 +108,7 @@ class RobotAgent:
         max_retries = 3
         
         for attempt in range(max_retries):
-            response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=1000)
+            response = self.llm_client.generate(prompt, temperature=1.0)
             
             print(f"[DEBUG] Self-Description Response (attempt {attempt+1}): {response}")
             
@@ -190,7 +190,7 @@ Description: <Your introduction to teammates (2-3 sentences)>"""
         max_retries = 3
         
         for attempt in range(max_retries):
-            response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=1500)
+            response = self.llm_client.generate(prompt, temperature=1.0)
             
             print(f"[DEBUG] Task Allocation Response (attempt {attempt+1}): {response}")
             
@@ -294,7 +294,7 @@ Campaign Speech: <Your leadership campaign speech (2-3 sentences)>"""
         
         for attempt in range(max_retries):
             try:
-                response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=500)
+                response = self.llm_client.generate(prompt, temperature=1.0)
                 
                 print(f"[DEBUG] Leader Election Response (attempt {attempt+1}): {response}")
                 
@@ -372,7 +372,7 @@ Vote: <Name of the robot you vote for>"""
         """
         prompt = self._build_execution_prompt(observation, leader_plan)
         
-        response = self.llm_client.generate(prompt, temperature=1.0, max_tokens=500)
+        response = self.llm_client.generate(prompt, temperature=1.0)
         
         print(f"[DEBUG] Execution Response: {response}")
         
@@ -497,7 +497,7 @@ Valid action types: {', '.join(self.available_actions)}"""
         """
         prompt = self._build_reflection_prompt(task, team_history)
         
-        response = self.llm_client.generate(prompt, temperature=0.7, max_tokens=1000)
+        response = self.llm_client.generate(prompt, temperature=1.0)
         
         print(f"[DEBUG] Reflection Response: {response}")
         
@@ -586,7 +586,7 @@ Future Plan Adjustments: <Specific recommendations for improving the plan>"""
         
         prompt = self._build_plan_update_prompt(reflections, current_plan)
         
-        response = self.llm_client.generate(prompt, temperature=0.5, max_tokens=1500)
+        response = self.llm_client.generate(prompt, temperature=1.0)
         
         print(f"[DEBUG] Plan Update Response: {response}")
         
