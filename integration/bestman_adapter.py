@@ -228,7 +228,7 @@ class BestManAdapter:
         robot_caps = getattr(robot, 'capabilities', [])
         return any(cap in robot_caps for cap in required)
     
-    def _handle_navigate(self, robot: Any, params: Dict) -> tuple:
+    def _handle_navigate(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
         """处理导航动作"""
         target = params.get("target")
         if not target:
