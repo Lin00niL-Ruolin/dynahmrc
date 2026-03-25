@@ -293,19 +293,26 @@ Campaign Speech: <Your leadership campaign speech (2-3 sentences)>"""
         max_retries = 3
         
         for attempt in range(max_retries):
-            response = self.llm_client.generate(prompt, temperature=0.5, max_tokens=500)
-            
-            print(f"[DEBUG] Leader Election Response (attempt {attempt+1}): {response}")
-            
-            leader_name = self._parse_leader_response(response)
-            
-            if leader_name and leader_name in proposals:
-                self.leader_name = leader_name
-                self.is_leader = (leader_name == self.name)
-                self.current_phase = CollaborationPhase.EXECUTION
-                return leader_name
+            try:
+                response = self.llm_client.generate(prompt, temperature=0.5, max_tokens=500)
+                
+                print(f"[DEBUG] Leader Election Response (attempt {attempt+1}): {response}")
+                
+                leader_name = self._parse_leader_response(response)
+                
+                if leader_name and leader_name in proposals:
+                    self.leader_name = leader_name
+                    self.is_leader = (leader_name == self.name)
+                    self.current_phase = CollaborationPhase.EXECUTION
+                    return leader_name
+                    
+            except Exception as e:
+                print(f"[ERROR] Leader Election failed (attempt {attempt+1}): {e}")
+                import traceback
+                traceback.print_exc()
         
         # Fallback: vote for self
+        print(f"[WARN] Using fallback: voting for self ({self.name})")
         self.leader_name = self.name
         self.is_leader = True
         self.current_phase = CollaborationPhase.EXECUTION
