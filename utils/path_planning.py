@@ -45,23 +45,30 @@ class AStarPlanner:
         self.robot_radius = robot_radius
         self.obstacles: Set[Tuple[int, int]] = set()
     
-    def update_obstacles(self, obstacle_positions: List[List[float]], client_id: int = 0):
+    def update_obstacles(self, obstacle_positions: List[List[float]], obstacle_sizes: Optional[List[float]] = None, client_id: int = 0):
         """
         更新障碍物地图
         
         Args:
             obstacle_positions: 障碍物位置列表 [[x, y, z], ...]
+            obstacle_sizes: 障碍物尺寸列表（半径），可选
             client_id: PyBullet 客户端 ID
         """
         self.obstacles.clear()
         
-        for pos in obstacle_positions:
+        for i, pos in enumerate(obstacle_positions):
             # 将障碍物位置转换为栅格坐标
             grid_x = int(pos[0] / self.resolution)
             grid_y = int(pos[1] / self.resolution)
             
-            # 添加障碍物及其周围区域（考虑机器人半径）
-            radius_cells = int(self.robot_radius / self.resolution) + 1
+            # 获取障碍物尺寸（如果有）
+            obj_radius = obstacle_sizes[i] if obstacle_sizes and i < len(obstacle_sizes) else 0.0
+            
+            # 添加障碍物及其周围区域（考虑机器人半径 + 障碍物尺寸）
+            # 使用较小的膨胀半径，避免过度膨胀
+            total_radius = self.robot_radius + obj_radius + 0.05  # 额外 5cm 安全距离
+            radius_cells = int(total_radius / self.resolution) + 1
+            
             for dx in range(-radius_cells, radius_cells + 1):
                 for dy in range(-radius_cells, radius_cells + 1):
                     if dx * dx + dy * dy <= radius_cells * radius_cells:
@@ -84,11 +91,13 @@ class AStarPlanner:
         
         # 检查起点和终点是否在障碍物中
         if (start_node.x, start_node.y) in self.obstacles:
-            print("[A*] 起点在障碍物中")
-            return None
+            print(f"[A*] 起点在障碍物中: ({start_node.x}, {start_node.y})")
+            # 尝试清除起点附近的障碍物
+            self._clear_nearby_obstacles(start_node.x, start_node.y, radius=2)
         if (goal_node.x, goal_node.y) in self.obstacles:
-            print("[A*] 终点在障碍物中")
-            return None
+            print(f"[A*] 终点在障碍物中: ({goal_node.x}, {goal_node.y})，尝试清除附近障碍物")
+            # 清除终点附近的障碍物（允许终点靠近障碍物）
+            self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=2)
         
         # A* 算法
         open_set = []
@@ -128,6 +137,13 @@ class AStarPlanner:
         
         print("[A*] 无法找到路径")
         return None
+    
+    def _clear_nearby_obstacles(self, x: int, y: int, radius: int = 2):
+        """清除指定位置附近的障碍物"""
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                if dx * dx + dy * dy <= radius * radius:
+                    self.obstacles.discard((x + dx, y + dy))
     
     def _heuristic(self, x: int, y: int, goal: Node) -> float:
         """启发式函数（欧几里得距离）"""
@@ -332,12 +348,20 @@ class PathPlanner:
     def update_obstacles_from_scene(self, scene_objects: Dict[str, Dict]):
         """从场景图中更新障碍物"""
         obstacle_positions = []
+        obstacle_sizes = []
+        
         for obj_name, obj_info in scene_objects.items():
             if obj_info.get('type') != 'graspable':  # 不将可抓取物体视为障碍物
                 pos = obj_info.get('position', [0, 0, 0])
                 obstacle_positions.append(pos)
+                
+                # 获取物体尺寸（如果有）
+                size = obj_info.get('size', [0.1, 0.1, 0.1])
+                # 使用 x-y 平面的最大半径
+                radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+                obstacle_sizes.append(radius)
         
-        self.astar.update_obstacles(obstacle_positions, self.client_id)
+        self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
     
     def plan_global_path(self, start: List[float], goal: List[float]) -> Optional[List[List[float]]]:
         """规划全局路径"""

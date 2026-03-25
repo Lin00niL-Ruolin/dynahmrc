@@ -509,7 +509,7 @@ class BestManAdapter:
         包含场景中所有物体的位置和状态信息
         
         Returns:
-            Dict: {object_name: {position, orientation, type, ...}}
+            Dict: {object_name: {position, orientation, type, size, ...}}
         """
         scene_graph = {}
         
@@ -523,11 +523,24 @@ class BestManAdapter:
                     try:
                         # 从 PyBullet 获取物体当前位置和朝向
                         pos, orn = p.getBasePositionAndOrientation(obj_id)
+                        
+                        # 尝试获取物体尺寸（AABB）
+                        try:
+                            aabb_min, aabb_max = p.getAABB(obj_id)
+                            size = [
+                                aabb_max[0] - aabb_min[0],
+                                aabb_max[1] - aabb_min[1],
+                                aabb_max[2] - aabb_min[2]
+                            ]
+                        except:
+                            size = [0.1, 0.1, 0.1]  # 默认尺寸
+                        
                         scene_graph[obj_name] = {
                             'id': obj_id,
                             'position': list(pos),
                             'orientation': list(orn),
                             'type': obj_info.get('type', 'unknown'),
+                            'size': size,
                             'is_grasped': False  # TODO: 检查是否被抓取
                         }
                     except Exception as e:
