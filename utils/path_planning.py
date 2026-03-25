@@ -234,14 +234,22 @@ class AStarPlanner:
             print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
     
     def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node) -> Optional[List[List[float]]]:
-        """使用当前的障碍物地图重新规划路径（不重置障碍物）"""
+        """使用当前的障碍物地图重新规划路径（使用更宽容的启发式，允许绕路）"""
         open_set = []
         heapq.heappush(open_set, start_node)
         closed_set: Set[Tuple[int, int]] = set()
         open_set_dict: Dict[Tuple[int, int], Node] = {(start_node.x, start_node.y): start_node}
         
         iteration = 0
-        max_iterations = 5000
+        max_iterations = 8000  # 增加迭代次数，允许更多探索
+        
+        # 计算起点到终点的直线距离
+        direct_distance = math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2)
+        
+        # 动态调整启发式权重：距离越远，权重越低（更愿意绕路）
+        heuristic_weight = max(0.3, min(1.0, 3.0 / direct_distance)) if direct_distance > 0 else 0.5
+        
+        print(f"[A*] 使用宽容启发式，权重={heuristic_weight:.2f}，允许绕路探索")
         
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
@@ -269,7 +277,9 @@ class AStarPlanner:
                 
                 move_cost = math.sqrt(dx * dx + dy * dy) * self.resolution
                 g = current.g + move_cost
-                h = self._heuristic(neighbor_x, neighbor_y, goal_node)
+                
+                # 使用加权启发式，降低对目标的"执念"，允许更多绕路
+                h = self._heuristic(neighbor_x, neighbor_y, goal_node) * heuristic_weight
                 
                 neighbor_key = (neighbor_x, neighbor_y)
                 if neighbor_key in open_set_dict:
@@ -285,9 +295,9 @@ class AStarPlanner:
                     open_set_dict[neighbor_key] = neighbor
         
         if iteration >= max_iterations:
-            print(f"[A*] 重新规划超时!")
+            print(f"[A*] 重新规划超时! 已探索 {len(closed_set)} 个节点")
         else:
-            print(f"[A*] 重新规划仍无法找到路径!")
+            print(f"[A*] 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
         return None
     
     def _heuristic(self, x: int, y: int, goal: Node) -> float:
