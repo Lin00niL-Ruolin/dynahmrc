@@ -34,13 +34,18 @@ def test_real_scene():
     
     # 1. 初始化 BestMan 客户端
     print("\n1. 初始化 BestMan 客户端...")
-    config_path = "Config/default.yaml"
+    
+    # 获取项目根目录
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(project_root, "Config", "default.yaml")
     
     # 检查配置文件是否存在
     if not os.path.exists(config_path):
         print(f"   [WARN] 配置文件不存在: {config_path}")
         print("   使用默认配置...")
         config_path = None
+    else:
+        print(f"   找到配置文件: {config_path}")
     
     try:
         client = Client(config_path=config_path, gui=False)  # 无 GUI 模式，适合测试
