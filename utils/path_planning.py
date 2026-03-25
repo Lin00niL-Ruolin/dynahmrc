@@ -265,8 +265,8 @@ class DWAPlanner:
     def __init__(self, 
                  max_speed: float = 0.5,
                  max_yaw_rate: float = 1.0,
-                 max_accel: float = 0.2,
-                 max_yaw_accel: float = 0.5,
+                 max_accel: float = 0.5,
+                 max_yaw_accel: float = 1.0,
                  dt: float = 0.1,
                  predict_time: float = 3.0,
                  robot_radius: float = 0.3):
@@ -327,10 +327,13 @@ class DWAPlanner:
         best_yaw_rate = 0.0
         min_cost = float('inf')
         
-        # 采样速度空间
+        # 采样速度空间 - 使用 linspace 确保至少有一定数量的采样点
+        v_samples = max(3, int((dw[1] - dw[0]) / self.v_resolution) + 1)
+        yaw_rate_samples = max(3, int((dw[3] - dw[2]) / self.yaw_rate_resolution) + 1)
+        
         sample_count = 0
-        for v in np.arange(dw[0], dw[1], self.v_resolution):
-            for yaw_rate in np.arange(dw[2], dw[3], self.yaw_rate_resolution):
+        for v in np.linspace(dw[0], dw[1], v_samples):
+            for yaw_rate in np.linspace(dw[2], dw[3], yaw_rate_samples):
                 sample_count += 1
                 
                 # 预测轨迹
@@ -449,8 +452,8 @@ class PathPlanner:
         self.dwa = DWAPlanner(
             max_speed=0.3,
             max_yaw_rate=1.0,
-            max_accel=0.2,
-            max_yaw_accel=0.5,
+            max_accel=0.5,
+            max_yaw_accel=1.0,
             dt=0.1,
             predict_time=2.0,
             robot_radius=0.3
