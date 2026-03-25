@@ -113,6 +113,15 @@ class AStarPlanner:
         
         print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
         print(f"[A*] 距离: {math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2):.1f} 格")
+        print(f"[A*] 障碍物数量: {len(self.obstacles)} 个栅格")
+        
+        # 打印障碍物边界框
+        if self.obstacles:
+            min_x = min(x for x, y in self.obstacles)
+            max_x = max(x for x, y in self.obstacles)
+            min_y = min(y for x, y in self.obstacles)
+            max_y = max(y for x, y in self.obstacles)
+            print(f"[A*] 障碍物范围: X[{min_x}, {max_x}], Y[{min_y}, {max_y}]")
         
         iteration = 0
         max_iterations = 5000  # 最大迭代次数限制
@@ -197,7 +206,24 @@ class AStarPlanner:
                 current.y * self.resolution
             ])
             current = current.parent
-        return path[::-1]
+        path = path[::-1]
+        
+        # 检查路径是否穿过障碍物
+        collision_points = []
+        for i, point in enumerate(path):
+            grid_x = int(point[0] / self.resolution)
+            grid_y = int(point[1] / self.resolution)
+            if (grid_x, grid_y) in self.obstacles:
+                collision_points.append((i, point, (grid_x, grid_y)))
+        
+        if collision_points:
+            print(f"[A*] ⚠️ 警告: 路径穿过障碍物! 碰撞点数量: {len(collision_points)}")
+            for idx, point, grid in collision_points[:5]:  # 只显示前5个
+                print(f"[A*]   点 {idx}: 实际位置 [{point[0]:.2f}, {point[1]:.2f}], 栅格 {grid}")
+        else:
+            print(f"[A*] ✓ 路径检查通过，无碰撞")
+        
+        return path
 
 
 class DWAPlanner:
