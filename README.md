@@ -223,9 +223,9 @@ scene_config = {
    - 在 `_replan_after_failure()` 中实现
    - 任务重新分配和路径调整
 
-## 四阶段协作流程 (Four-Stage Collaboration)
+## 五阶段协作流程 (Five-Stage Collaboration)
 
-论文中提出的核心协作框架，实现去中心化的异构多机器人协作：
+论文中提出的核心协作框架，实现去中心化的异构多机器人协作，**新增 Stage 5: Reflection（反思阶段）**：
 
 ### Stage 1: Self-Description (自我介绍)
 - 每个机器人基于自身能力和任务理解生成自我介绍
@@ -250,29 +250,64 @@ scene_config = {
 - 支持动作失败后的重规划
 - 实现：`RobotAgent.execute_step()`
 
+### Stage 5: Reflection (反思与规划调整) ⭐ 新增
+- **定期触发**：每隔 ∆t 步（默认10步）自动触发
+- **团队反思**：每个机器人分析任务进度、成功经验和失败教训
+- **计划更新**：领导者整合团队反思，动态调整任务分配策略
+- **目的**：避免短视行为，实现中长期规划优化
+- 实现：`RobotAgent.reflect()` 和 `RobotAgent.update_leader_plan()`
+
 ### 使用方法
 ```python
 from dynahmrc import DynaHMRCSystem
+from dynahmrc.core.collaboration import FourStageCollaboration
 
 # 创建系统
 system = DynaHMRCSystem(scene_config, robot_configs, llm_config)
 
-# 使用四阶段协作执行任务
-result = system.execute_task_with_four_stages(
-    "把箱子搬到桌子上",
-    max_steps=100
+# 方式1: 使用五阶段协作（推荐，包含反思）
+collaboration = FourStageCollaboration(
+    robots=robot_agents,
+    max_execution_steps=100,
+    enable_reflection=True,        # 启用反思阶段
+    reflection_interval=10         # 每10步反思一次
+)
+result = collaboration.run_collaboration("把箱子搬到桌子上")
+
+# 方式2: 禁用反思（用于消融实验）
+collaboration = FourStageCollaboration(
+    robots=robot_agents,
+    enable_reflection=False        # 禁用反思
 )
 
-print(f"任务完成: {result['success']}")
-print(f"领导者: {result['leader']}")
-print(f"任务分配: {result['robot_assignments']}")
+print(f"任务完成: {result.success}")
+print(f"领导者: {result.leader_name}")
+print(f"任务分配: {result.robot_assignments}")
+print(f"反思次数: {len(collaboration.reflection_history)}")
 ```
 
 ### 核心组件
-- `FourStageCollaboration`: 四阶段协作框架主类
-- `RobotAgent`: 去中心化机器人Agent
+- `FourStageCollaboration`: 五阶段协作框架主类（包含反思阶段）
+- `RobotAgent`: 去中心化机器人Agent（新增 `reflect()` 和 `update_leader_plan()` 方法）
 - `MemoryModule`: 记忆模块，管理历史上下文
 - `CollaborationManager`: 协作状态管理
+
+### 反思阶段配置参数
+
+| 参数 | 类型 | 默认值 | 说明 |
+|-----|------|--------|------|
+| `enable_reflection` | bool | True | 是否启用反思阶段 |
+| `reflection_interval` | int | 10 | 反思间隔步数（∆t）|
+| `max_workers` | int | 4 | 并行执行线程数 |
+
+**消融实验配置示例：**
+```python
+# w.o. reflection（论文中的消融实验）
+collaboration = FourStageCollaboration(
+    robots=robot_agents,
+    enable_reflection=False  # 禁用反思
+)
+```
 
 ## 评估指标 (Metrics)
 
