@@ -110,6 +110,7 @@ class AStarPlanner:
         open_set = []
         heapq.heappush(open_set, start_node)
         closed_set: Set[Tuple[int, int]] = set()
+        open_set_dict: Dict[Tuple[int, int], Node] = {(start_node.x, start_node.y): start_node}
         
         print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
         print(f"[A*] 距离: {math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2):.1f} 格")
@@ -129,6 +130,10 @@ class AStarPlanner:
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
             iteration += 1
+            
+            # 从字典中移除
+            if (current.x, current.y) in open_set_dict:
+                del open_set_dict[(current.x, current.y)]
             
             # 每 500 次迭代打印进度
             if iteration % 500 == 0:
@@ -160,10 +165,18 @@ class AStarPlanner:
                 g = current.g + move_cost
                 h = self._heuristic(neighbor_x, neighbor_y, goal_node)
                 
+                # 检查是否已经在开放集中且代价更高
+                neighbor_key = (neighbor_x, neighbor_y)
+                if neighbor_key in open_set_dict:
+                    existing_node = open_set_dict[neighbor_key]
+                    if g >= existing_node.g:
+                        continue  # 已有更优路径
+                
                 neighbor = Node(neighbor_x, neighbor_y, g, h)
                 neighbor.parent = current
                 
                 heapq.heappush(open_set, neighbor)
+                open_set_dict[neighbor_key] = neighbor
         
         if iteration >= max_iterations:
             print(f"[A*] 规划超时! 达到最大迭代次数 {max_iterations}")
