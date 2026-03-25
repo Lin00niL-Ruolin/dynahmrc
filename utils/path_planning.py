@@ -247,7 +247,7 @@ class AStarPlanner:
         direct_distance = math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2)
         
         # 动态调整启发式权重：距离越远，权重越低（更愿意绕路）
-        heuristic_weight = max(0.2, min(1.0, 3.0 / direct_distance)) if direct_distance > 0 else 0.5
+        heuristic_weight = max(0.01, min(1.0, 3.0 / direct_distance)) if direct_distance > 0 else 0.5
         
         print(f"[A*] 使用宽容启发式，权重={heuristic_weight:.2f}，允许绕路探索")
         
