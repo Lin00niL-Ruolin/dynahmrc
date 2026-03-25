@@ -156,6 +156,17 @@ class MobileManipulator:
         current_v = 0.0
         current_yaw_rate = 0.0
         
+        print(f"[MobileManipulator] 开始 DWA 导航，全局路径 {len(global_path)} 点")
+        print(f"[MobileManipulator] 起点: {self.position[:2]}, 终点: {global_path[-1]}")
+        
+        # 提取障碍物位置用于调试
+        obstacle_positions = []
+        for obj_name, obj_info in scene_objects.items():
+            if obj_info.get('type') != 'graspable':
+                pos = obj_info.get('position', [0, 0, 0])
+                obstacle_positions.append([pos[0], pos[1]])
+        print(f"[MobileManipulator] 障碍物数量: {len(obstacle_positions)}, 位置: {obstacle_positions}")
+        
         while step < max_steps:
             self._update_pose()
             
@@ -167,8 +178,19 @@ class MobileManipulator:
             )
             
             if distance_to_goal < self.navigation_threshold:
-                print(f"[MobileManipulator] 到达目标，距离: {distance_to_goal}")
+                print(f"[MobileManipulator] 到达目标，距离: {distance_to_goal:.3f}m")
                 break
+            
+            # 检查是否碰撞障碍物
+            collision = False
+            for obs_pos in obstacle_positions:
+                dist_to_obs = math.sqrt(
+                    (obs_pos[0] - self.position[0]) ** 2 +
+                    (obs_pos[1] - self.position[1]) ** 2
+                )
+                if dist_to_obs < 0.3:  # 机器人半径
+                    print(f"[MobileManipulator] ⚠️ 警告: 距离障碍物 {dist_to_obs:.3f}m，位置 {obs_pos}")
+                    collision = True
             
             # 使用 DWA 计算速度
             v, yaw_rate = self.path_planner.compute_velocity(
@@ -180,7 +202,7 @@ class MobileManipulator:
             )
             
             # 应用速度
-            self._apply_velocity(v, yaw_rate)
+            self._apply_velocity(v, yaw_rate, obstacle_positions)
             
             current_v = v
             current_yaw_rate = yaw_rate
@@ -189,15 +211,31 @@ class MobileManipulator:
             self.bestman.client.run(5)
             
             if step % 50 == 0:
-                print(f"[MobileManipulator] 导航中... 步骤: {step}, 位置: {self.position}")
+                print(f"[MobileManipulator] 导航中... 步骤: {step}, 位置: [{self.position[0]:.3f}, {self.position[1]:.3f}], 速度: {v:.3f}m/s")
+        
+        if step >= max_steps:
+            print(f"[MobileManipulator] 导航达到最大步数 {max_steps}")
+        print(f"[MobileManipulator] DWA 导航结束，最终位置: [{self.position[0]:.3f}, {self.position[1]:.3f}]")
     
-    def _apply_velocity(self, v: float, yaw_rate: float):
-        """应用速度指令"""
+    def _apply_velocity(self, v: float, yaw_rate: float, obstacles: List[List[float]] = None):
+        """应用速度指令，带障碍物检测"""
         # 计算新位置
         dt = 0.1
         new_yaw = self.yaw + yaw_rate * dt
         new_x = self.position[0] + v * math.cos(new_yaw) * dt
         new_y = self.position[1] + v * math.sin(new_yaw) * dt
+        
+        # 检查新位置是否会碰撞障碍物
+        if obstacles:
+            for obs_pos in obstacles:
+                dist_to_obs = math.sqrt(
+                    (obs_pos[0] - new_x) ** 2 +
+                    (obs_pos[1] - new_y) ** 2
+                )
+                if dist_to_obs < 0.35:  # 机器人半径 + 安全距离
+                    # 会碰撞，停止移动
+                    print(f"[MobileManipulator] 🚫 碰撞检测: 新位置 [{new_x:.3f}, {new_y:.3f}] 距离障碍物 {dist_to_obs:.3f}m，停止移动")
+                    return
         
         # 更新朝向
         orientation = [0, 0, math.sin(new_yaw / 2.0), math.cos(new_yaw / 2.0)]
