@@ -114,20 +114,43 @@ class MobileManipulator:
             print(f"[MobileManipulator] 开始导航到 {target_position}")
             
             # 更新障碍物信息
+            print(f"[MobileManipulator] 更新障碍物信息...")
             if scene_objects:
                 self.path_planner.update_obstacles_from_scene(scene_objects)
             
             # 规划全局路径（A*）
             start_pos = [self.position[0], self.position[1]]
             goal_pos = [target_position[0], target_position[1]]
+            print(f"[MobileManipulator] 规划路径: {start_pos} -> {goal_pos}")
             
             global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
+            print(f"[MobileManipulator] 路径规划结果: {global_path is not None}")
             
             if global_path is None:
                 print("[MobileManipulator] 全局路径规划失败，使用简单导航")
                 self._simple_navigation(target_position)
             else:
                 print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
+                
+                # 检查路径是否经过其他机器人
+                if scene_objects:
+                    for obj_name, obj_info in scene_objects.items():
+                        if obj_info.get('type') == 'robot':
+                            robot_pos = obj_info.get('position', [0, 0, 0])
+                            min_dist_to_robot = float('inf')
+                            closest_point = None
+                            for i, path_point in enumerate(global_path):
+                                dist = math.sqrt(
+                                    (path_point[0] - robot_pos[0])**2 + 
+                                    (path_point[1] - robot_pos[1])**2
+                                )
+                                if dist < min_dist_to_robot:
+                                    min_dist_to_robot = dist
+                                    closest_point = (i, path_point)
+                            print(f"[MobileManipulator] 路径与机器人 {obj_name} 的最小距离: {min_dist_to_robot:.3f}m")
+                            if min_dist_to_robot < 0.5:  # 小于安全距离
+                                print(f"[MobileManipulator] ⚠️ 警告: 路径经过机器人 {obj_name} 附近! 最近点 {closest_point}")
+                
                 # 使用 DWA 沿路径导航
                 self._dwa_navigation(global_path, scene_objects or {})
             
