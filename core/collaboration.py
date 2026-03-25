@@ -17,6 +17,14 @@ from dataclasses import dataclass, field
 
 from .robot_agent import RobotAgent, CollaborationPhase
 
+# Import visualization (with fallback)
+try:
+    from ..visualization.speech_bubble import SpeechBubbleVisualizer
+    VISUALIZATION_AVAILABLE = True
+except ImportError:
+    VISUALIZATION_AVAILABLE = False
+    SpeechBubbleVisualizer = None
+
 
 class CollaborationPhase(Enum):
     """Four-stage collaboration process"""
@@ -98,7 +106,8 @@ class FourStageCollaboration:
         self,
         robots: List[RobotAgent],
         max_execution_steps: int = 100,
-        enable_communication: bool = True
+        enable_communication: bool = True,
+        enable_visualization: bool = True
     ):
         """
         Initialize four-stage collaboration
@@ -107,10 +116,12 @@ class FourStageCollaboration:
             robots: List of robot agents
             max_execution_steps: Maximum execution steps
             enable_communication: Whether to enable inter-robot communication
+            enable_visualization: Whether to enable speech bubble visualization
         """
         self.robots: Dict[str, RobotAgent] = {r.name: r for r in robots}
         self.max_execution_steps = max_execution_steps
         self.enable_communication = enable_communication
+        self.enable_visualization = enable_visualization and VISUALIZATION_AVAILABLE
         
         # Collaboration state
         self.manager = CollaborationManager()
@@ -121,18 +132,43 @@ class FourStageCollaboration:
         self.execution_history: List[Dict] = []
         self.start_time: Optional[float] = None
         
+        # Visualization
+        self.visualizer: Optional[SpeechBubbleVisualizer] = None
+        if self.enable_visualization:
+            try:
+                self.visualizer = SpeechBubbleVisualizer()
+                self.visualizer.start()
+                print("[FourStageCollaboration] Speech bubble visualization enabled")
+            except Exception as e:
+                print(f"[FourStageCollaboration] Failed to start visualization: {e}")
+                self.visualizer = None
+        
         # Setup communication
         if enable_communication:
             self._setup_communication()
     
     def _setup_communication(self):
-        """Setup communication callbacks between robots"""
+        """Setup communication callbacks between robots with visualization"""
         def message_callback(from_robot: str, to_robot: str, content: str):
+            # Show speech bubble for communication
+            if self.visualizer:
+                self.visualizer.show_communication(from_robot, to_robot, content)
+            
             if to_robot in self.robots:
                 self.robots[to_robot].receive_message(from_robot, content)
         
         for robot in self.robots.values():
             robot.set_message_callback(message_callback)
+    
+    def set_robot_position(self, robot_name: str, position: Tuple[float, float, float]):
+        """Set robot position for visualization"""
+        if self.visualizer:
+            self.visualizer.update_robot_position(robot_name, position)
+    
+    def update_leader_visualization(self):
+        """Update leader indicator in visualization"""
+        if self.visualizer and self.leader_name:
+            self.visualizer.set_leader(self.leader_name)
     
     def run_collaboration(self, task: str) -> CollaborationResult:
         """
@@ -178,7 +214,7 @@ class FourStageCollaboration:
                 CollaborationPhase.COMPLETED if execution_success else CollaborationPhase.FAILED
             )
             
-            return CollaborationResult(
+            result = CollaborationResult(
                 success=execution_success,
                 message="Task completed successfully" if execution_success else "Task execution failed",
                 leader_name=self.leader_name,
@@ -188,9 +224,34 @@ class FourStageCollaboration:
                 robot_assignments=robot_assignments
             )
             
+            # Show completion message
+            if self.visualizer:
+                if execution_success:
+                    self.visualizer.show_speech(
+                        self.leader_name or "System",
+                        "🎉 Task completed successfully!",
+                        duration=5.0
+                    )
+                else:
+                    self.visualizer.show_speech(
+                        self.leader_name or "System",
+                        "❌ Task execution failed",
+                        duration=5.0
+                    )
+            
+            return result
+            
         except Exception as e:
             duration = time.time() - self.start_time if self.start_time else 0
             self.manager.transition_to(CollaborationPhase.FAILED, {'error': str(e)})
+            
+            # Show error message
+            if self.visualizer:
+                self.visualizer.show_speech(
+                    "System",
+                    f"💥 Error: {str(e)[:50]}",
+                    duration=5.0
+                )
             
             return CollaborationResult(
                 success=False,
@@ -217,6 +278,11 @@ class FourStageCollaboration:
             thought, description = robot.self_describe(task)
             descriptions[name] = description
             print(f"[Self-Description] {name}: {description}")
+            
+            # Show speech bubble
+            if self.visualizer:
+                self.visualizer.show_self_description(name, description)
+                time.sleep(0.5)  # Small delay for visual effect
         
         self.manager.transition_to(CollaborationPhase.TASK_ALLOCATION)
         return descriptions
@@ -253,6 +319,11 @@ class FourStageCollaboration:
             
             print(f"[TaskAllocation] {name}'s campaign speech: {speech}")
             print(f"[TaskAllocation] {name}'s plan: {json.dumps(plan, indent=2)}")
+            
+            # Show speech bubble for campaign speech
+            if self.visualizer and speech:
+                self.visualizer.show_campaign_speech(name, speech)
+                time.sleep(0.5)
         
         self.manager.transition_to(CollaborationPhase.LEADER_ELECTION)
         return proposals
@@ -282,10 +353,19 @@ class FourStageCollaboration:
             voted_for = robot.vote_leader(proposals)
             votes[voted_for] = votes.get(voted_for, 0) + 1
             print(f"[LeaderElection] {name} voted for {voted_for}")
+            
+            # Show speech bubble for voting
+            if self.visualizer:
+                self.visualizer.show_vote(name, voted_for)
+                time.sleep(0.3)
         
         # Count votes and determine winner
         leader = max(votes.keys(), key=lambda k: votes[k])
         print(f"\n[LeaderElection] Final votes: {votes}")
+        
+        # Update leader in visualizer
+        self.leader_name = leader
+        self.update_leader_visualization()
         print(f"[LeaderElection] Elected leader: {leader} with {votes[leader]} votes")
         
         self.manager.transition_to(CollaborationPhase.EXECUTION)
@@ -331,6 +411,12 @@ class FourStageCollaboration:
                 # Get action from robot
                 action = robot.execute_step(observation, self.task_plan)
                 print(f"[Execution] {name} action: {action}")
+                
+                # Show speech bubble for action
+                if self.visualizer:
+                    action_str = action.get('action', 'wait')
+                    reasoning = action.get('reasoning', '')
+                    self.visualizer.show_action(name, action_str, reasoning)
                 
                 # Execute action and get feedback (would use BestMan APIs in real implementation)
                 feedback = self._execute_action(name, action)

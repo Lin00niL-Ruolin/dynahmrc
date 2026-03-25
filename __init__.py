@@ -50,6 +50,8 @@ __all__ = [
     "CollaborationResult",
     "RobotAgent",
     "MemoryModule",
+    # 可视化模块
+    "SpeechBubbleVisualizer",
 ]
 
 
@@ -124,5 +126,10 @@ def __getattr__(name):
     if name == "MemoryModule":
         from .core.memory import MemoryModule
         return MemoryModule
+    
+    # 可视化模块
+    if name == "SpeechBubbleVisualizer":
+        from .visualization.speech_bubble import SpeechBubbleVisualizer
+        return SpeechBubbleVisualizer
     
     raise AttributeError(f"module 'dynahmrc' has no attribute '{name}'")

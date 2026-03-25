@@ -904,8 +904,14 @@ class DynaHMRCSystem:
             llm_client = self.llm_client if hasattr(self, 'llm_client') else None
             
             if not llm_client:
+                llm_config = self.llm_config.copy()
+                provider = llm_config.pop("provider", "mock")
+        
+                # 将 provider 映射为 client_type
+                client_type = "kimi" if provider == "kimi" else "mock"
+                
                 # 创建默认 LLM 客户端
-                llm_client = create_llm_client(self.llm_config)
+                llm_client = create_llm_client(client_type=client_type, **llm_config)
             
             # 映射机器人类型
             robot_type_map = {

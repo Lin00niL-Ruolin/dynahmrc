@@ -14,7 +14,7 @@ from .memory import MemoryModule
 __all__ = [
     'CollaborationPhase',
     'CollaborationManager',
-    'FourStageCollaboration',
+    'FourStageCollaboration', 
     'RobotAgent',
     'MemoryModule'
 ]
