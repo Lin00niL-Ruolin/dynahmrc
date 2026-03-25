@@ -40,11 +40,27 @@ python -m dynahmrc.run_demo --scenario assembly
 ```python
 from dynahmrc import DynaHMRCSystem
 
-# 配置
+# 方式1: 使用JSON场景文件（推荐）
 scene_config = {
     "config_path": "Config/default.yaml",
     "gui": True,
-    "objects": [...]
+    "scene_path": "Asset/Scene/your_scene.json"  # JSON场景文件路径
+}
+
+# 方式2: 使用objects列表逐个定义
+scene_config = {
+    "config_path": "Config/default.yaml",
+    "gui": True,
+    "objects": [
+        {
+            "name": "box",
+            "type": "part",
+            "model_path": "Asset/Scene/Object/Box/mobility.urdf",
+            "position": [1.0, 1.0, 0.5],
+            "orientation": [0, 0, 0, 1],
+            "scale": 1.0  # 可选，默认值为1
+        }
+    ]
 }
 
 robot_configs = [
@@ -67,6 +83,73 @@ system = DynaHMRCSystem(scene_config, robot_configs, llm_config)
 result = system.execute_task("把箱子搬到桌子上")
 print(f"任务完成: {result.success}")
 ```
+
+## 场景配置
+
+支持两种方式配置场景：
+
+### 方式1: JSON场景文件（推荐）
+
+使用BestMan的`create_scene`函数加载完整的场景文件：
+
+```python
+scene_config = {
+    "config_path": "Config/default.yaml",
+    "gui": True,
+    "scene_path": "Asset/Scene/your_scene.json"
+}
+```
+
+JSON场景文件格式示例：
+```json
+[
+    {
+        "obj_name": "table",
+        "model_path": "Asset/Scene/Object/Table/mobility.urdf",
+        "object_position": [0, 0, 0],
+        "object_orientation": [0, 0, 0, 1],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "box",
+        "model_path": "Asset/Scene/Object/Box/mobility.urdf",
+        "object_position": [1.0, 0, 0.5],
+        "object_orientation": [0, 0, 0, 1],
+        "scale": 0.5,
+        "fixed_base": false
+    }
+]
+```
+
+### 方式2: Objects列表
+
+在代码中逐个定义场景物体：
+
+```python
+scene_config = {
+    "config_path": "Config/default.yaml",
+    "gui": True,
+    "objects": [
+        {
+            "name": "box",
+            "type": "part",
+            "model_path": "Asset/Scene/Object/Box/mobility.urdf",
+            "position": [1.0, 1.0, 0.5],
+            "orientation": [0, 0, 0, 1],
+            "scale": 1.0  # 可选，默认值为1
+        }
+    ]
+}
+```
+
+**物体配置参数说明：**
+- `name`: 物体名称
+- `type`: 物体类型（如"part", "platform"等）
+- `model_path`: 模型文件路径（支持.urdf, .obj, .stl格式）
+- `position`: 位置坐标 `[x, y, z]`
+- `orientation`: 四元数 `[qx, qy, qz, qw]`
+- `scale`: 缩放比例（可选，默认值为1）
 
 ## 核心组件
 

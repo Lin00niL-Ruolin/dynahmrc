@@ -83,11 +83,26 @@ class DynaHMRCSystem:
         初始化 DynaHMRC 系统
         
         Args:
-            scene_config: 场景配置
+            scene_config: 场景配置，支持两种方式：
+                1. 使用scene_path加载JSON场景文件（优先）：
                 {
                     "config_path": "Config/default.yaml",
                     "gui": True,
-                    "objects": [...]
+                    "scene_path": "Asset/Scene/your_scene.json"
+                }
+                2. 使用objects列表逐个定义物体：
+                {
+                    "config_path": "Config/default.yaml",
+                    "gui": True,
+                    "objects": [
+                        {
+                            "name": "object_name",
+                            "model_path": "path/to/model.urdf",
+                            "position": [0, 0, 0],
+                            "orientation": [0, 0, 0, 1],
+                            "scale": 1
+                        }
+                    ]
                 }
             robot_configs: 机器人配置列表
                 [
@@ -235,6 +250,25 @@ class DynaHMRCSystem:
     
     def _load_scene(self):
         """加载场景物体"""
+        # 优先检查是否有scene_path，如果有则使用BestMan的create_scene加载JSON场景
+        scene_path = self.scene_config.get("scene_path")
+        
+        if scene_path:
+            # 使用BestMan的create_scene函数加载JSON场景文件
+            root_dir = self._get_project_root()
+            if not os.path.isabs(scene_path):
+                abs_scene_path = os.path.join(root_dir, scene_path)
+            else:
+                abs_scene_path = scene_path
+            
+            if os.path.exists(abs_scene_path):
+                self.client.create_scene(abs_scene_path)
+                print(f"[DynaHMRCSystem] 已从场景文件加载: {abs_scene_path}")
+                return
+            else:
+                print(f"[DynaHMRCSystem] 警告: 场景文件不存在: {abs_scene_path}")
+        
+        # 如果没有scene_path或加载失败，则使用objects列表逐个加载
         objects = self.scene_config.get("objects", [])
         root_dir = self._get_project_root()
         
