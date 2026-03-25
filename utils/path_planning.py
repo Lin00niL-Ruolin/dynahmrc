@@ -145,7 +145,7 @@ class AStarPlanner:
         print(f"[A*] 终点周围障碍物: {goal_obs}/{goal_total} ({goal_obs/goal_total*100:.1f}%)")
         
         iteration = 0
-        max_iterations = 5000  # 最大迭代次数限制
+        max_iterations = 9000  # 最大迭代次数限制
         
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
