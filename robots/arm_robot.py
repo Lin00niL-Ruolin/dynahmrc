@@ -263,11 +263,17 @@ class ArmRobot:
     
     def _remove_grasp_constraint(self):
         """移除抓取约束"""
-        if hasattr(self.bestman, 'sim_remove_gripper_constraint'):
-            self.bestman.sim_remove_gripper_constraint()
-        elif hasattr(self, 'constraint_id') and self.constraint_id is not None:
-            p.removeConstraint(self.constraint_id, physicsClientId=self.bestman.client_id)
+        # 优先使用我们创建的约束 ID
+        if hasattr(self, 'constraint_id') and self.constraint_id is not None:
+            try:
+                p.removeConstraint(self.constraint_id, physicsClientId=self.bestman.client_id)
+                print(f"[ArmRobot] 移除约束 {self.constraint_id}")
+            except Exception as e:
+                print(f"[ArmRobot] 移除约束失败: {e}")
             self.constraint_id = None
+        # 备选：使用 BestMan 的方法
+        elif hasattr(self.bestman, 'sim_remove_gripper_constraint'):
+            self.bestman.sim_remove_gripper_constraint()
     
     def get_end_effector_pose(self) -> Tuple[List[float], List[float]]:
         """获取末端执行器位姿"""

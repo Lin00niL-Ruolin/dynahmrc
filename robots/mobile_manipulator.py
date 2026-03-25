@@ -292,11 +292,22 @@ class MobileManipulator:
             self.is_busy = True
             self.current_task = f"place_at_{target_position}"
             
+            print(f"[MobileManipulator] 开始放置，目标位置: {target_position}")
+            print(f"[MobileManipulator] 当前持有物体: {self.is_holding_object}, ID: {self.held_object_id}")
+            print(f"[MobileManipulator] 约束ID: {getattr(self, 'constraint_id', None)}")
+            
+            # 检查是否持有物体
+            if not self.is_holding_object:
+                self.error_status = "place_failed: 没有持有物体"
+                print(f"[MobileManipulator] 错误: 没有持有物体")
+                return False
+            
             # 检查距离
             distance = math.sqrt(
                 (target_position[0] - self.position[0])**2 +
                 (target_position[1] - self.position[1])**2
             )
+            print(f"[MobileManipulator] 到目标距离: {distance}")
             
             # 如果目标太远，先导航
             if distance > self.manipulation_range:
@@ -311,7 +322,9 @@ class MobileManipulator:
                     self.position[2]
                 ]
                 
+                print(f"[MobileManipulator] 导航到接近位置: {approach_pos}")
                 if not self.navigate_to(approach_pos):
+                    self.error_status = "place_failed: 导航到接近位置失败"
                     return False
                 
                 self.rotate_to_yaw(angle)
@@ -321,30 +334,41 @@ class MobileManipulator:
             place_pos = target_position
             
             # 1. 移动到预放置位置
+            print(f"[MobileManipulator] 移动到预放置位置: {pre_place_pos}")
             if not self._move_arm_to_position(pre_place_pos):
+                self.error_status = "place_failed: 移动到预放置位置失败"
                 return False
             
             # 2. 下降到放置位置
+            print(f"[MobileManipulator] 下降到放置位置: {place_pos}")
             if not self._move_arm_to_position(place_pos):
+                self.error_status = "place_failed: 下降到放置位置失败"
                 return False
             
             # 3. 打开夹爪
+            print(f"[MobileManipulator] 打开夹爪")
             self.open_gripper()
             
             # 4. 移除约束
+            print(f"[MobileManipulator] 移除约束")
             self._remove_grasp_constraint()
             
             # 5. 抬升
+            print(f"[MobileManipulator] 抬升手臂")
             if not self._move_arm_to_position(pre_place_pos):
+                self.error_status = "place_failed: 抬升失败"
                 return False
             
             self.is_holding_object = False
             self.held_object_id = None
             
+            print(f"[MobileManipulator] 放置完成")
             return True
             
         except Exception as e:
-            self.error_status = f"place_failed: {str(e)}"
+            import traceback
+            self.error_status = f"place_failed: {str(e)}\n{traceback.format_exc()}"
+            print(f"[MobileManipulator] 放置异常: {self.error_status}")
             return False
         finally:
             self.is_busy = False
@@ -462,11 +486,17 @@ class MobileManipulator:
     
     def _remove_grasp_constraint(self):
         """移除抓取约束"""
-        if hasattr(self.bestman, 'sim_remove_gripper_constraint'):
-            self.bestman.sim_remove_gripper_constraint()
-        elif hasattr(self, 'constraint_id') and self.constraint_id is not None:
-            p.removeConstraint(self.constraint_id, physicsClientId=self.bestman.client_id)
+        # 优先使用我们创建的约束 ID
+        if hasattr(self, 'constraint_id') and self.constraint_id is not None:
+            try:
+                p.removeConstraint(self.constraint_id, physicsClientId=self.bestman.client_id)
+                print(f"[MobileManipulator] 移除约束 {self.constraint_id}")
+            except Exception as e:
+                print(f"[MobileManipulator] 移除约束失败: {e}")
             self.constraint_id = None
+        # 备选：使用 BestMan 的方法
+        elif hasattr(self.bestman, 'sim_remove_gripper_constraint'):
+            self.bestman.sim_remove_gripper_constraint()
     
     def get_end_effector_pose(self) -> Tuple[List[float], List[float]]:
         """获取末端执行器位姿"""
