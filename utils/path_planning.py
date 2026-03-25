@@ -112,11 +112,18 @@ class AStarPlanner:
         closed_set: Set[Tuple[int, int]] = set()
         
         print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
+        print(f"[A*] 距离: {math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2):.1f} 格")
         
         iteration = 0
-        while open_set:
+        max_iterations = 5000  # 最大迭代次数限制
+        
+        while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
             iteration += 1
+            
+            # 每 500 次迭代打印进度
+            if iteration % 500 == 0:
+                print(f"[A*] 规划中... 迭代 {iteration}, 开放集 {len(open_set)}, 已探索 {len(closed_set)}")
             
             # 到达目标
             if current == goal_node:
@@ -149,7 +156,10 @@ class AStarPlanner:
                 
                 heapq.heappush(open_set, neighbor)
         
-        print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
+        if iteration >= max_iterations:
+            print(f"[A*] 规划超时! 达到最大迭代次数 {max_iterations}")
+        else:
+            print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
         print(f"[A*] 已探索节点数: {len(closed_set)}")
         return None
     
@@ -379,14 +389,24 @@ class PathPlanner:
         obstacle_sizes = []
         
         for obj_name, obj_info in scene_objects.items():
-            if obj_info.get('type') != 'graspable':  # 不将可抓取物体视为障碍物
+            obj_type = obj_info.get('type', 'unknown')
+            if obj_type != 'graspable':  # 不将可抓取物体视为障碍物
                 pos = obj_info.get('position', [0, 0, 0])
                 obstacle_positions.append(pos)
                 
                 # 获取物体尺寸（如果有）
                 size = obj_info.get('size', [0.1, 0.1, 0.1])
                 # 使用 x-y 平面的最大半径
-                radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+                raw_radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+                
+                # 对家具类障碍物使用更小的膨胀半径（避免过度膨胀）
+                if obj_type == 'furniture':
+                    # 家具只膨胀其实际尺寸的一半，因为 AABB 往往比实际占用空间大
+                    radius = raw_radius * 0.5
+                    print(f"[PathPlanner] 家具 '{obj_name}': 原始半径 {raw_radius:.2f}m -> 使用半径 {radius:.2f}m")
+                else:
+                    radius = raw_radius
+                
                 obstacle_sizes.append(radius)
         
         self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
