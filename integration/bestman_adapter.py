@@ -241,7 +241,11 @@ class BestManAdapter:
             return False, f"不支持的目标格式: {type(target)}", {}
         
         try:
-            success = robot.navigate_to(position, orientation)
+            # 获取场景物体信息用于避障
+            scene_objects = self.get_scene_graph()
+            
+            # 调用导航方法，传递场景物体信息
+            success = robot.navigate_to(position, orientation, scene_objects)
             
             state = robot.get_state()
             
@@ -277,7 +281,10 @@ class BestManAdapter:
             object_id = self._resolve_object_id(object_id)
         
         try:
-            success = robot.pick(object_id)
+            # 获取场景物体信息用于导航避障
+            scene_objects = self.get_scene_graph()
+            
+            success = robot.pick(object_id, scene_objects=scene_objects)
             
             state = robot.get_state()
             
@@ -311,7 +318,10 @@ class BestManAdapter:
             return False, f"不支持的目标格式: {type(target)}", {}
         
         try:
-            success = robot.place(position)
+            # 获取场景物体信息用于导航避障
+            scene_objects = self.get_scene_graph()
+            
+            success = robot.place(position, scene_objects=scene_objects)
             
             state = robot.get_state()
             

@@ -9,6 +9,8 @@ import math
 import numpy as np
 import pybullet as p
 
+from ..utils.path_planning import PathPlanner
+
 
 class MobileManipulator:
     """
@@ -56,6 +58,9 @@ class MobileManipulator:
         self.navigation_threshold = 0.05
         self.manipulation_range = 0.8  # 操作范围（米）
         
+        # 路径规划器（A* + DWA）
+        self.path_planner = PathPlanner(client_id=self.bestman.client_id)
+        
         # 更新初始位置
         self._update_pose()
     
@@ -88,14 +93,16 @@ class MobileManipulator:
     def navigate_to(
         self,
         target_position: List[float],
-        target_orientation: Optional[List[float]] = None
+        target_orientation: Optional[List[float]] = None,
+        scene_objects: Optional[Dict[str, Dict]] = None
     ) -> bool:
         """
-        导航到目标位置
+        导航到目标位置（使用 A* + DWA 路径规划）
         
         Args:
             target_position: 目标位置 [x, y, z]
             target_orientation: 目标朝向（四元数，可选）
+            scene_objects: 场景物体信息，用于避障
         
         Returns:
             是否成功
@@ -104,28 +111,111 @@ class MobileManipulator:
             self.is_busy = True
             self.current_task = f"navigate_to_{target_position}"
             
-            # 使用简单导航实现（更稳定）
-            self._simple_navigation(target_position)
+            print(f"[MobileManipulator] 开始导航到 {target_position}")
             
+            # 更新障碍物信息
+            if scene_objects:
+                self.path_planner.update_obstacles_from_scene(scene_objects)
+            
+            # 规划全局路径（A*）
+            start_pos = [self.position[0], self.position[1]]
+            goal_pos = [target_position[0], target_position[1]]
+            
+            global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
+            
+            if global_path is None:
+                print("[MobileManipulator] 全局路径规划失败，使用简单导航")
+                self._simple_navigation(target_position)
+            else:
+                print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
+                # 使用 DWA 沿路径导航
+                self._dwa_navigation(global_path, scene_objects or {})
+            
+            # 调整最终朝向
             if target_orientation:
                 target_yaw = p.getEulerFromQuaternion(target_orientation)[2]
                 self.rotate_to_yaw(target_yaw)
             
             self._update_pose()
+            print(f"[MobileManipulator] 导航完成，当前位置: {self.position}")
             return True
             
         except Exception as e:
             import traceback
             self.error_status = f"navigation_failed: {str(e)}\n{traceback.format_exc()}"
+            print(f"[MobileManipulator] 导航失败: {self.error_status}")
             return False
         finally:
             self.is_busy = False
             self.current_task = None
     
+    def _dwa_navigation(self, global_path: List[List[float]], scene_objects: Dict[str, Dict]):
+        """使用 DWA 沿全局路径导航"""
+        max_steps = 1000
+        step = 0
+        current_v = 0.0
+        current_yaw_rate = 0.0
+        
+        while step < max_steps:
+            self._update_pose()
+            
+            # 检查是否到达终点
+            goal = global_path[-1]
+            distance_to_goal = math.sqrt(
+                (goal[0] - self.position[0]) ** 2 +
+                (goal[1] - self.position[1]) ** 2
+            )
+            
+            if distance_to_goal < self.navigation_threshold:
+                print(f"[MobileManipulator] 到达目标，距离: {distance_to_goal}")
+                break
+            
+            # 使用 DWA 计算速度
+            v, yaw_rate = self.path_planner.compute_velocity(
+                [self.position[0], self.position[1]],
+                self.yaw,
+                current_v,
+                current_yaw_rate,
+                scene_objects
+            )
+            
+            # 应用速度
+            self._apply_velocity(v, yaw_rate)
+            
+            current_v = v
+            current_yaw_rate = yaw_rate
+            
+            step += 1
+            self.bestman.client.run(5)
+            
+            if step % 50 == 0:
+                print(f"[MobileManipulator] 导航中... 步骤: {step}, 位置: {self.position}")
+    
+    def _apply_velocity(self, v: float, yaw_rate: float):
+        """应用速度指令"""
+        # 计算新位置
+        dt = 0.1
+        new_yaw = self.yaw + yaw_rate * dt
+        new_x = self.position[0] + v * math.cos(new_yaw) * dt
+        new_y = self.position[1] + v * math.sin(new_yaw) * dt
+        
+        # 更新朝向
+        orientation = [0, 0, math.sin(new_yaw / 2.0), math.cos(new_yaw / 2.0)]
+        
+        # 设置新位置
+        p.resetBasePositionAndOrientation(
+            self.bestman.base_id,
+            [new_x, new_y, self.position[2]],
+            orientation,
+            physicsClientId=self.bestman.client_id
+        )
+    
     def _simple_navigation(self, target_pos: List[float]):
         """简单导航实现（备用）"""
         max_steps = 1000
         step = 0
+        
+        print(f"[MobileManipulator] 使用简单导航到 {target_pos}")
         
         while step < max_steps:
             self._update_pose()
@@ -135,6 +225,7 @@ class MobileManipulator:
             distance = math.sqrt(dx**2 + dy**2)
             
             if distance < self.navigation_threshold:
+                print(f"[MobileManipulator] 简单导航到达目标")
                 break
             
             target_yaw = math.atan2(dy, dx)
@@ -193,10 +284,10 @@ class MobileManipulator:
             self.error_status = f"move_forward_failed: {str(e)}"
             return False
     
-    def pick(self, object_id: int, grasp_pose: Optional[Dict] = None) -> bool:
+    def pick(self, object_id: int, grasp_pose: Optional[Dict] = None, scene_objects: Optional[Dict[str, Dict]] = None) -> bool:
         """
         抓取物体
-        
+
         算法流程:
         1. 检查物体是否在操作范围内
         2. 如有必要，导航到合适位置
@@ -205,18 +296,18 @@ class MobileManipulator:
         try:
             self.is_busy = True
             self.current_task = f"pick_object_{object_id}"
-            
+
             # 获取物体位置
             obj_pos, obj_orn = p.getBasePositionAndOrientation(
                 object_id, physicsClientId=self.bestman.client_id
             )
-            
+
             # 检查距离
             distance = math.sqrt(
                 (obj_pos[0] - self.position[0])**2 +
                 (obj_pos[1] - self.position[1])**2
             )
-            
+
             # 如果物体太远，先导航到合适位置
             if distance > self.manipulation_range:
                 # 计算合适的抓取位置（物体前方）
@@ -230,11 +321,11 @@ class MobileManipulator:
                     obj_pos[1] - approach_distance * math.sin(angle),
                     self.position[2]
                 ]
-                
-                if not self.navigate_to(approach_pos):
+
+                if not self.navigate_to(approach_pos, scene_objects=scene_objects):
                     self.error_status = f"pick_failed: 导航到抓取位置失败"
                     return False
-                
+
                 # 转向物体
                 self.rotate_to_yaw(angle)
             
@@ -279,10 +370,10 @@ class MobileManipulator:
             self.is_busy = False
             self.current_task = None
     
-    def place(self, target_position: List[float]) -> bool:
+    def place(self, target_position: List[float], scene_objects: Optional[Dict[str, Dict]] = None) -> bool:
         """
         放置物体到目标位置
-        
+
         算法流程:
         1. 检查目标位置是否在操作范围内
         2. 如有必要，导航到合适位置
@@ -291,24 +382,24 @@ class MobileManipulator:
         try:
             self.is_busy = True
             self.current_task = f"place_at_{target_position}"
-            
+
             print(f"[MobileManipulator] 开始放置，目标位置: {target_position}")
             print(f"[MobileManipulator] 当前持有物体: {self.is_holding_object}, ID: {self.held_object_id}")
             print(f"[MobileManipulator] 约束ID: {getattr(self, 'constraint_id', None)}")
-            
+
             # 检查是否持有物体
             if not self.is_holding_object:
                 self.error_status = "place_failed: 没有持有物体"
                 print(f"[MobileManipulator] 错误: 没有持有物体")
                 return False
-            
+
             # 检查距离
             distance = math.sqrt(
                 (target_position[0] - self.position[0])**2 +
                 (target_position[1] - self.position[1])**2
             )
             print(f"[MobileManipulator] 到目标距离: {distance}")
-            
+
             # 如果目标太远，先导航
             if distance > self.manipulation_range:
                 approach_distance = self.manipulation_range * 0.8
@@ -321,12 +412,12 @@ class MobileManipulator:
                     target_position[1] - approach_distance * math.sin(angle),
                     self.position[2]
                 ]
-                
+
                 print(f"[MobileManipulator] 导航到接近位置: {approach_pos}")
-                if not self.navigate_to(approach_pos):
+                if not self.navigate_to(approach_pos, scene_objects=scene_objects):
                     self.error_status = "place_failed: 导航到接近位置失败"
                     return False
-                
+
                 self.rotate_to_yaw(angle)
             
             # 执行放置
