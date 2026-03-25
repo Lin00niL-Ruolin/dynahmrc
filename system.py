@@ -6,6 +6,7 @@ system.py - DynaHMRC 主系统集成类
 - Algorithm 1: Dynamic Replanning（动态重规划）
 - Algorithm 2: Task Allocation（任务分配）
 - Algorithm 3: Conflict Resolution（冲突解决）
+- Four-Stage Collaboration: Self-Description -> Task Allocation -> Leader Election -> Execution
 """
 
 import os
@@ -33,6 +34,13 @@ from Dyna_hmrc_web.dynahmrc_web.dynahmrc.utils.llm_api import (
 # 导入 DynaHMRC 集成层
 from .integration.robot_factory import RobotFactory
 from .integration.bestman_adapter import BestManAdapter, ExecutionFeedback
+
+# 导入评估模块
+from .evaluation.metrics import MetricsCollector, TaskMetrics
+
+# 导入四阶段协作模块
+from .core.collaboration import FourStageCollaboration, CollaborationResult
+from .core.robot_agent import RobotAgent
 
 
 class TaskStatus(Enum):
@@ -144,6 +152,12 @@ class DynaHMRCSystem:
         # 统计信息
         self.start_time: Optional[float] = None
         self.replan_count = 0
+        
+        # 评估指标收集器
+        self.metrics_collector: Optional[MetricsCollector] = None
+        self.current_task_metrics: Optional[TaskMetrics] = None
+        self.action_count = 0
+        self.communication_count = 0
         
         print("[DynaHMRCSystem] 系统实例已创建")
     
@@ -369,7 +383,8 @@ class DynaHMRCSystem:
         
         print("[DynaHMRCSystem] LLM 协调器已初始化")
     
-    def execute_task(self, natural_language_task: str) -> ExecutionResult:
+    def execute_task(self, natural_language_task: str, max_steps: int = 100,
+                     task_type: str = "generic", variation: str = "static") -> Dict[str, Any]:
         """
         执行自然语言任务（主入口）
         
@@ -378,48 +393,102 @@ class DynaHMRCSystem:
         Args:
             natural_language_task: 自然语言描述的任务
                 例如: "把 A 区的 3 个箱子搬到 B 区的手推车上"
+            max_steps: 最大执行步数
+            task_type: 任务类型 (pack_objects, make_sandwich, sort_solids)
+            variation: 任务变化类型 (static, cto, irz, anc, rec)
         
         Returns:
-            ExecutionResult 执行结果
+            Dict 包含执行结果和评估指标
         """
         if not self.is_initialized:
             if not self.initialize():
-                return ExecutionResult(
-                    success=False,
-                    message="系统初始化失败",
-                    execution_time=0.0
-                )
+                return {
+                    'success': False,
+                    'message': "系统初始化失败",
+                    'steps': 0,
+                    'communications': 0,
+                    'partial_success': 0.0
+                }
         
         print(f"\n{'='*60}")
         print(f"[DynaHMRCSystem] 开始执行任务: {natural_language_task}")
         print(f"{'='*60}\n")
         
+        # 初始化评估指标
         self.start_time = time.time()
+        self.action_count = 0
+        self.communication_count = 0
+        
+        # 获取机器人团队信息
+        robot_team = list(self.robot_factory.get_all_robots().keys())
+        robot_types = {
+            rid: robot.robot_type 
+            for rid, robot in self.robot_factory.get_all_robots().items()
+        }
+        
+        # 开始指标收集
+        if self.metrics_collector:
+            self.metrics_collector.start_task(
+                task_id=f"task_{int(time.time())}",
+                task_type=task_type,
+                variation=variation,
+                robot_team=robot_team,
+                robot_types=robot_types
+            )
         self.replan_count = 0
         
         # 阶段 1: 使用 LLM 生成任务规划
         plan = self._generate_task_plan(natural_language_task)
         
         if "error" in plan:
-            return ExecutionResult(
-                success=False,
-                message=f"任务规划失败: {plan['error']}",
-                execution_time=time.time() - self.start_time
-            )
+            total_time = time.time() - self.start_time
+            result = {
+                'success': False,
+                'message': f"任务规划失败: {plan['error']}",
+                'steps': 0,
+                'communications': 0,
+                'partial_success': 0.0,
+                'execution_time': total_time,
+                'replan_count': 0
+            }
+            # 记录失败结果
+            if self.metrics_collector:
+                self.metrics_collector.end_task(success=False, partial_success=0.0)
+            return result
         
         print(f"[DynaHMRCSystem] 任务规划完成: {len(plan.get('task_decomposition', []))} 个子任务")
         
         # 阶段 2: 执行任务（带监控和重规划）
-        result = self._execute_with_monitoring(plan)
+        exec_result = self._execute_with_monitoring(plan, max_steps=max_steps)
         
         total_time = time.time() - self.start_time
-        result.execution_time = total_time
-        result.replan_count = self.replan_count
+        
+        # 构建结果字典
+        result = {
+            'success': exec_result.success,
+            'message': exec_result.message,
+            'steps': self.action_count,
+            'communications': self.communication_count,
+            'partial_success': 1.0 if exec_result.success else 0.5,  # 简化计算
+            'execution_time': total_time,
+            'replan_count': self.replan_count,
+            'completed_tasks': exec_result.completed_tasks,
+            'failed_tasks': exec_result.failed_tasks
+        }
+        
+        # 结束指标收集
+        if self.metrics_collector:
+            self.metrics_collector.end_task(
+                success=exec_result.success,
+                partial_success=result['partial_success']
+            )
         
         print(f"\n{'='*60}")
         print(f"[DynaHMRCSystem] 任务执行结束")
-        print(f"  结果: {'成功' if result.success else '失败'}")
+        print(f"  结果: {'成功' if result['success'] else '失败'}")
         print(f"  耗时: {total_time:.2f} 秒")
+        print(f"  动作步数: {self.action_count}")
+        print(f"  通信次数: {self.communication_count}")
         print(f"  重规划次数: {self.replan_count}")
         print(f"{'='*60}\n")
         
@@ -478,7 +547,7 @@ class DynaHMRCSystem:
         
         return "\n".join(desc_parts)
     
-    def _execute_with_monitoring(self, plan: Dict[str, Any]) -> ExecutionResult:
+    def _execute_with_monitoring(self, plan: Dict[str, Any], max_steps: int = 100) -> ExecutionResult:
         """
         执行任务并监控（支持动态重规划）
         
@@ -490,8 +559,14 @@ class DynaHMRCSystem:
         
         completed_tasks = []
         failed_tasks = []
+        step_count = 0
         
         for task_id in execution_sequence:
+            # 检查步数限制
+            if step_count >= max_steps:
+                print(f"[DynaHMRCSystem] 达到最大步数限制 ({max_steps})")
+                break
+            
             # 查找任务详情
             task_info = None
             for t in decomposition:
@@ -512,6 +587,16 @@ class DynaHMRCSystem:
             
             # 执行子任务
             success = self._execute_subtask(robot_id, task_info)
+            step_count += 1
+            self.action_count += 1
+            
+            # 记录动作
+            if self.metrics_collector and self.metrics_collector.current_task:
+                self.metrics_collector.record_action(
+                    robot_id=robot_id,
+                    action_type=task_info.get("type", "unknown"),
+                    action_details=task_info
+                )
             
             if success:
                 completed_tasks.append(task_id)
@@ -526,6 +611,10 @@ class DynaHMRCSystem:
                 if self.coordinator.enable_replanning and self.replan_count < self.coordinator.max_replan_attempts:
                     print(f"[DynaHMRCSystem] 触发重规划 (第 {self.replan_count + 1} 次)")
                     
+                    # 记录重规划
+                    if self.metrics_collector:
+                        self.metrics_collector.record_replan()
+                    
                     # 重规划
                     replan_success = self._replan_after_failure(
                         task_id, robot_id, plan, completed_tasks
@@ -535,6 +624,8 @@ class DynaHMRCSystem:
                         self.replan_count += 1
                         # 重试当前任务
                         success = self._execute_subtask(robot_id, task_info)
+                        self.action_count += 1
+                        
                         if success:
                             completed_tasks.append(task_id)
                             failed_tasks.remove(task_id)
@@ -671,6 +762,175 @@ class DynaHMRCSystem:
             "replan_count": self.replan_count
         }
     
+    def execute_task_with_four_stages(self, natural_language_task: str, 
+                                       max_steps: int = 100,
+                                       task_type: str = "generic", 
+                                       variation: str = "static") -> Dict[str, Any]:
+        """
+        使用四阶段协作流程执行任务
+        
+        Four-Stage Collaboration:
+        1. Self-Description: 每个机器人自我介绍
+        2. Task Allocation: 任务分配和领导竞选
+        3. Leader Election: 投票选举领导者
+        4. Closed-Loop Execution: 闭环执行
+        
+        Args:
+            natural_language_task: 自然语言描述的任务
+            max_steps: 最大执行步数
+            task_type: 任务类型
+            variation: 任务变化类型
+            
+        Returns:
+            Dict 包含执行结果和评估指标
+        """
+        if not self.is_initialized:
+            if not self.initialize():
+                return {
+                    'success': False,
+                    'message': "系统初始化失败",
+                    'steps': 0,
+                    'communications': 0,
+                    'partial_success': 0.0
+                }
+        
+        print(f"\n{'='*60}")
+        print(f"[DynaHMRCSystem] 开始四阶段协作任务: {natural_language_task}")
+        print(f"{'='*60}\n")
+        
+        # 初始化评估指标
+        self.start_time = time.time()
+        self.action_count = 0
+        self.communication_count = 0
+        
+        # 获取机器人团队信息
+        robot_team = list(self.robot_factory.get_all_robots().keys())
+        robot_types = {
+            rid: robot.robot_type 
+            for rid, robot in self.robot_factory.get_all_robots().items()
+        }
+        
+        # 开始指标收集
+        if self.metrics_collector:
+            self.metrics_collector.start_task(
+                task_id=f"task_{int(time.time())}",
+                task_type=task_type,
+                variation=variation,
+                robot_team=robot_team,
+                robot_types=robot_types
+            )
+        
+        try:
+            # 创建 RobotAgent 实例
+            robot_agents = self._create_robot_agents()
+            
+            # 创建四阶段协作框架
+            collaboration = FourStageCollaboration(
+                robots=robot_agents,
+                max_execution_steps=max_steps,
+                enable_communication=True
+            )
+            
+            # 运行四阶段协作
+            collab_result = collaboration.run_collaboration(natural_language_task)
+            
+            total_time = time.time() - self.start_time
+            
+            # 更新统计信息
+            self.action_count = collab_result.execution_steps
+            
+            # 构建结果字典
+            result = {
+                'success': collab_result.success,
+                'message': collab_result.message,
+                'steps': collab_result.execution_steps,
+                'communications': self.communication_count,
+                'partial_success': 1.0 if collab_result.success else 0.5,
+                'execution_time': total_time,
+                'replan_count': 0,  # 四阶段框架中重规划是内部的
+                'leader': collab_result.leader_name,
+                'task_plan': collab_result.task_plan,
+                'robot_assignments': collab_result.robot_assignments
+            }
+            
+            # 结束指标收集
+            if self.metrics_collector:
+                self.metrics_collector.end_task(
+                    success=collab_result.success,
+                    partial_success=result['partial_success']
+                )
+            
+            print(f"\n{'='*60}")
+            print(f"[DynaHMRCSystem] 四阶段协作完成")
+            print(f"  结果: {'成功' if result['success'] else '失败'}")
+            print(f"  领导者: {result['leader']}")
+            print(f"  耗时: {total_time:.2f} 秒")
+            print(f"  执行步数: {result['steps']}")
+            print(f"{'='*60}\n")
+            
+            return result
+            
+        except Exception as e:
+            total_time = time.time() - self.start_time
+            print(f"[DynaHMRCSystem] 四阶段协作失败: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            result = {
+                'success': False,
+                'message': f"四阶段协作失败: {str(e)}",
+                'steps': 0,
+                'communications': 0,
+                'partial_success': 0.0,
+                'execution_time': total_time
+            }
+            
+            if self.metrics_collector:
+                self.metrics_collector.end_task(success=False, partial_success=0.0)
+            
+            return result
+    
+    def _create_robot_agents(self) -> List[RobotAgent]:
+        """
+        从 RobotFactory 创建 RobotAgent 实例
+        
+        Returns:
+            List of RobotAgent instances
+        """
+        robot_agents = []
+        
+        for robot_id, robot in self.robot_factory.get_all_robots().items():
+            # 获取 LLM 客户端
+            llm_client = self.llm_client if hasattr(self, 'llm_client') else None
+            
+            if not llm_client:
+                # 创建默认 LLM 客户端
+                llm_client = create_llm_client(self.llm_config)
+            
+            # 映射机器人类型
+            robot_type_map = {
+                'mobile_manipulator': 'MobileManipulation',
+                'manipulator': 'Manipulator',
+                'mobile_base': 'Mobile',
+                'drone': 'Drone'
+            }
+            
+            agent_type = robot_type_map.get(robot.robot_type, 'MobileManipulation')
+            
+            # 创建 RobotAgent
+            agent = RobotAgent(
+                name=robot_id,
+                robot_type=agent_type,
+                capabilities=robot.capabilities,
+                llm_client=llm_client,
+                avatar="🤖"
+            )
+            
+            robot_agents.append(agent)
+            print(f"[DynaHMRCSystem] 创建 RobotAgent: {robot_id} ({agent_type})")
+        
+        return robot_agents
+    
     def emergency_stop(self):
         """系统紧急停止"""
         print("[DynaHMRCSystem] 紧急停止!")
@@ -688,3 +948,20 @@ class DynaHMRCSystem:
         
         self.is_initialized = False
         print("[DynaHMRCSystem] 系统已关闭")
+    
+    def set_metrics_collector(self, collector: MetricsCollector):
+        """设置评估指标收集器"""
+        self.metrics_collector = collector
+        print("[DynaHMRCSystem] 已设置评估指标收集器")
+    
+    def record_communication(self, from_robot: str, to_robot: str, 
+                            message_type: str, content: str):
+        """记录机器人间的通信"""
+        self.communication_count += 1
+        if self.metrics_collector and self.metrics_collector.current_task:
+            self.metrics_collector.record_communication(
+                from_robot=from_robot,
+                to_robot=to_robot,
+                message_type=message_type,
+                content=content
+            )
