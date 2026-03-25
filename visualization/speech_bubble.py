@@ -14,18 +14,17 @@ import threading
 @dataclass
 class BubbleConfig:
     """Configuration for speech bubble appearance"""
-    bubble_height: float = 0.8  # Height above robot base
-    text_size: float = 1.2
-    text_color: Tuple[float, float, float] = (0, 0, 0)  # Black text
-    bg_color: Tuple[float, float, float] = (1, 1, 1)  # White background
-    border_color: Tuple[float, float, float] = (0.3, 0.3, 0.3)  # Gray border
-    max_width: int = 30  # Max characters per line
+    bubble_height: float = 0.6  # Height above robot base
+    text_size: float = 1.0
+    text_color: Tuple[float, float, float] = (1, 1, 1)  # White text
+    leader_color: Tuple[float, float, float] = (1, 0.84, 0)  # Gold for leader
+    normal_color: Tuple[float, float, float] = (0.3, 0.6, 1.0)  # Blue for normal
+    max_width: int = 25  # Max characters per line
     display_duration: float = 5.0  # Seconds to display bubble
-    fade_duration: float = 1.0  # Seconds to fade out
 
 
 class SpeechBubble:
-    """Represents a single speech bubble"""
+    """Represents a single speech bubble using PyBullet debug text"""
     
     def __init__(
         self,
@@ -52,14 +51,15 @@ class SpeechBubble:
         current_length = 0
         
         for word in words:
-            if current_length + len(word) + 1 <= max_width:
+            word_len = len(word)
+            if current_length + word_len + 1 <= max_width:
                 current_line.append(word)
-                current_length += len(word) + 1
+                current_length += word_len + 1
             else:
                 if current_line:
                     lines.append(' '.join(current_line))
                 current_line = [word]
-                current_length = len(word)
+                current_length = word_len
         
         if current_line:
             lines.append(' '.join(current_line))
@@ -68,108 +68,83 @@ class SpeechBubble:
     
     def _create_bubble(self):
         """Create the visual bubble in PyBullet"""
-        lines = self._wrap_text(self.message, self.config.max_width)
-        
-        # Calculate bubble dimensions
-        line_height = 0.15
-        bubble_width = max(len(line) * 0.03, 0.5)
-        bubble_height = len(lines) * line_height + 0.2
+        # Remove emoji and special characters that PyBullet may not support
+        clean_message = self._clean_text(self.message)
+        lines = self._wrap_text(clean_message, self.config.max_width)
         
         x, y, z = self.position
         
-        # Leader crown icon
+        # Text color based on role
+        text_color = self.config.leader_color if self.is_leader else self.config.normal_color
+        
+        # Build multi-line text
+        display_text = f"[{self.robot_name}]:\n"
+        display_text += "\n".join(lines)
+        
+        # Add leader indicator
         if self.is_leader:
-            crown_text = "👑"
-            crown_id = p.addUserDebugText(
-                text=crown_text,
-                textPosition=[x, y, z + self.config.bubble_height + bubble_height + 0.1],
-                textColorRGB=[1, 0.84, 0],  # Gold color
-                textSize=self.config.text_size * 1.5,
-                physicsClientId=0
-            )
-            self.item_ids.append(crown_id)
+            display_text = "[LEADER] " + display_text
         
-        # Draw bubble background (rectangle using lines)
-        bg_z = z + self.config.bubble_height
-        half_width = bubble_width / 2
-        half_height = bubble_height / 2
+        # Position above robot
+        text_pos = [x, y, z + self.config.bubble_height]
         
-        corners = [
-            [x - half_width, y, bg_z - half_height],  # Bottom left
-            [x + half_width, y, bg_z - half_height],  # Bottom right
-            [x + half_width, y, bg_z + half_height],  # Top right
-            [x - half_width, y, bg_z + half_height],  # Top left
-        ]
-        
-        # Draw border lines
-        border_lines = [
-            (0, 1), (1, 2), (2, 3), (3, 0)  # Rectangle
-        ]
-        
-        for start_idx, end_idx in border_lines:
-            line_id = p.addUserDebugLine(
-                lineFromXYZ=corners[start_idx],
-                lineToXYZ=corners[end_idx],
-                lineColorRGB=self.config.border_color,
-                lineWidth=2.0,
-                physicsClientId=0
-            )
-            self.item_ids.append(line_id)
-        
-        # Draw pointer line from robot to bubble
-        pointer_id = p.addUserDebugLine(
-            lineFromXYZ=[x, y, z + 0.3],
-            lineToXYZ=[x, y, bg_z - half_height],
-            lineColorRGB=self.config.border_color,
-            lineWidth=2.0,
-            physicsClientId=0
-        )
-        self.item_ids.append(pointer_id)
-        
-        # Draw text lines
-        text_z = bg_z + half_height - 0.1
-        for i, line in enumerate(lines):
-            line_pos = [x, y, text_z - i * line_height]
+        try:
+            # Create debug text
             text_id = p.addUserDebugText(
-                text=line,
-                textPosition=line_pos,
-                textColorRGB=self.config.text_color,
+                text=display_text,
+                textPosition=text_pos,
+                textColorRGB=text_color,
                 textSize=self.config.text_size,
                 physicsClientId=0
             )
             self.item_ids.append(text_id)
+            
+            # Draw a simple line from robot to text
+            line_id = p.addUserDebugLine(
+                lineFromXYZ=[x, y, z + 0.2],
+                lineToXYZ=[x, y, z + self.config.bubble_height - 0.1],
+                lineColorRGB=text_color,
+                lineWidth=2.0,
+                physicsClientId=0
+            )
+            self.item_ids.append(line_id)
+            
+        except Exception as e:
+            print(f"[SpeechBubble] Error creating bubble: {e}")
+    
+    def _clean_text(self, text: str) -> str:
+        """Remove emoji and special characters"""
+        # Remove common emoji
+        emoji_ranges = [
+            (0x1F600, 0x1F64F),  # Emoticons
+            (0x1F300, 0x1F5FF),  # Misc Symbols and Pictographs
+            (0x1F680, 0x1F6FF),  # Transport and Map
+            (0x2600, 0x26FF),    # Misc symbols
+            (0x2700, 0x27BF),    # Dingbats
+        ]
         
-        # Draw robot name label
-        name_pos = [x, y, bg_z - half_height - 0.1]
-        name_color = (1, 0.84, 0) if self.is_leader else (0.2, 0.4, 0.8)
-        name_id = p.addUserDebugText(
-            text=f"[{self.robot_name}]",
-            textPosition=name_pos,
-            textColorRGB=name_color,
-            textSize=self.config.text_size * 0.8,
-            physicsClientId=0
-        )
-        self.item_ids.append(name_id)
+        result = []
+        for char in text:
+            code = ord(char)
+            is_emoji = any(start <= code <= end for start, end in emoji_ranges)
+            if not is_emoji:
+                result.append(char)
+        
+        return ''.join(result)
     
     def update(self, current_time: float) -> bool:
         """
         Update bubble state, return False if should be removed
         """
         elapsed = current_time - self.created_time
-        
-        if elapsed > self.config.display_duration + self.config.fade_duration:
-            return False
-        
-        # Could add fade effect here by changing alpha (not directly supported in PyBullet)
-        
-        return True
+        return elapsed <= self.config.display_duration
     
     def remove(self):
         """Remove all visual elements"""
         for item_id in self.item_ids:
             try:
                 p.removeUserDebugItem(item_id, physicsClientId=0)
-            except:
+            except Exception as e:
                 pass
         self.item_ids.clear()
 
@@ -190,13 +165,18 @@ class SpeechBubbleVisualizer:
         
         # Robot positions (would be updated from simulation)
         self.robot_positions: Dict[str, Tuple[float, float, float]] = {}
+        
+        print("[SpeechBubbleVisualizer] Initialized")
     
     def start(self):
         """Start the visualizer update loop"""
+        if self.running:
+            return
+        
         self.running = True
         self.update_thread = threading.Thread(target=self._update_loop, daemon=True)
         self.update_thread.start()
-        print("[SpeechBubbleVisualizer] Started")
+        print("[SpeechBubbleVisualizer] Started update loop")
     
     def stop(self):
         """Stop the visualizer and clear all bubbles"""
@@ -205,7 +185,7 @@ class SpeechBubbleVisualizer:
             self.update_thread.join(timeout=1.0)
         
         with self.lock:
-            for bubble in self.bubbles.values():
+            for bubble in list(self.bubbles.values()):
                 bubble.remove()
             self.bubbles.clear()
         
@@ -214,24 +194,30 @@ class SpeechBubbleVisualizer:
     def _update_loop(self):
         """Background thread to update bubbles"""
         while self.running:
-            current_time = time.time()
-            
-            with self.lock:
-                # Remove expired bubbles
-                expired = []
-                for robot_name, bubble in self.bubbles.items():
-                    if not bubble.update(current_time):
-                        bubble.remove()
-                        expired.append(robot_name)
+            try:
+                current_time = time.time()
                 
-                for robot_name in expired:
-                    del self.bubbles[robot_name]
-            
-            time.sleep(0.1)  # Update at 10Hz
+                with self.lock:
+                    # Remove expired bubbles
+                    expired = []
+                    for robot_name, bubble in list(self.bubbles.items()):
+                        if not bubble.update(current_time):
+                            bubble.remove()
+                            expired.append(robot_name)
+                    
+                    for robot_name in expired:
+                        if robot_name in self.bubbles:
+                            del self.bubbles[robot_name]
+                
+                time.sleep(0.2)  # Update at 5Hz
+            except Exception as e:
+                print(f"[SpeechBubbleVisualizer] Update loop error: {e}")
+                time.sleep(0.5)
     
     def set_leader(self, leader_name: str):
         """Set the current leader robot"""
         self.leader_name = leader_name
+        print(f"[SpeechBubbleVisualizer] Leader set to: {leader_name}")
     
     def update_robot_position(
         self,
@@ -257,95 +243,81 @@ class SpeechBubbleVisualizer:
         """
         if robot_name not in self.robot_positions:
             print(f"[SpeechBubbleVisualizer] Warning: No position for robot {robot_name}")
-            return
+            # Use default position
+            self.robot_positions[robot_name] = (0, 0, 0.5)
         
         with self.lock:
-            # Remove existing bubble for this robot
-            if robot_name in self.bubbles:
-                self.bubbles[robot_name].remove()
-                del self.bubbles[robot_name]
-            
-            # Create config with custom duration if specified
-            config = self.config
-            if duration:
-                from dataclasses import replace
-                config = replace(self.config, display_duration=duration)
-            
-            # Create new bubble
-            position = self.robot_positions[robot_name]
-            is_leader = (robot_name == self.leader_name)
-            
-            bubble = SpeechBubble(
-                robot_name=robot_name,
-                message=message,
-                position=position,
-                config=config,
-                is_leader=is_leader
-            )
-            
-            self.bubbles[robot_name] = bubble
-            
-            print(f"[SpeechBubbleVisualizer] {robot_name}: {message[:50]}...")
+            try:
+                # Remove existing bubble for this robot
+                if robot_name in self.bubbles:
+                    self.bubbles[robot_name].remove()
+                    del self.bubbles[robot_name]
+                
+                # Create config with custom duration if specified
+                config = self.config
+                if duration:
+                    from dataclasses import replace
+                    config = replace(self.config, display_duration=duration)
+                
+                # Create new bubble
+                position = self.robot_positions[robot_name]
+                is_leader = (robot_name == self.leader_name)
+                
+                bubble = SpeechBubble(
+                    robot_name=robot_name,
+                    message=message,
+                    position=position,
+                    config=config,
+                    is_leader=is_leader
+                )
+                
+                self.bubbles[robot_name] = bubble
+                
+                print(f"[SpeechBubbleVisualizer] {robot_name}: {message[:50]}...")
+            except Exception as e:
+                print(f"[SpeechBubbleVisualizer] Error showing speech: {e}")
     
     def show_self_description(self, robot_name: str, description: str):
         """Show self-description speech bubble"""
-        self.show_speech(
-            robot_name,
-            f"📢 {description}",
-            duration=8.0
-        )
+        prefix = "[Self-Desc] "
+        self.show_speech(robot_name, prefix + description, duration=8.0)
     
     def show_campaign_speech(self, robot_name: str, speech: str):
         """Show leadership campaign speech bubble"""
-        self.show_speech(
-            robot_name,
-            f"🎯 {speech}",
-            duration=10.0
-        )
+        prefix = "[Campaign] "
+        self.show_speech(robot_name, prefix + speech, duration=10.0)
     
     def show_vote(self, robot_name: str, voted_for: str):
         """Show voting action"""
-        self.show_speech(
-            robot_name,
-            f"🗳️ I vote for {voted_for} as leader!",
-            duration=5.0
-        )
+        msg = f"[Vote] I vote for {voted_for} as leader!"
+        self.show_speech(robot_name, msg, duration=5.0)
     
     def show_action(self, robot_name: str, action: str, reasoning: str = ""):
         """Show action execution"""
-        msg = f"⚡ {action}"
+        msg = f"[Action] {action}"
         if reasoning:
-            msg += f"\n💭 {reasoning}"
+            msg += f" | {reasoning}"
         self.show_speech(robot_name, msg, duration=4.0)
     
     def show_communication(self, from_robot: str, to_robot: str, content: str):
         """Show communication message"""
-        self.show_speech(
-            from_robot,
-            f"📨 To {to_robot}: {content}",
-            duration=6.0
-        )
+        msg = f"[To {to_robot}] {content}"
+        self.show_speech(from_robot, msg, duration=6.0)
     
     def show_reflection(self, robot_name: str, summary: str):
         """Show reflection summary"""
-        self.show_speech(
-            robot_name,
-            f"🤔 Reflection: {summary}",
-            duration=7.0
-        )
+        msg = f"[Reflection] {summary}"
+        self.show_speech(robot_name, msg, duration=7.0)
     
     def show_leader_update(self, leader_name: str, update: str):
         """Show leader plan update"""
-        self.show_speech(
-            leader_name,
-            f"👑 Leader Update: {update}",
-            duration=8.0
-        )
+        msg = f"[Leader Update] {update}"
+        self.show_speech(leader_name, msg, duration=8.0)
     
     def clear_all(self):
         """Clear all speech bubbles"""
         with self.lock:
-            for bubble in self.bubbles.values():
+            for bubble in list(self.bubbles.values()):
                 bubble.remove()
             self.bubbles.clear()
 

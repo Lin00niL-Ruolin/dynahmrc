@@ -828,8 +828,12 @@ class DynaHMRCSystem:
             collaboration = FourStageCollaboration(
                 robots=robot_agents,
                 max_execution_steps=max_steps,
-                enable_communication=True
+                enable_communication=True,
+                enable_visualization=self.enable_visualization
             )
+            
+            # 更新机器人位置用于可视化
+            self._update_robot_positions_for_visualization(collaboration)
             
             # 运行四阶段协作
             collab_result = collaboration.run_collaboration(natural_language_task)
@@ -936,6 +940,52 @@ class DynaHMRCSystem:
             print(f"[DynaHMRCSystem] 创建 RobotAgent: {robot_id} ({agent_type})")
         
         return robot_agents
+    
+    def _update_robot_positions_for_visualization(self, collaboration):
+        """
+        更新机器人位置用于气泡框可视化
+        
+        Args:
+            collaboration: FourStageCollaboration instance
+        """
+        if not self.enable_visualization:
+            return
+        
+        try:
+            for robot_id, robot in self.robot_factory.get_all_robots().items():
+                # 获取机器人当前位置
+                position = None
+                
+                # 尝试不同的方法获取位置
+                if hasattr(robot, 'get_base_position'):
+                    position = robot.get_base_position()
+                elif hasattr(robot, 'get_position'):
+                    position = robot.get_position()
+                elif hasattr(robot, 'base_position'):
+                    position = robot.base_position
+                elif hasattr(robot, 'pose'):
+                    pose = robot.pose
+                    if hasattr(pose, 'position'):
+                        position = pose.position
+                    elif isinstance(pose, (list, tuple)):
+                        position = pose[:3]
+                
+                # 如果找到位置，更新到可视化器
+                if position and len(position) >= 3:
+                    collaboration.set_robot_position(
+                        robot_id, 
+                        (float(position[0]), float(position[1]), float(position[2]))
+                    )
+                    print(f"[DynaHMRCSystem] Set position for {robot_id}: ({position[0]:.2f}, {position[1]:.2f}, {position[2]:.2f})")
+                else:
+                    # 使用默认位置
+                    collaboration.set_robot_position(robot_id, (0.0, 0.0, 0.5))
+                    print(f"[DynaHMRCSystem] Using default position for {robot_id}")
+                    
+        except Exception as e:
+            print(f"[DynaHMRCSystem] 更新机器人位置失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def emergency_stop(self):
         """系统紧急停止"""
