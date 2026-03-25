@@ -200,6 +200,7 @@ class DynaHMRCSystem:
             self.bestman_adapter = BestManAdapter(
                 self.robot_factory.get_all_robots()
             )
+            self.adapter = self.bestman_adapter  # 别名，方便协作框架使用
             
             # 5. 初始化 LLM 协调器
             self._init_coordinator()
@@ -831,6 +832,11 @@ class DynaHMRCSystem:
                 enable_communication=True,
                 enable_visualization=self.enable_visualization
             )
+            
+            # 设置 BestManAdapter 用于执行真实动作和获取场景信息
+            if hasattr(self, 'adapter') and self.adapter:
+                collaboration.set_adapter(self.adapter)
+                print(f"[DynaHMRCSystem] BestManAdapter 已设置到协作框架")
             
             # 更新机器人位置用于可视化
             self._update_robot_positions_for_visualization(collaboration)

@@ -400,3 +400,46 @@ class BestManAdapter:
             rid: robot.capabilities
             for rid, robot in self.robot_registry.items()
         }
+    
+    def get_scene_graph(self) -> Dict[str, Dict]:
+        """
+        获取场景图（Scene Graph）
+        包含场景中所有物体的位置和状态信息
+        
+        Returns:
+            Dict: {object_name: {position, orientation, type, ...}}
+        """
+        scene_graph = {}
+        
+        # Try to get scene objects from the first robot's environment
+        # In BestMan, scene objects are typically managed by the simulation environment
+        try:
+            # Get the first robot to access the simulation
+            first_robot = next(iter(self.robot_registry.values()), None)
+            if first_robot and hasattr(first_robot, 'env'):
+                env = first_robot.env
+                
+                # Try to get objects from environment
+                if hasattr(env, 'get_objects'):
+                    objects = env.get_objects()
+                    for obj_id, obj_info in objects.items():
+                        scene_graph[obj_info.get('name', f'object_{obj_id}')] = {
+                            'id': obj_id,
+                            'position': obj_info.get('position', [0, 0, 0]),
+                            'orientation': obj_info.get('orientation', [0, 0, 0, 1]),
+                            'type': obj_info.get('type', 'unknown'),
+                            'is_grasped': obj_info.get('is_grasped', False)
+                        }
+                elif hasattr(env, 'scene_objects'):
+                    # Alternative: directly access scene_objects
+                    for obj_name, obj_data in env.scene_objects.items():
+                        scene_graph[obj_name] = {
+                            'position': obj_data.get('position', [0, 0, 0]),
+                            'orientation': obj_data.get('orientation', [0, 0, 0, 1]),
+                            'type': obj_data.get('type', 'unknown'),
+                            'model_path': obj_data.get('model_path', '')
+                        }
+        except Exception as e:
+            print(f"[BestManAdapter] Failed to get scene graph: {e}")
+        
+        return scene_graph

@@ -144,6 +144,9 @@ class FourStageCollaboration:
         self._visualizer_lock = Lock()
         self._history_lock = Lock()
         
+        # Adapter for executing actions
+        self.adapter = None
+        
         # Visualization
         self.visualizer: Optional[SpeechBubbleVisualizer] = None
         if self.enable_visualization:
@@ -613,28 +616,66 @@ class FourStageCollaboration:
             'execution_history_length': len(self.execution_history)
         }
     
+    def set_adapter(self, adapter):
+        """Set the BestManAdapter for executing real robot actions"""
+        self.adapter = adapter
+        print(f"[FourStageCollaboration] Adapter set: {adapter}")
+    
     def _get_observation(self) -> Dict:
         """Get current observation from the environment"""
-        # This would integrate with BestMan in real implementation
+        # Get scene graph from adapter if available
+        scene_graph = {}
+        if self.adapter and hasattr(self.adapter, 'get_scene_graph'):
+            try:
+                scene_graph = self.adapter.get_scene_graph()
+            except Exception as e:
+                print(f"[WARN] Failed to get scene graph: {e}")
+        
+        # Get robot states from adapter if available
+        robot_states = {}
+        if self.adapter and hasattr(self.adapter, 'get_robot_states'):
+            try:
+                robot_states = self.adapter.get_robot_states()
+            except Exception as e:
+                print(f"[WARN] Failed to get robot states: {e}")
+        
+        # Fallback to robot's own status if adapter not available
+        if not robot_states:
+            robot_states = {name: robot.get_status() for name, robot in self.robots.items()}
+        
         return {
-            'scene_graph': {},
-            'robot_states': {name: robot.get_status() for name, robot in self.robots.items()},
+            'scene_graph': scene_graph,
+            'robot_states': robot_states,
             'timestamp': time.time()
         }
     
     def _execute_action(self, robot_name: str, action: Dict) -> Dict:
         """
         Execute an action and return feedback
-        This is a placeholder - would integrate with BestMan in real implementation
+        Integrates with BestManAdapter to execute real robot actions
         """
         action_type = action.get('action', 'wait')
+        params = action.get('params', {})
         
-        # Simulate action execution
-        return {
-            'success': True,
-            'message': f"Executed {action_type}",
-            'state_change': {}
-        }
+        # Use BestManAdapter to execute the action
+        if hasattr(self, 'adapter') and self.adapter:
+            from dynahmrc.integration.bestman_adapter import ExecutionFeedback
+            feedback = self.adapter.execute_action(robot_name, action_type, params)
+            return {
+                'success': feedback.success,
+                'message': feedback.message,
+                'state_change': feedback.state_changes,
+                'execution_time': feedback.execution_time,
+                'sensor_data': feedback.sensor_data
+            }
+        else:
+            # Fallback: simulate action execution
+            print(f"[WARN] No adapter available, simulating action: {action_type}")
+            return {
+                'success': True,
+                'message': f"Simulated {action_type}",
+                'state_change': {}
+            }
     
     def _is_robot_done(self, robot: RobotAgent) -> bool:
         """Check if a robot has completed its tasks"""
