@@ -355,19 +355,6 @@ class DWAPlanner:
                     best_v = v
                     best_yaw_rate = yaw_rate
         
-        # 调试信息
-        dist_to_goal = math.sqrt((current_pos[0] - goal[0])**2 + (current_pos[1] - goal[1])**2)
-        print(f"[DWA] 位置: [{current_pos[0]:.2f}, {current_pos[1]:.2f}], 目标距离: {dist_to_goal:.2f}m")
-        print(f"[DWA] 动态窗口: v=[{dw[0]:.2f}, {dw[1]:.2f}], yaw_rate=[{dw[2]:.2f}, {dw[3]:.2f}]")
-        print(f"[DWA] 采样 {sample_count} 个速度，最优: v={best_v:.3f}m/s, yaw_rate={best_yaw_rate:.3f}rad/s, 代价={min_cost:.3f}")
-        
-        # 如果最优速度会碰撞，打印警告
-        if best_v > 0:
-            test_traj = self._predict_trajectory(current_pos, current_yaw, best_v, best_yaw_rate)
-            obs_cost = self._calc_obstacle_cost(test_traj, obstacles)
-            if obs_cost == float('inf'):
-                print(f"[DWA] ⚠️ 警告: 最优速度会导致碰撞!")
-        
         return best_v, best_yaw_rate
     
     def _calc_dynamic_window(self, v: float, yaw_rate: float) -> List[float]:

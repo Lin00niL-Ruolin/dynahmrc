@@ -288,10 +288,8 @@ class MobileManipulator:
         )
         
         # 同时移动机械臂（如果有的话）
-        print(f"[_apply_velocity] 检查机械臂: arm_id={getattr(self.bestman, 'arm_id', None)}, gripper_id={getattr(self.bestman, 'gripper_id', None)}")
         if hasattr(self.bestman, 'arm_id') and self.bestman.arm_id is not None:
-            print(f"[_apply_velocity] 移动机械臂 ID: {self.bestman.arm_id}")
-            # 获取机械臂当前位置
+            # 获取机械臂当前位置和朝向
             arm_pos, arm_orn = p.getBasePositionAndOrientation(
                 self.bestman.arm_id, physicsClientId=self.bestman.client_id
             )
@@ -308,17 +306,24 @@ class MobileManipulator:
                 new_rel_y = rel_x * sin_yaw + rel_y * cos_yaw
                 rel_x = new_rel_x
                 rel_y = new_rel_y
+                
+                # 旋转机械臂朝向
+                arm_euler = p.getEulerFromQuaternion(arm_orn)
+                new_arm_yaw = arm_euler[2] + dyaw
+                new_arm_orn = p.getQuaternionFromEuler([arm_euler[0], arm_euler[1], new_arm_yaw])
+            else:
+                new_arm_orn = arm_orn
             
             # 计算新的绝对位置
             new_arm_x = new_x + rel_x
             new_arm_y = new_y + rel_y
             new_arm_z = arm_pos[2]  # 保持高度不变
             
-            # 更新机械臂位置
+            # 更新机械臂位置和朝向
             p.resetBasePositionAndOrientation(
                 self.bestman.arm_id,
                 [new_arm_x, new_arm_y, new_arm_z],
-                arm_orn,  # 保持朝向不变
+                new_arm_orn,
                 physicsClientId=self.bestman.client_id
             )
             
@@ -338,6 +343,13 @@ class MobileManipulator:
                     new_rel_gy = rel_gx * sin_yaw + rel_gy * cos_yaw
                     rel_gx = new_rel_gx
                     rel_gy = new_rel_gy
+                    
+                    # 旋转夹爪朝向
+                    gripper_euler = p.getEulerFromQuaternion(gripper_orn)
+                    new_gripper_yaw = gripper_euler[2] + dyaw
+                    new_gripper_orn = p.getQuaternionFromEuler([gripper_euler[0], gripper_euler[1], new_gripper_yaw])
+                else:
+                    new_gripper_orn = gripper_orn
                 
                 # 计算新的绝对位置
                 new_gripper_x = new_x + rel_gx
@@ -347,7 +359,7 @@ class MobileManipulator:
                 p.resetBasePositionAndOrientation(
                     self.bestman.gripper_id,
                     [new_gripper_x, new_gripper_y, new_gripper_z],
-                    gripper_orn,
+                    new_gripper_orn,
                     physicsClientId=self.bestman.client_id
                 )
     
