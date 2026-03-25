@@ -218,7 +218,7 @@ class MobileManipulator:
         print(f"[MobileManipulator] DWA 导航结束，最终位置: [{self.position[0]:.3f}, {self.position[1]:.3f}]")
     
     def _apply_velocity(self, v: float, yaw_rate: float, obstacles: List[List[float]] = None):
-        """应用速度指令，带障碍物检测"""
+        """应用速度指令，带障碍物检测，同时移动底座和机械臂"""
         # 计算新位置
         dt = 0.1
         new_yaw = self.yaw + yaw_rate * dt
@@ -240,13 +240,80 @@ class MobileManipulator:
         # 更新朝向
         orientation = [0, 0, math.sin(new_yaw / 2.0), math.cos(new_yaw / 2.0)]
         
-        # 设置新位置
+        # 计算底座移动的位移和旋转
+        dx = new_x - self.position[0]
+        dy = new_y - self.position[1]
+        dyaw = new_yaw - self.yaw
+        
+        # 设置新位置到底座
         p.resetBasePositionAndOrientation(
             self.bestman.base_id,
             [new_x, new_y, self.position[2]],
             orientation,
             physicsClientId=self.bestman.client_id
         )
+        
+        # 同时移动机械臂（如果有的话）
+        if hasattr(self.bestman, 'arm_id') and self.bestman.arm_id is not None:
+            # 获取机械臂当前位置
+            arm_pos, arm_orn = p.getBasePositionAndOrientation(
+                self.bestman.arm_id, physicsClientId=self.bestman.client_id
+            )
+            
+            # 计算机械臂相对于底座的位置
+            rel_x = arm_pos[0] - self.position[0]
+            rel_y = arm_pos[1] - self.position[1]
+            
+            # 应用旋转（如果底座旋转了）
+            if abs(dyaw) > 0.001:
+                cos_yaw = math.cos(dyaw)
+                sin_yaw = math.sin(dyaw)
+                new_rel_x = rel_x * cos_yaw - rel_y * sin_yaw
+                new_rel_y = rel_x * sin_yaw + rel_y * cos_yaw
+                rel_x = new_rel_x
+                rel_y = new_rel_y
+            
+            # 计算新的绝对位置
+            new_arm_x = new_x + rel_x
+            new_arm_y = new_y + rel_y
+            new_arm_z = arm_pos[2]  # 保持高度不变
+            
+            # 更新机械臂位置
+            p.resetBasePositionAndOrientation(
+                self.bestman.arm_id,
+                [new_arm_x, new_arm_y, new_arm_z],
+                arm_orn,  # 保持朝向不变
+                physicsClientId=self.bestman.client_id
+            )
+            
+            # 更新夹爪位置（如果有的话）
+            if hasattr(self.bestman, 'gripper_id') and self.bestman.gripper_id is not None:
+                gripper_pos, gripper_orn = p.getBasePositionAndOrientation(
+                    self.bestman.gripper_id, physicsClientId=self.bestman.client_id
+                )
+                
+                # 计算夹爪相对于底座的位置
+                rel_gx = gripper_pos[0] - self.position[0]
+                rel_gy = gripper_pos[1] - self.position[1]
+                
+                # 应用旋转
+                if abs(dyaw) > 0.001:
+                    new_rel_gx = rel_gx * cos_yaw - rel_gy * sin_yaw
+                    new_rel_gy = rel_gx * sin_yaw + rel_gy * cos_yaw
+                    rel_gx = new_rel_gx
+                    rel_gy = new_rel_gy
+                
+                # 计算新的绝对位置
+                new_gripper_x = new_x + rel_gx
+                new_gripper_y = new_y + rel_gy
+                new_gripper_z = gripper_pos[2]
+                
+                p.resetBasePositionAndOrientation(
+                    self.bestman.gripper_id,
+                    [new_gripper_x, new_gripper_y, new_gripper_z],
+                    gripper_orn,
+                    physicsClientId=self.bestman.client_id
+                )
     
     def _simple_navigation(self, target_pos: List[float]):
         """简单导航实现（备用）"""
