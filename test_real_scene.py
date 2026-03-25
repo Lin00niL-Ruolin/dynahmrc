@@ -69,12 +69,17 @@ def test_real_scene():
         # 加载配置
         cfg = load_config(config_path)
         
-        # 禁用 GUI 用于测试
-        cfg.Client.enable_GUI = False
+        # 启用 GUI 以便查看仿真
+        cfg.Client.enable_GUI = True
+        cfg.Client.enable_Debug = True
         
         # 创建 Client（传入 cfg.Client 而不是 config_path）
         client = Client(cfg.Client)
         print("   ✓ BestMan 客户端初始化成功")
+        
+        # 创建 Visualizer
+        visualizer = Visualizer(client, cfg.Visualizer)
+        print("   ✓ Visualizer 初始化成功")
     except Exception as e:
         print(f"   [ERROR] 初始化失败: {e}")
         import traceback
@@ -129,7 +134,7 @@ def test_real_scene():
     # 3. 创建机器人
     print("\n3. 创建机器人...")
     try:
-        robot_factory = RobotFactory(client)
+        robot_factory = RobotFactory(client, visualizer)
         
         # 创建移动操作机器人
         robot1 = robot_factory.create_robot(
