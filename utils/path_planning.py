@@ -123,6 +123,26 @@ class AStarPlanner:
             min_y = min(y for x, y in self.obstacles)
             max_y = max(y for x, y in self.obstacles)
             print(f"[A*] 障碍物范围: X[{min_x}, {max_x}], Y[{min_y}, {max_y}]")
+            print(f"[A*] 起点在范围内: X({min_x <= start_node.x <= max_x}), Y({min_y <= start_node.y <= max_y})")
+            print(f"[A*] 终点在范围内: X({min_x <= goal_node.x <= max_x}), Y({min_y <= goal_node.y <= max_y})")
+        
+        # 检查起点和终点周围是否被障碍物包围
+        def count_obstacles_around(x, y, radius=2):
+            count = 0
+            total = 0
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    if dx == 0 and dy == 0:
+                        continue
+                    total += 1
+                    if (x + dx, y + dy) in self.obstacles:
+                        count += 1
+            return count, total
+        
+        start_obs, start_total = count_obstacles_around(start_node.x, start_node.y)
+        goal_obs, goal_total = count_obstacles_around(goal_node.x, goal_node.y)
+        print(f"[A*] 起点周围障碍物: {start_obs}/{start_total} ({start_obs/start_total*100:.1f}%)")
+        print(f"[A*] 终点周围障碍物: {goal_obs}/{goal_total} ({goal_obs/goal_total*100:.1f}%)")
         
         iteration = 0
         max_iterations = 5000  # 最大迭代次数限制
