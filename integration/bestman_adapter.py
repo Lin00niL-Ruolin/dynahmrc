@@ -554,8 +554,8 @@ class BestManAdapter:
                         print(f"[BestManAdapter] 获取物体 {obj_name} 状态失败: {e}")
             
             # 添加其他机器人作为动态障碍物
-            for robot_id, robot in self.robots.items():
-                if robot_id == exclude_robot_id:
+            for rid, robot in self.robot_registry.items():
+                if rid == exclude_robot_id:
                     continue  # 排除当前机器人自身
                 
                 try:
@@ -566,18 +566,18 @@ class BestManAdapter:
                     # 机器人尺寸（近似为圆柱体）
                     robot_size = [0.6, 0.6, 1.0]  # 默认机器人尺寸
                     
-                    scene_graph[f"robot_{robot_id}"] = {
+                    scene_graph[f"robot_{rid}"] = {
                         'id': -1,  # 机器人没有PyBullet ID
                         'position': pos,
                         'orientation': orn,
                         'type': 'robot',
                         'size': robot_size,
-                        'robot_id': robot_id,
+                        'robot_id': rid,
                         'is_grasped': False
                     }
-                    print(f"[BestManAdapter] 添加机器人障碍物: {robot_id} 位置 {pos[:2]}")
+                    print(f"[BestManAdapter] 添加机器人障碍物: {rid} 位置 {pos[:2]}")
                 except Exception as e:
-                    print(f"[BestManAdapter] 获取机器人 {robot_id} 状态失败: {e}")
+                    print(f"[BestManAdapter] 获取机器人 {rid} 状态失败: {e}")
                     
         except Exception as e:
             print(f"[BestManAdapter] Failed to get scene graph: {e}")
