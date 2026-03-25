@@ -84,35 +84,38 @@ def test_real_scene():
     # 2. 创建测试场景
     print("\n2. 创建测试场景...")
     try:
-        # 创建地面
-        client.create_plane()
+        # 使用 load_object 创建物体（Client 没有 create_object 方法）
+        # 地面在 Client.__init__ 中已经自动创建
         
         # 创建桌子
-        table_id = client.create_object(
-            "Asset/Scene/Object/Table/mobility.urdf",
-            position=[0, 0, 0],
-            orientation=[0, 0, 0, 1],
+        table_id = client.load_object(
+            obj_name="table",
+            model_path="Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf",
+            object_position=[0, 0, 0],
+            object_orientation=[0, 0, 0, 1],
             scale=1.0,
             fixed_base=True
         )
         print(f"   ✓ 创建桌子 (ID: {table_id})")
         
         # 创建箱子（可抓取物体）
-        box_id = client.create_object(
-            "Asset/Scene/Object/Box/mobility.urdf",
-            position=[0.5, 0, 0.5],  # 放在桌子上方
-            orientation=[0, 0, 0, 1],
-            scale=0.5,
+        box_id = client.load_object(
+            obj_name="box",
+            model_path="Asset/Scene/Object/URDF_models/cracker_box/model.urdf",
+            object_position=[0.5, 0, 0.5],  # 放在桌子上方
+            object_orientation=[0, 0, 0, 1],
+            scale=1.0,
             fixed_base=False
         )
         print(f"   ✓ 创建箱子 (ID: {box_id})")
         
         # 创建目标区域标记
-        target_id = client.create_object(
-            "Asset/Scene/Object/Box/mobility.urdf",
-            position=[2.0, 0, 0.1],
-            orientation=[0, 0, 0, 1],
-            scale=0.3,
+        target_id = client.load_object(
+            obj_name="target_zone",
+            model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
+            object_position=[2.0, 0, 0.1],
+            object_orientation=[0, 0, 0, 1],
+            scale=1.0,
             fixed_base=True
         )
         print(f"   ✓ 创建目标区域 (ID: {target_id})")
