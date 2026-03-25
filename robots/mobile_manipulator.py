@@ -437,6 +437,9 @@ class MobileManipulator:
         try:
             self.is_busy = True
             self.current_task = f"pick_object_{object_id}"
+            
+            # 更新当前位置
+            self._update_pose()
 
             # 获取物体位置
             obj_pos, obj_orn = p.getBasePositionAndOrientation(
