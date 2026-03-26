@@ -23,6 +23,14 @@ from .robot_agent import RobotAgent, CollaborationPhase
 VISUALIZATION_AVAILABLE = False
 SpeechBubbleVisualizer = None
 
+# Import recording module
+try:
+    from ..utils.recording import RecordingManager
+    RECORDING_AVAILABLE = True
+except ImportError:
+    RECORDING_AVAILABLE = False
+    RecordingManager = None
+
 
 class CollaborationPhase(Enum):
     """Four-stage collaboration process"""
@@ -108,7 +116,10 @@ class FourStageCollaboration:
         enable_visualization: bool = True,
         max_workers: int = 4,
         reflection_interval: int = 10,
-        enable_reflection: bool = True
+        enable_reflection: bool = True,
+        enable_recording: bool = False,
+        enable_logging: bool = False,
+        recording_manager = None
     ):
         """
         Initialize four-stage collaboration
@@ -121,6 +132,9 @@ class FourStageCollaboration:
             max_workers: Maximum number of worker threads for parallel processing
             reflection_interval: Steps between reflection stages (∆t in paper)
             enable_reflection: Whether to enable periodic reflection
+            enable_recording: Whether to enable simulation recording (Stage 4)
+            enable_logging: Whether to enable LLM interaction logging
+            recording_manager: External RecordingManager instance (optional)
         """
         self.robots: Dict[str, RobotAgent] = {r.name: r for r in robots}
         self.max_execution_steps = max_execution_steps
@@ -129,6 +143,8 @@ class FourStageCollaboration:
         self.max_workers = max_workers
         self.reflection_interval = reflection_interval
         self.enable_reflection = enable_reflection
+        self.enable_recording = enable_recording
+        self.enable_logging = enable_logging
         
         # Collaboration state
         self.manager = CollaborationManager()
@@ -146,6 +162,9 @@ class FourStageCollaboration:
         
         # Adapter for executing actions
         self.adapter = None
+        
+        # Recording and logging manager
+        self.recording_manager = recording_manager
         
         # Visualization
         self.visualizer: Optional[SpeechBubbleVisualizer] = None
@@ -218,17 +237,23 @@ class FourStageCollaboration:
             # Stage 4: Execution
             execution_success = self._run_execution(task)
             print(f"\n[FourStageCollaboration] Stage 4 Complete - Success: {execution_success}")
-            
+
+            # Stop recording at the end of Stage 4
+            if self.recording_manager:
+                task_name = task[:50] if task else "simulation"  # Truncate for filename
+                self.recording_manager.stop_recording(task_name)
+                self.recording_manager.log_message(f"Stage 4 Execution Completed - Success: {execution_success}", "INFO")
+
             # Calculate results
             duration = time.time() - self.start_time
-            
+
             # Get robot assignments
             robot_assignments = self._extract_robot_assignments()
-            
+
             self.manager.transition_to(
                 CollaborationPhase.COMPLETED if execution_success else CollaborationPhase.FAILED
             )
-            
+
             result = CollaborationResult(
                 success=execution_success,
                 message="Task completed successfully" if execution_success else "Task execution failed",
@@ -238,7 +263,7 @@ class FourStageCollaboration:
                 duration=duration,
                 robot_assignments=robot_assignments
             )
-            
+
             # Show completion message
             if self.visualizer:
                 if execution_success:
@@ -444,16 +469,21 @@ class FourStageCollaboration:
         print("\n" + "="*60)
         print("Stage 4: Closed-Loop Execution with Reflection (Parallel)")
         print("="*60)
-        
+
         if not self.leader_name or not self.task_plan:
             print("[Execution] Error: No leader or task plan")
             return False
-        
+
         step = 0
-        
+
         print(f"[Execution] 开始执行阶段，最大步数: {self.max_execution_steps}")
         print(f"[Execution] 机器人数量: {len(self.robots)}, Leader: {self.leader_name}")
         print(f"[Execution] 任务计划: {self.task_plan}")
+
+        # Start recording at the beginning of Stage 4
+        if self.recording_manager:
+            self.recording_manager.start_recording()
+            self.recording_manager.log_message("Stage 4 Execution Started", "INFO")
         
         while step < self.max_execution_steps:
             print(f"\n[Execution] ===== Step {step + 1}/{self.max_execution_steps} =====")

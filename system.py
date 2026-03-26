@@ -65,6 +65,8 @@ class SystemConfig:
     enable_replanning: bool = True
     max_replan_attempts: int = 3
     execution_interval: float = 0.1
+    enable_recording: bool = False  # 是否启用仿真录像（第四阶段）
+    enable_logging: bool = False    # 是否启用LLM交互日志记录
 
 
 class DynaHMRCSystem:
@@ -88,7 +90,9 @@ class DynaHMRCSystem:
         scene_config: Dict[str, Any],
         robot_configs: List[Dict[str, Any]],
         llm_config: Dict[str, Any],
-        enable_visualization: bool = True
+        enable_visualization: bool = True,
+        enable_recording: bool = False,
+        enable_logging: bool = False
     ):
         """
         初始化 DynaHMRC 系统
@@ -134,38 +138,48 @@ class DynaHMRCSystem:
                     "temperature": 0.3
                 }
             enable_visualization: 是否启用可视化
+            enable_recording: 是否启用仿真录像（第四阶段开始录像，结束停止）
+            enable_logging: 是否启用LLM交互日志记录
         """
         self.scene_config = scene_config
         self.robot_configs = robot_configs
         self.llm_config = llm_config
         self.enable_visualization = enable_visualization
-        
+        self.enable_recording = enable_recording
+        self.enable_logging = enable_logging
+
         # 核心组件
         self.client: Optional[Client] = None
         self.visualizer: Optional[Visualizer] = None
         self.robot_factory: Optional[RobotFactory] = None
         self.bestman_adapter: Optional[BestManAdapter] = None
         self.coordinator: Optional[DynaHMRC_Coordinator] = None
-        
+
+        # 录像和日志管理器
+        self.recording_manager = None
+
         # 状态管理
         self.is_initialized = False
         self.execution_history: List[Dict] = []
         self.current_task_status: Dict[str, TaskStatus] = {}
-        
+
         # 场景物体缓存（在BestManAdapter初始化前加载）
         self._scene_objects_cache: List[Dict] = []
-        
+
         # 统计信息
         self.start_time: Optional[float] = None
         self.replan_count = 0
-        
+
         # 评估指标收集器
         self.metrics_collector: Optional[MetricsCollector] = None
         self.current_task_metrics: Optional[TaskMetrics] = None
         self.action_count = 0
         self.communication_count = 0
-        
-        print("[DynaHMRCSystem] 系统实例已创建")
+
+        print(f"[DynaHMRCSystem] 系统实例已创建")
+        print(f"  - 可视化: {'启用' if enable_visualization else '禁用'}")
+        print(f"  - 录像: {'启用' if enable_recording else '禁用'}")
+        print(f"  - 日志: {'启用' if enable_logging else '禁用'}")
     
     def _ensure_working_directory(self):
         """确保工作目录是项目根目录"""
@@ -213,7 +227,10 @@ class DynaHMRCSystem:
             
             # 5. 初始化 LLM 协调器
             self._init_coordinator()
-            
+
+            # 6. 初始化录像和日志管理器（如果启用）
+            self._init_recording_manager()
+
             self.is_initialized = True
             print("[DynaHMRCSystem] 初始化完成")
             return True
@@ -488,7 +505,26 @@ class DynaHMRCSystem:
         )
         
         print("[DynaHMRCSystem] LLM 协调器已初始化")
-    
+
+    def _init_recording_manager(self):
+        """初始化录像和日志管理器"""
+        if not self.enable_recording and not self.enable_logging:
+            return
+
+        try:
+            from .utils.recording import RecordingManager
+
+            self.recording_manager = RecordingManager(
+                client=self.client,
+                enable_recording=self.enable_recording,
+                enable_logging=self.enable_logging,
+                output_dir="outputs"
+            )
+            print("[DynaHMRCSystem] 录像和日志管理器已初始化")
+        except ImportError as e:
+            print(f"[DynaHMRCSystem] 警告: 录像和日志模块导入失败: {e}")
+            self.recording_manager = None
+
     def execute_task(self, natural_language_task: str, max_steps: int = 100,
                      task_type: str = "generic", variation: str = "static") -> Dict[str, Any]:
         """
@@ -935,7 +971,10 @@ class DynaHMRCSystem:
                 robots=robot_agents,
                 max_execution_steps=max_steps,
                 enable_communication=True,
-                enable_visualization=self.enable_visualization
+                enable_visualization=self.enable_visualization,
+                enable_recording=self.enable_recording,
+                enable_logging=self.enable_logging,
+                recording_manager=self.recording_manager
             )
             
             # 设置 BestManAdapter 用于执行真实动作和获取场景信息
@@ -1054,12 +1093,16 @@ class DynaHMRCSystem:
             
             # 设置共享的路径规划器
             agent.set_path_planner(shared_path_planner)
-            
+
+            # 设置日志记录器（如果启用）
+            if self.recording_manager and self.recording_manager.logger:
+                agent.set_logger(self.recording_manager.logger)
+
             # 如果机器人有 set_path_planner 方法（如 MobileManipulator），也设置给它
             if hasattr(robot, 'set_path_planner'):
                 robot.set_path_planner(shared_path_planner)
                 print(f"[DynaHMRCSystem] 为 {robot_id} 设置共享路径规划器")
-            
+
             robot_agents.append(agent)
             print(f"[DynaHMRCSystem] 创建 RobotAgent: {robot_id} ({agent_type})")
         
@@ -1122,10 +1165,15 @@ class DynaHMRCSystem:
     def shutdown(self):
         """关闭系统"""
         print("[DynaHMRCSystem] 关闭系统...")
-        
+
+        # 停止录像和关闭日志（如果正在运行）
+        if self.recording_manager:
+            self.recording_manager.close()
+            print("[DynaHMRCSystem] 录像和日志已保存")
+
         if self.client:
             self.client.disconnect()
-        
+
         self.is_initialized = False
         print("[DynaHMRCSystem] 系统已关闭")
     

@@ -9,13 +9,21 @@ dynahmrc/
 ├── __init__.py              # 包入口，导出 DynaHMRCSystem
 ├── system.py                # 主系统集成类
 ├── run_demo.py              # 一键运行入口
+├── example_with_recording.py # 录像和日志示例
 ├── robots/                  # 异构机器人类
 │   ├── arm_robot.py         # 固定机械臂（仅操作）
 │   ├── mobile_base.py       # 移动基座（仅导航）
-│   └── mobile_manipulator.py # 移动操作复合（导航+操作）
+│   ├── mobile_manipulator.py # 移动操作复合（导航+操作）
+│   └── drone_robot.py       # 无人机
 ├── integration/             # 集成层
 │   ├── bestman_adapter.py   # BestMan API 适配器
 │   └── robot_factory.py     # 机器人动态工厂
+├── utils/                   # 工具模块
+│   ├── path_planning.py     # 路径规划
+│   └── recording.py         # 录像和日志记录
+├── core/                    # 核心协作框架
+│   ├── robot_agent.py       # 机器人Agent
+│   └── collaboration.py     # 四阶段协作框架
 └── scenarios/               # 测试场景
     ├── warehouse_task.py    # 仓储协作场景
     └── assembly_task.py     # 装配任务场景
@@ -78,10 +86,23 @@ llm_config = {
     "model": "kimi-k2.5"
 }
 
-# 创建系统并执行任务
-system = DynaHMRCSystem(scene_config, robot_configs, llm_config)
+# 创建系统（可选启用录像和日志）
+system = DynaHMRCSystem(
+    scene_config=scene_config,
+    robot_configs=robot_configs,
+    llm_config=llm_config,
+    enable_visualization=True,  # 启用可视化
+    enable_recording=False,      # 启用录像（第四阶段自动录制）
+    enable_logging=False         # 启用 LLM 交互日志
+)
+
+# 初始化并执行任务
+system.initialize()
 result = system.execute_task("把箱子搬到桌子上")
-print(f"任务完成: {result.success}")
+print(f"任务完成: {result['success']}")
+
+# 关闭系统
+system.shutdown()
 ```
 
 ## 场景配置
@@ -299,6 +320,73 @@ print(f"反思次数: {len(collaboration.reflection_history)}")
 | `enable_reflection` | bool | True | 是否启用反思阶段 |
 | `reflection_interval` | int | 10 | 反思间隔步数（∆t）|
 | `max_workers` | int | 4 | 并行执行线程数 |
+
+## 录像和日志记录
+
+系统支持仿真录像和 LLM 交互日志记录功能，便于调试和分析。
+
+### 启用录像和日志
+
+```python
+from dynahmrc import DynaHMRCSystem
+
+# 创建系统时启用录像和日志
+system = DynaHMRCSystem(
+    scene_config=scene_config,
+    robot_configs=robot_configs,
+    llm_config=llm_config,
+    enable_visualization=True,   # 启用可视化
+    enable_recording=True,        # 启用仿真录像（第四阶段自动开始/停止）
+    enable_logging=True           # 启用 LLM 交互日志记录
+)
+
+# 初始化并执行任务
+system.initialize()
+result = system.execute_task("把箱子搬到桌子上")
+
+# 关闭系统（自动保存录像和日志）
+system.shutdown()
+```
+
+### 输出文件
+
+- **录像文件**: `outputs/recordings/<task_name>_<timestamp>.pkl`
+  - PyBullet Blender 格式，可使用 Blender 渲染回放
+  - 第四阶段开始时自动开始录像
+  - 第四阶段结束或调用 `shutdown()` 时自动保存
+
+- **日志文件**: `outputs/logs/llm_interaction_<timestamp>.txt`
+  - 记录所有 LLM 提示词（Prompt）和响应（Response）
+  - 包含机器人名称、协作阶段、时间戳等元数据
+  - 便于分析 LLM 决策过程和调试
+
+### 日志格式示例
+
+```
+================================================================================
+[14:32:15.123] Robot: alice | Stage: Execution
+================================================================================
+
+--- PROMPT ---
+You are alice, a MobileManipulation robot...
+[提示词内容]
+
+--- RESPONSE ---
+```json
+{
+  "thought": "I need to navigate to the box...",
+  "action": "navigate",
+  "params": {"target": "box"}
+}
+```
+
+--- METADATA ---
+step: 5
+```
+
+### 完整示例
+
+参见 `dynahmrc/example_with_recording.py` 获取完整使用示例。
 
 **消融实验配置示例：**
 ```python

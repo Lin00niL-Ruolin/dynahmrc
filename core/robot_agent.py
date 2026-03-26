@@ -163,7 +163,14 @@ class RobotAgent:
         
         # Communication callback
         self.send_message_callback = None
-    
+
+        # Logger for LLM interactions
+        self.logger = None
+
+    def set_logger(self, logger):
+        """设置日志记录器"""
+        self.logger = logger
+
     def set_path_planner(self, path_planner):
         """设置路径规划器"""
         self.path_planner = path_planner
@@ -248,15 +255,25 @@ class RobotAgent:
         """
         prompt = self._build_self_description_prompt(task)
         max_retries = 3
-        
+
         for attempt in range(max_retries):
             response = self.llm_client.generate(prompt, temperature=1.0)
-            
+
             print(f"[DEBUG] Self-Description Response (attempt {attempt+1}): {response}")
-            
+
+            # Log the interaction
+            if self.logger:
+                self.logger.log_interaction(
+                    robot_name=self.name,
+                    stage="Self-Description",
+                    prompt=prompt,
+                    response=response,
+                    metadata={"attempt": attempt + 1}
+                )
+
             # Parse response
             thought, description = self._parse_self_description_response(response)
-            
+
             # Check if response is valid
             if thought and description:
                 self.memory.store_self_description(description)
@@ -268,7 +285,7 @@ class RobotAgent:
                 return "", description
             else:
                 print(f"[DEBUG] Invalid response, retrying...")
-        
+
         # Fallback if all retries fail
         fallback_desc = f"I am {self.name}, a {self.normalized_robot_type} robot with {', '.join(self.capabilities)} capabilities."
         self.memory.store_self_description(fallback_desc)
@@ -534,33 +551,43 @@ Vote: <Name of the robot you vote for>"""
         """
         Stage 4: Closed-Loop Execution
         Execute one atomic action based on observation and plan
-        
+
         Args:
             observation: Current observation (scene graph, robot states, etc.)
             leader_plan: The leader's plan
-            
+
         Returns:
             Action dictionary
         """
         prompt = self._build_execution_prompt(observation, leader_plan)
-        
+
         response = self.llm_client.generate(prompt, temperature=1.0)
-        
+
         print(f"[DEBUG] {self.name} Execution Response: {response}")
-        
+
+        # Log the interaction
+        if self.logger:
+            self.logger.log_interaction(
+                robot_name=self.name,
+                stage="Execution",
+                prompt=prompt,
+                response=response,
+                metadata={"step": self.step_count}
+            )
+
         action = self._parse_action_response(response)
         print(f"[DEBUG] {self.name} Parsed action: {action}")
-        
+
         # Validate action against capabilities
         if not self._validate_action(action):
             print(f"[DEBUG] {self.name} Action validation failed: {action.get('action')} not in {self.available_actions}")
             action = self._fallback_action()
         else:
             print(f"[DEBUG] {self.name} Action validation passed")
-        
+
         self.current_action = action
         self.step_count += 1
-        
+
         return action
     
     def _get_robot_responsibilities(self) -> str:
