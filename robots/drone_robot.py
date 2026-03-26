@@ -125,9 +125,9 @@ class DroneRobot:
             
             print(f"[DroneRobot] 开始空中导航到 {target_position}")
             
-            # 确保目标高度至少为飞行高度
+            # 使用目标位置（不强制限制高度，允许低飞抓取）
             target_pos = target_position.copy()
-            if len(target_pos) < 3 or target_pos[2] < self.flight_height:
+            if len(target_pos) < 3:
                 target_pos = [target_pos[0], target_pos[1], self.flight_height]
             
             # 更新障碍物信息
