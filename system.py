@@ -293,6 +293,22 @@ class DynaHMRCSystem:
                         scale = obj.get("scale", 1)
                         fixed_base = obj.get("fixed_base", False)
                         
+                        # 处理 orientation 中的字符串表达式（如 'math.pi / 2'）
+                        if isinstance(orientation, list):
+                            import math
+                            parsed_orientation = []
+                            for val in orientation:
+                                if isinstance(val, str):
+                                    try:
+                                        # 安全地评估字符串表达式
+                                        parsed_val = eval(val, {"__builtins__": {}}, {"math": math})
+                                        parsed_orientation.append(parsed_val)
+                                    except:
+                                        parsed_orientation.append(0.0)
+                                else:
+                                    parsed_orientation.append(float(val))
+                            orientation = parsed_orientation
+                        
                         if model_path:
                             # 将相对路径转换为绝对路径
                             if not os.path.isabs(model_path):
