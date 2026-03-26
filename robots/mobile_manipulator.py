@@ -743,20 +743,53 @@ class MobileManipulator:
     def _move_arm_to_position(
         self,
         target_position: List[float],
-        target_orientation: Optional[List[float]] = None
+        target_orientation: Optional[List[float]] = None,
+        max_steps: int = 100,
+        tolerance: float = 0.05
     ) -> bool:
-        """移动机械臂到目标位置"""
+        """移动机械臂到目标位置，并等待到达"""
         try:
             from Robotics_API.Pose import Pose
             target_pose = Pose(target_position, target_orientation or [0, 0, 0, 1])
             
             if hasattr(self.bestman, 'sim_move_arm_to_target_pose'):
                 self.bestman.sim_move_arm_to_target_pose(target_pose)
-                return True
+                
+                # 等待机械臂到达目标位置
+                for step in range(max_steps):
+                    # 获取当前末端执行器位置
+                    if hasattr(self.bestman, 'eef_id') and hasattr(self.bestman, 'arm_id'):
+                        eef_state = p.getLinkState(
+                            self.bestman.arm_id, 
+                            self.bestman.eef_id,
+                            physicsClientId=self.bestman.client_id
+                        )
+                        current_pos = eef_state[0]
+                        
+                        # 计算距离
+                        distance = math.sqrt(
+                            (current_pos[0] - target_position[0])**2 +
+                            (current_pos[1] - target_position[1])**2 +
+                            (current_pos[2] - target_position[2])**2
+                        )
+                        
+                        if distance < tolerance:
+                            print(f"[MobileManipulator] 机械臂到达目标位置: {target_position}, 误差: {distance:.4f}m")
+                            return True
+                    
+                    # 运行一步仿真
+                    self.bestman.client.run(1)
+                
+                # 超时未到达
+                print(f"[MobileManipulator] 警告: 机械臂未能在 {max_steps} 步内到达目标位置")
+                return False
             else:
                 return self._simple_ik_move(target_position, target_orientation)
                 
         except Exception as e:
+            print(f"[MobileManipulator] _move_arm_to_position 错误: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _simple_ik_move(self, target_pos, target_orn):
