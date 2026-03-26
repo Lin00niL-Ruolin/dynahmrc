@@ -755,11 +755,19 @@ class PathPlanner:
         obstacle_positions = []
         obstacle_sizes = []
         
+        print(f"\n[PathPlanner] ====== 更新障碍物 ======")
+        print(f"[PathPlanner] 场景物体总数: {len(scene_objects)}")
+        print(f"[PathPlanner] 最小障碍物半径阈值: {min_obstacle_radius}m")
+        
         for obj_name, obj_info in scene_objects.items():
             obj_type = obj_info.get('type', 'unknown')
+            obj_id = obj_info.get('id', 'N/A')
+            
+            print(f"\n[PathPlanner] 检查物体: '{obj_name}' (ID: {obj_id}, type: {obj_type})")
             
             # 不将可抓取物体视为障碍物
             if obj_type == 'graspable':
+                print(f"[PathPlanner]   -> 跳过: type='graspable' 不被视为障碍物")
                 continue
             
             # 获取物体半径（优先使用 radius 字段，否则从 size 计算）
@@ -768,16 +776,25 @@ class PathPlanner:
                 # 从 size 字段计算
                 size = obj_info.get('size', [0.1, 0.1, 0.1])
                 radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+                print(f"[PathPlanner]   半径从 size 计算: {radius:.2f}m")
+            else:
+                print(f"[PathPlanner]   半径从 radius 字段: {radius:.2f}m")
             
             # 跳过小物品（半径小于阈值）
             if radius < min_obstacle_radius:
-                print(f"[PathPlanner] 跳过小物品 '{obj_name}': 半径 {radius:.2f}m < 阈值 {min_obstacle_radius}m")
+                print(f"[PathPlanner]   -> 跳过: 半径 {radius:.2f}m < 阈值 {min_obstacle_radius}m")
                 continue
             
             pos = obj_info.get('position', [0, 0, 0])
             obstacle_positions.append(pos)
             obstacle_sizes.append(radius)
-            print(f"[PathPlanner] 障碍物 '{obj_name}': 位置 [{pos[0]:.2f}, {pos[1]:.2f}], 半径 {radius:.2f}m")
+            print(f"[PathPlanner]   -> 添加为障碍物: '{obj_name}' 位置 [{pos[0]:.2f}, {pos[1]:.2f}], 半径 {radius:.2f}m")
+        
+        print(f"\n[PathPlanner] ====== 障碍物统计 ======")
+        print(f"[PathPlanner] 障碍物总数: {len(obstacle_positions)}")
+        if obstacle_positions:
+            print(f"[PathPlanner] 障碍物列表: {[f'{name}({info.get(\"radius\", 0):.2f}m)' for name, info in scene_objects.items() if info.get('radius', 0) >= min_obstacle_radius and info.get('type') != 'graspable']}")
+        print(f"[PathPlanner] =================================\n")
         
         self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
     
