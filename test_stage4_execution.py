@@ -380,8 +380,24 @@ class Stage4Tester:
         print("="*60)
         
         try:
-            # 创建协作系统
+            # 创建 Mock LLM
+            mock_llm = self.create_mock_llm_client()
+            
+            # 创建机器人代理
+            robot_agents = []
+            for robot_id, robot in robots.items():
+                agent = RobotAgent(
+                    name=robot_id,
+                    robot_type=robot.robot_type,
+                    capabilities=robot.capabilities,
+                    llm_client=mock_llm
+                )
+                robot_agents.append(agent)
+                print(f"   ✓ 创建机器人代理: {robot_id}")
+            
+            # 创建协作系统，传入机器人列表
             self.collaboration = FourStageCollaboration(
+                robots=robot_agents,
                 enable_reflection=False,  # 禁用反射以简化测试
                 max_execution_steps=20   # 限制执行步数
             )
@@ -389,14 +405,8 @@ class Stage4Tester:
             # 设置 Adapter
             self.collaboration.set_adapter(self.adapter)
             
-            # 创建 Mock LLM
-            mock_llm = self.create_mock_llm_client()
-            
             # 创建机器人代理并注册
             for robot_id, robot in robots.items():
-                agent = RobotAgent(
-                    name=robot_id,
-                    robot_type=robot.robot_type,
                     capabilities=robot.capabilities,
                     llm_client=mock_llm
                 )
