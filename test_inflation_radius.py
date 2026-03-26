@@ -99,6 +99,13 @@ class InflationRadiusVisualizer:
         print("="*60)
         
         try:
+            # 检查是否有 JSON 场景文件路径
+            scene_path = scene_config.get('scene_path')
+            if scene_path:
+                # 从 JSON 文件加载场景
+                return self._load_scene_from_json(scene_path)
+            
+            # 否则从配置字典加载
             # 加载地面
             if scene_config.get('ground'):
                 ground = scene_config['ground']
@@ -165,6 +172,87 @@ class InflationRadiusVisualizer:
             
         except Exception as e:
             print(f"   [ERROR] 加载场景失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _load_scene_from_json(self, scene_path):
+        """从 JSON 文件加载场景"""
+        import json
+        
+        try:
+            # 获取项目根目录
+            project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+            if not os.path.isabs(scene_path):
+                scene_path = os.path.join(project_root, scene_path)
+            
+            print(f"   加载场景文件: {scene_path}")
+            
+            with open(scene_path, 'r', encoding='utf-8') as f:
+                scene_data = json.load(f)
+            
+            # 加载场景中的物体
+            objects = scene_data.get('objects', [])
+            print(f"   场景中有 {len(objects)} 个物体")
+            
+            for obj in objects:
+                obj_name = obj.get('name', 'unknown')
+                obj_type = obj.get('type', 'object')
+                model_path = obj.get('model_path', '')
+                position = obj.get('position', [0, 0, 0])
+                orientation = obj.get('orientation', [0, 0, 0, 1])
+                scale = obj.get('scale', 1.0)
+                fixed = obj.get('fixed', True)
+                
+                # 估算物体半径（从 size 或 scale）
+                size = obj.get('size', [0.1, 0.1, 0.1])
+                if isinstance(size, list) and len(size) >= 2:
+                    obj_radius = max(size[0], size[1]) / 2.0
+                else:
+                    obj_radius = 0.1 * scale
+                
+                # 加载物体
+                if model_path:
+                    # 处理相对路径
+                    if not os.path.isabs(model_path):
+                        model_path = os.path.join(project_root, model_path)
+                    
+                    try:
+                        obj_id = self.client.load_object(
+                            obj_name=obj_name,
+                            model_path=model_path,
+                            object_position=position,
+                            object_orientation=orientation,
+                            scale=scale,
+                            fixed_base=fixed
+                        )
+                        
+                        # 根据类型分类
+                        if obj_type in ['furniture', 'obstacle']:
+                            obj_category = 'furniture'
+                        elif obj_type in ['graspable', 'object', 'item']:
+                            obj_category = 'object'
+                        else:
+                            obj_category = 'object'
+                        
+                        self.scene_objects[obj_name] = {
+                            'id': obj_id,
+                            'type': obj_category,
+                            'position': position,
+                            'radius': obj_radius
+                        }
+                        
+                        print(f"   ✓ 加载 {obj_category} {obj_name} (ID: {obj_id}, 半径: {obj_radius:.2f}m)")
+                        
+                    except Exception as e:
+                        print(f"   [警告] 加载物体 {obj_name} 失败: {e}")
+            
+            print(f"   ✓ 从 JSON 加载场景完成，共 {len(self.scene_objects)} 个物体")
+            return True
+            
+        except Exception as e:
+            print(f"   [ERROR] 从 JSON 加载场景失败: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -424,72 +512,38 @@ class InflationRadiusVisualizer:
 
 def main():
     """主函数"""
-    # 场景配置
+    # 场景配置 - 使用 JSON 场景文件
     scene_config = {
-        'ground': {
-            'model_path': 'Asset/Scene/Object/URDF_models/clear_box/model.urdf',
-            'position': [0, 0, 0],
-            'orientation': [0, 0, 0, 1],
-            'scale': 5.0
-        },
-        'furniture': {
-            'table': {
-                'model_path': 'Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf',
-                'position': [2.0, 0, 0],
-                'orientation': [0, 0, 0, 1],
-                'scale': 1.0,
-                'fixed_base': True,
-                'radius': 0.5  # 桌子半径
-            },
-            'shelf': {
-                'model_path': 'Asset/Scene/Object/URDF_models/furniture_shelf/model.urdf',
-                'position': [-2.0, 2.0, 0],
-                'orientation': [0, 0, 0, 1],
-                'scale': 1.0,
-                'fixed_base': True,
-                'radius': 0.4  # 架子半径
-            }
-        },
-        'objects': {
-            'box_small': {
-                'model_path': 'Asset/Scene/Object/URDF_models/cracker_box/model.urdf',
-                'position': [2.0, 0, 1.0],
-                'orientation': [0, 0, 0, 1],
-                'scale': 0.5,
-                'radius': 0.1  # 小箱子半径
-            },
-            'box_large': {
-                'model_path': 'Asset/Scene/Object/URDF_models/cracker_box/model.urdf',
-                'position': [0, 2.0, 0.5],
-                'orientation': [0, 0, 0, 1],
-                'scale': 1.0,
-                'radius': 0.2  # 大箱子半径
-            },
-            'lemon': {
-                'model_path': 'Asset/Scene/Object/URDF_models/food_lemon/model.urdf',
-                'position': [-1.0, -1.0, 0.5],
-                'orientation': [0, 0, 0, 1],
-                'scale': 1.0,
-                'radius': 0.05  # 柠檬半径（小物体）
-            }
-        }
+        "config_path": "Config/default.yaml",
+        "gui": True,
+        "scene_path": "Asset/Scene/Scene/all_scene_test.json"  # JSON场景文件路径
     }
-    
+
     # 机器人配置
     robot_configs = [
         {
-            'robot_id': 'robot_1',
-            'robot_type': 'mobile_manipulator',
-            'robot_model': 'panda_on_segbot',
-            'init_position': [0.0, 0.0, 0.0],
-            'init_orientation': [0, 0, 0, 1]
+            "robot_id": "alice",
+            "robot_type": "arm",
+            "robot_model": "panda",
+            "init_position": [0.2, 1.6, 0.1],
+            "init_orientation": [0, 0, 0, 1],
+            "capabilities": ["manipulation", "perception"]
         },
         {
-            'robot_id': 'drone_1',
-            'robot_type': 'drone',
-            'robot_model': 'drone',
-            'init_position': [1.0, 1.0, 1.5],
-            'init_orientation': [0, 0, 0, 1]
+            "robot_id": "bob",
+            "robot_type": "mobile_manipulator",
+            "robot_model": "panda_on_segbot",
+            "init_position": [1.2, 2.9, 0],
+            "init_orientation": [0, 0, -1, 0],  # 朝向装配区
+            "capabilities": ["navigation", "manipulation", "transport", "perception"]
+        },
+        {
+            "robot_id": "david",
+            "robot_type": "drone",
+            "robot_model": "drone",
+            "init_position": [-0.5, 0.5, 1.1],
+            "init_orientation": [0, 0, 1, 0],  # 朝向另一侧
+            "capabilities": ["manipulation", "transport", "perception"]
         }
     ]
     
