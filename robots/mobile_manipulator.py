@@ -58,11 +58,32 @@ class MobileManipulator:
         self.navigation_threshold = 0.05
         self.manipulation_range = 0.8  # 操作范围（米）
         
-        # 路径规划器（A* + DWA）
-        self.path_planner = PathPlanner(client_id=self.bestman.client_id)
+        # 路径规划器（A* + DWA）- 初始为None，可以通过set_path_planner设置外部实例
+        self.path_planner = None
+        self._client_id = self.bestman.client_id
         
         # 更新初始位置
         self._update_pose()
+    
+    def set_path_planner(self, path_planner):
+        """
+        设置外部路径规划器实例
+        
+        Args:
+            path_planner: PathPlanner 实例，用于与提示词计算共享相同的障碍物地图
+        """
+        self.path_planner = path_planner
+        print(f"[MobileManipulator] {self.robot_id} 使用外部路径规划器实例")
+    
+    def _get_path_planner(self):
+        """
+        获取路径规划器实例
+        如果没有设置外部实例，则创建一个新的
+        """
+        if self.path_planner is None:
+            print(f"[MobileManipulator] {self.robot_id} 创建新的路径规划器实例")
+            self.path_planner = PathPlanner(client_id=self._client_id)
+        return self.path_planner
     
     def _update_pose(self):
         """从 BestMan 实例更新当前位姿"""
@@ -114,10 +135,13 @@ class MobileManipulator:
             print(f"[MobileManipulator] 开始导航到 {target_position}")
             print(f"[MobileManipulator] 当前位置: {self.position}, 场景物体数: {len(scene_objects) if scene_objects else 0}")
             
+            # 获取路径规划器实例
+            planner = self._get_path_planner()
+            
             # 更新障碍物信息
             if scene_objects:
                 print(f"[MobileManipulator] 更新障碍物信息...")
-                self.path_planner.update_obstacles_from_scene(scene_objects)
+                planner.update_obstacles_from_scene(scene_objects)
                 print(f"[MobileManipulator] 障碍物更新完成")
             
             # 规划全局路径（A*），PathPlanner 会自动处理替代目标
@@ -125,8 +149,8 @@ class MobileManipulator:
             goal_pos = [target_position[0], target_position[1]]
             
             print(f"[MobileManipulator] 规划全局路径: {start_pos} -> {goal_pos}")
-            global_path = self.path_planner.plan_global_path(
-                start_pos, goal_pos, 
+            global_path = planner.plan_global_path(
+                start_pos, goal_pos,
                 scene_objects=scene_objects or {},
                 max_search_radius=5.0,
                 radius_step=0.5
@@ -240,7 +264,8 @@ class MobileManipulator:
                     collision = True
             
             # 使用 DWA 计算速度
-            v, yaw_rate = self.path_planner.compute_velocity(
+            planner = self._get_path_planner()
+            v, yaw_rate = planner.compute_velocity(
                 [self.position[0], self.position[1]],
                 self.yaw,
                 current_v,

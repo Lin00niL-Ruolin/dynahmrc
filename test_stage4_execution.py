@@ -21,6 +21,7 @@ from dynahmrc.integration.bestman_adapter import BestManAdapter
 from dynahmrc.integration.robot_factory import RobotFactory
 from dynahmrc.core.collaboration import FourStageCollaboration, CollaborationResult
 from dynahmrc.core.robot_agent import RobotAgent
+from dynahmrc.utils.path_planning import PathPlanner
 
 # Import MockLLMClient
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'Dyna_hmrc_web'))
@@ -389,6 +390,10 @@ class Stage4Tester:
             # 创建 Mock LLM
             mock_llm = self.create_mock_llm_client()
             
+            # 创建共享的路径规划器实例
+            shared_path_planner = PathPlanner(client_id=self.client.client_id)
+            print(f"   ✓ 创建共享路径规划器")
+            
             # 创建机器人代理
             robot_agents = []
             for robot_id, robot in robots.items():
@@ -407,6 +412,15 @@ class Stage4Tester:
                     capabilities=robot.capabilities,
                     llm_client=mock_llm
                 )
+                
+                # 设置共享的路径规划器
+                agent.set_path_planner(shared_path_planner)
+                
+                # 如果机器人有 set_path_planner 方法（如 MobileManipulator），也设置给它
+                if hasattr(robot, 'set_path_planner'):
+                    robot.set_path_planner(shared_path_planner)
+                    print(f"   ✓ 为 {robot_id} 设置共享路径规划器")
+                
                 robot_agents.append(agent)
                 print(f"   ✓ 创建机器人代理: {robot_id} (类型: {agent_robot_type})")
             

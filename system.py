@@ -42,6 +42,9 @@ from .evaluation.metrics import MetricsCollector, TaskMetrics
 from .core.collaboration import FourStageCollaboration, CollaborationResult
 from .core.robot_agent import RobotAgent
 
+# 导入路径规划模块
+from .utils.path_planning import PathPlanner
+
 
 class TaskStatus(Enum):
     """任务状态枚举"""
@@ -1011,6 +1014,11 @@ class DynaHMRCSystem:
         """
         robot_agents = []
         
+        # 创建共享的路径规划器实例
+        client_id = self.client.client_id if hasattr(self, 'client') and self.client else 0
+        shared_path_planner = PathPlanner(client_id=client_id)
+        print(f"[DynaHMRCSystem] 创建共享路径规划器")
+        
         for robot_id, robot in self.robot_factory.get_all_robots().items():
             # 获取 LLM 客户端
             llm_client = self.llm_client if hasattr(self, 'llm_client') else None
@@ -1043,6 +1051,14 @@ class DynaHMRCSystem:
                 llm_client=llm_client,
                 avatar="🤖"
             )
+            
+            # 设置共享的路径规划器
+            agent.set_path_planner(shared_path_planner)
+            
+            # 如果机器人有 set_path_planner 方法（如 MobileManipulator），也设置给它
+            if hasattr(robot, 'set_path_planner'):
+                robot.set_path_planner(shared_path_planner)
+                print(f"[DynaHMRCSystem] 为 {robot_id} 设置共享路径规划器")
             
             robot_agents.append(agent)
             print(f"[DynaHMRCSystem] 创建 RobotAgent: {robot_id} ({agent_type})")
