@@ -793,7 +793,13 @@ class PathPlanner:
         print(f"\n[PathPlanner] ====== 障碍物统计 ======")
         print(f"[PathPlanner] 障碍物总数: {len(obstacle_positions)}")
         if obstacle_positions:
-            print(f"[PathPlanner] 障碍物列表: {[f'{name}({info.get(\"radius\", 0):.2f}m)' for name, info in scene_objects.items() if info.get('radius', 0) >= min_obstacle_radius and info.get('type') != 'graspable']}")
+            obstacle_list = []
+            for name, info in scene_objects.items():
+                info_radius = info.get('radius', 0)
+                info_type = info.get('type', '')
+                if info_radius >= min_obstacle_radius and info_type != 'graspable':
+                    obstacle_list.append(f"{name}({info_radius:.2f}m)")
+            print(f"[PathPlanner] 障碍物列表: {obstacle_list}")
         print(f"[PathPlanner] =================================\n")
         
         self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
