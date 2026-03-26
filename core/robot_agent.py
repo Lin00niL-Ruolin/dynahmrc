@@ -268,16 +268,31 @@ class RobotAgent:
     
     def _build_self_description_prompt(self, task: str) -> str:
         """Build prompt for Self-Description stage"""
-        return f"""You are {self.name}, a {self.normalized_robot_type} robot with capabilities: {', '.join(self.capabilities)}.
+        # 获取职责说明
+        responsibilities = self._get_robot_responsibilities()
+        
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot.
+
+=== YOUR RESPONSIBILITIES ===
+{responsibilities}
+
+Your capabilities: {', '.join(self.capabilities)}
+Your available actions: {', '.join(self.available_actions)}
 
 Task: {task}
 
 ## Instructions
 Introduce yourself to your teammates. Explain:
 1. Who you are and your robot type
-2. Your specific capabilities
-3. How you can contribute to this task
+2. Your specific capabilities AND limitations (be clear about what you CANNOT do)
+3. How you can contribute to this task based on your actual capabilities
 4. Your confidence level in handling this task
+
+IMPORTANT: Be honest about your limitations:
+- If you are a Fixed Arm, state clearly that you cannot move/navigate
+- If you are a Mobile Base, state clearly that you cannot pick/place objects
+- If you are a Drone, mention your payload limitations
+- If you are a Mobile Manipulator, highlight your versatility
 
 ## Output Format
 Thought: <Your internal reasoning>
@@ -347,7 +362,16 @@ Description: <Your introduction to teammates (2-3 sentences)>"""
         """Build prompt for Task Allocation stage"""
         teammates_str = "\n".join([f"- {name}: {desc}" for name, desc in teammates_descriptions.items()])
         
-        return f"""You are {self.name}, a {self.normalized_robot_type} robot with capabilities: {', '.join(self.capabilities)}.
+        # 获取职责说明
+        responsibilities = self._get_robot_responsibilities()
+        
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot.
+
+=== YOUR RESPONSIBILITIES ===
+{responsibilities}
+
+Your capabilities: {', '.join(self.capabilities)}
+Your available actions: {', '.join(self.available_actions)}
 
 Task: {task}
 
@@ -356,8 +380,14 @@ Teammates:
 
 ## Instructions
 Propose a task allocation plan and give a campaign speech for leadership:
+
 1. Analyze the task and divide it into subtasks
 2. Assign each subtask to the most suitable robot (including yourself)
+   - Consider each robot's capabilities and limitations
+   - Fixed Arm robots CANNOT navigate - don't assign navigation tasks to them
+   - Mobile Base robots CANNOT pick/place - only assign transport tasks
+   - Drones are good for aerial tasks but have limited payload
+   - Mobile Manipulators can handle most tasks independently
 3. Identify coordination points where robots need to synchronize
 4. Give a persuasive campaign speech explaining why you should be the leader
 
@@ -525,6 +555,51 @@ Vote: <Name of the robot you vote for>"""
         
         return action
     
+    def _get_robot_responsibilities(self) -> str:
+        """获取机器人类型的详细职责说明"""
+        responsibilities = {
+            'MobileManipulation': """You are a MOBILE MANIPULATOR robot (移动操作复合机器人).
+Your responsibilities:
+- CAN navigate to any location in the environment
+- CAN pick up objects using your manipulator arm
+- CAN place objects at specified locations
+- CAN open/close containers and doors
+- CAN transport objects from one place to another
+- CANNOT fly or operate at heights above ground level
+You are the most versatile robot type and can handle most tasks independently.""",
+            
+            'Manipulator': """You are a FIXED ARM robot (固定机械臂).
+Your responsibilities:
+- CANNOT navigate or move your base - you are fixed in place
+- CAN pick up objects that are within your arm's reach
+- CAN place objects at nearby locations
+- CAN manipulate objects in your workspace
+- MUST rely on other robots (Mobile or Mobile Manipulator) to bring objects to you or take objects away
+- Your workspace is limited to your arm's reach radius
+You specialize in precise manipulation but cannot move.""",
+            
+            'Mobile': """You are a MOBILE BASE robot (移动基座).
+Your responsibilities:
+- CAN navigate to any location in the environment
+- CANNOT pick up or manipulate objects - you have no arm
+- CAN transport objects only if they are already loaded onto you by other robots
+- CAN communicate and coordinate with other robots
+- Your primary role is transportation and logistics support
+You are a transport specialist but cannot manipulate objects directly.""",
+            
+            'Drone': """You are a DRONE/UAV robot (无人机).
+Your responsibilities:
+- CAN navigate in 3D space including flying over obstacles
+- CAN pick up LIGHTWEIGHT objects (max 0.5kg payload)
+- CAN place objects from aerial positions
+- CAN provide aerial reconnaissance and perception
+- CAN access elevated or hard-to-reach areas
+- CANNOT pick up heavy objects
+- CANNOT open doors or containers requiring force
+You specialize in aerial operations and accessing elevated areas."""
+        }
+        return responsibilities.get(self.normalized_robot_type, "Unknown robot type")
+    
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
         """Build prompt for Execution stage"""
         history_str = self.memory.format_history_for_prompt(k=5)
@@ -553,30 +628,51 @@ Vote: <Name of the robot you vote for>"""
             if self.is_leader:
                 leader_info += " (You are the leader)"
         
+        # 获取职责说明
+        responsibilities = self._get_robot_responsibilities()
+        
         return f"""You are {self.name}, a {self.normalized_robot_type} robot.
-Your capabilities: {', '.join(self.capabilities)}
-Your available actions: {', '.join(self.available_actions)}{leader_info}
 
+=== YOUR RESPONSIBILITIES ===
+{responsibilities}
+
+=== YOUR CAPABILITIES ===
+Your available actions: {', '.join(self.available_actions)}
+Your capabilities list: {', '.join(self.capabilities)}{leader_info}
+
+=== CURRENT SITUATION ===
 {scene_str}{teammates_str}
 
 Leader's Plan: {json.dumps(leader_plan, indent=2)}
 
+=== HISTORY ===
 {history_str}
 
 {messages_str}
 
-## Instructions
+=== INSTRUCTIONS ===
 Based on the current observation and leader's plan, choose your next action.
-Consider:
-1. Your assigned subtasks
-2. Current state of the environment
-3. Recent action history and feedback
-4. Messages from teammates
 
-IMPORTANT: You can ONLY use the following action types: {', '.join(self.available_actions)}
-DO NOT use any other action types. For example, if you are an arm robot without navigation capability, DO NOT try to use "navigate" action.
+CRITICAL RULES:
+1. You can ONLY use these action types: {', '.join(self.available_actions)}
+2. DO NOT use any other action types - this will cause execution failure
+3. Respect your robot type limitations:
+   - If you are a Fixed Arm: NEVER try to navigate - ask others to bring objects to you
+   - If you are a Mobile Base: NEVER try to pick/place - only transport
+   - If you are a Drone: Only handle lightweight objects, avoid heavy lifting
+   - If you are a Mobile Manipulator: You can do most tasks independently
 
-## Output Format
+4. If the task requires capabilities you don't have:
+   - Use "communicate" action to request help from appropriate teammates
+   - Do not attempt actions outside your capabilities
+
+5. Consider:
+   - Your assigned subtasks
+   - Current state of the environment  
+   - Recent action history and feedback
+   - Messages from teammates
+
+=== OUTPUT FORMAT ===
 ```json
 {{
   "action": "<action_type>",
