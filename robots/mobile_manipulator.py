@@ -94,8 +94,9 @@ class MobileManipulator:
         self,
         target_position: List[float],
         target_orientation: Optional[List[float]] = None,
-        scene_objects: Optional[Dict[str, Dict]] = None
-    ) -> bool:
+        scene_objects: Optional[Dict[str, Dict]] = None,
+        max_retries: int = 3
+    ) -> Tuple[bool, str]:
         """
         导航到目标位置（使用 A* + DWA 路径规划）
         
@@ -103,9 +104,10 @@ class MobileManipulator:
             target_position: 目标位置 [x, y, z]
             target_orientation: 目标朝向（四元数，可选）
             scene_objects: 场景物体信息，用于避障
+            max_retries: 最大重试次数（当目标不可达时尝试替代目标）
         
         Returns:
-            是否成功
+            (是否成功, 消息)
         """
         try:
             self.is_busy = True
@@ -120,44 +122,170 @@ class MobileManipulator:
                 self.path_planner.update_obstacles_from_scene(scene_objects)
                 print(f"[MobileManipulator] 障碍物更新完成")
             
-            # 规划全局路径（A*）
-            start_pos = [self.position[0], self.position[1]]
-            goal_pos = [target_position[0], target_position[1]]
+            # 尝试导航，支持重试和替代目标
+            current_target = [target_position[0], target_position[1]]
+            original_target = current_target.copy()
             
-            print(f"[MobileManipulator] 规划全局路径: {start_pos} -> {goal_pos}")
-            global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
-            
-            if global_path is None:
-                print("[MobileManipulator] 全局路径规划失败，使用简单导航")
-                self._simple_navigation(target_position)
-            else:
-                print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
+            for attempt in range(max_retries):
+                print(f"[MobileManipulator] 导航尝试 {attempt + 1}/{max_retries}, 目标: {current_target}")
                 
-                # 使用 DWA 沿路径导航
-                print(f"[MobileManipulator] 开始 DWA 导航...")
-                self._dwa_navigation(global_path, scene_objects or {})
-                print(f"[MobileManipulator] DWA 导航完成")
+                # 规划全局路径（A*）
+                start_pos = [self.position[0], self.position[1]]
+                
+                print(f"[MobileManipulator] 规划全局路径: {start_pos} -> {current_target}")
+                global_path = self.path_planner.plan_global_path(start_pos, current_target)
+                
+                if global_path is None:
+                    print(f"[MobileManipulator] 全局路径规划失败，尝试 {attempt + 1}/{max_retries}")
+                    
+                    if attempt < max_retries - 1:
+                        # 选择替代目标点
+                        current_target = self._find_alternative_target(
+                            original_target, scene_objects or {}, attempt
+                        )
+                        if current_target is None:
+                            print("[MobileManipulator] 无法找到替代目标点")
+                            return False, f"目标 {original_target} 不可达，且无法找到替代目标"
+                        print(f"[MobileManipulator] 选择替代目标: {current_target}")
+                    else:
+                        # 最后一次尝试失败
+                        return False, f"目标 {original_target} 不可达，已尝试 {max_retries} 次"
+                else:
+                    print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
+                    
+                    # 使用 DWA 沿路径导航
+                    print(f"[MobileManipulator] 开始 DWA 导航...")
+                    reached = self._dwa_navigation(global_path, scene_objects or {})
+                    print(f"[MobileManipulator] DWA 导航完成")
+                    
+                    if reached:
+                        # 调整最终朝向
+                        if target_orientation:
+                            target_yaw = p.getEulerFromQuaternion(target_orientation)[2]
+                            self.rotate_to_yaw(target_yaw)
+                        
+                        self._update_pose()
+                        final_distance = math.sqrt(
+                            (original_target[0] - self.position[0]) ** 2 +
+                            (original_target[1] - self.position[1]) ** 2
+                        )
+                        print(f"[MobileManipulator] 导航完成，当前位置: {self.position}, 距离原目标: {final_distance:.3f}m")
+                        
+                        if final_distance < 0.5:  # 距离原目标足够近
+                            return True, f"成功导航到目标附近，距离原目标 {final_distance:.3f}m"
+                        else:
+                            return True, f"导航到替代目标，距离原目标 {final_distance:.3f}m"
+                    else:
+                        # DWA 导航未完成，尝试下一个替代目标
+                        if attempt < max_retries - 1:
+                            current_target = self._find_alternative_target(
+                                original_target, scene_objects or {}, attempt
+                            )
+                            if current_target is None:
+                                return False, "导航未完成且无法找到替代目标"
+                            print(f"[MobileManipulator] 选择替代目标重试: {current_target}")
+                        else:
+                            return False, "导航未完成，已尝试所有替代目标"
             
-            # 调整最终朝向
-            if target_orientation:
-                target_yaw = p.getEulerFromQuaternion(target_orientation)[2]
-                self.rotate_to_yaw(target_yaw)
-            
-            self._update_pose()
-            print(f"[MobileManipulator] 导航完成，当前位置: {self.position}")
-            return True
+            return False, "导航失败，超过最大重试次数"
             
         except Exception as e:
             import traceback
             self.error_status = f"navigation_failed: {str(e)}\n{traceback.format_exc()}"
             print(f"[MobileManipulator] 导航失败: {self.error_status}")
-            return False
+            return False, str(e)
         finally:
             self.is_busy = False
             self.current_task = None
     
-    def _dwa_navigation(self, global_path: List[List[float]], scene_objects: Dict[str, Dict]):
-        """使用 DWA 沿全局路径导航"""
+    def _find_alternative_target(
+        self,
+        original_target: List[float],
+        scene_objects: Dict[str, Dict],
+        attempt: int
+    ) -> Optional[List[float]]:
+        """
+        寻找替代目标点（当原目标不可达时）
+        
+        策略:
+        1. 在原目标周围搜索可达的位置
+        2. 优先选择距离原目标近且无障碍物的位置
+        
+        Args:
+            original_target: 原始目标位置 [x, y]
+            scene_objects: 场景物体信息
+            attempt: 当前尝试次数（用于调整搜索半径）
+        
+        Returns:
+            替代目标位置 [x, y] 或 None
+        """
+        print(f"[MobileManipulator] 寻找替代目标，原目标: {original_target}, 尝试: {attempt}")
+        
+        # 搜索半径（米）
+        search_radius = 0.5 + attempt * 0.3  # 0.5, 0.8, 1.1, ...
+        
+        # 在圆周上采样候选点
+        num_samples = 12
+        best_target = None
+        best_score = float('-inf')
+        
+        for i in range(num_samples):
+            angle = 2 * math.pi * i / num_samples
+            candidate_x = original_target[0] + search_radius * math.cos(angle)
+            candidate_y = original_target[1] + search_radius * math.sin(angle)
+            
+            # 检查该点是否可达（无障碍物）
+            is_valid = True
+            min_obstacle_dist = float('inf')
+            
+            for obj_name, obj_info in scene_objects.items():
+                if obj_info.get('type') == 'graspable':
+                    continue  # 忽略可抓取物体
+                
+                obj_pos = obj_info.get('position', [0, 0, 0])
+                dist = math.sqrt(
+                    (obj_pos[0] - candidate_x) ** 2 +
+                    (obj_pos[1] - candidate_y) ** 2
+                )
+                
+                # 安全距离（机器人半径 + 障碍物半径）
+                safety_dist = 0.4
+                if 'size' in obj_info:
+                    obj_size = obj_info['size']
+                    safety_dist += max(obj_size[0], obj_size[1]) / 2
+                
+                if dist < safety_dist:
+                    is_valid = False
+                    break
+                
+                min_obstacle_dist = min(min_obstacle_dist, dist)
+            
+            if is_valid:
+                # 计算得分：距离原目标越近越好，距离障碍物越远越好
+                dist_to_original = math.sqrt(
+                    (candidate_x - original_target[0]) ** 2 +
+                    (candidate_y - original_target[1]) ** 2
+                )
+                score = -dist_to_original + min_obstacle_dist * 0.5
+                
+                if score > best_score:
+                    best_score = score
+                    best_target = [candidate_x, candidate_y]
+        
+        if best_target:
+            print(f"[MobileManipulator] 找到替代目标: {best_target}, 得分: {best_score:.3f}")
+        else:
+            print(f"[MobileManipulator] 未找到替代目标")
+        
+        return best_target
+    
+    def _dwa_navigation(self, global_path: List[List[float]], scene_objects: Dict[str, Dict]) -> bool:
+        """
+        使用 DWA 沿全局路径导航
+        
+        Returns:
+            是否成功到达目标
+        """
         max_steps = 1000
         step = 0
         current_v = 0.0
@@ -174,6 +302,11 @@ class MobileManipulator:
                 obstacle_positions.append([pos[0], pos[1]])
         print(f"[MobileManipulator] 障碍物数量: {len(obstacle_positions)}, 位置: {obstacle_positions}")
         
+        # 记录是否卡住
+        stuck_counter = 0
+        last_position = [self.position[0], self.position[1]]
+        stuck_threshold = 100  # 100步内移动距离小于阈值则认为卡住
+        
         while step < max_steps:
             self._update_pose()
             
@@ -186,7 +319,21 @@ class MobileManipulator:
             
             if distance_to_goal < self.navigation_threshold:
                 print(f"[MobileManipulator] 到达目标，距离: {distance_to_goal:.3f}m")
-                break
+                return True
+            
+            # 检查是否卡住
+            moved_distance = math.sqrt(
+                (self.position[0] - last_position[0]) ** 2 +
+                (self.position[1] - last_position[1]) ** 2
+            )
+            if moved_distance < 0.01:  # 移动距离小于1cm
+                stuck_counter += 1
+                if stuck_counter > stuck_threshold:
+                    print(f"[MobileManipulator] 检测到卡住，已停止移动 {stuck_counter} 步")
+                    return False
+            else:
+                stuck_counter = 0
+                last_position = [self.position[0], self.position[1]]
             
             # 检查是否碰撞障碍物
             collision = False
@@ -223,6 +370,7 @@ class MobileManipulator:
         if step >= max_steps:
             print(f"[MobileManipulator] 导航达到最大步数 {max_steps}")
         print(f"[MobileManipulator] DWA 导航结束，最终位置: [{self.position[0]:.3f}, {self.position[1]:.3f}]")
+        return False
     
     def _apply_velocity(self, v: float, yaw_rate: float, obstacles: List[List[float]] = None):
         """应用速度指令，带障碍物检测，同时移动底座和机械臂"""

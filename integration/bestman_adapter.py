@@ -290,20 +290,29 @@ class BestManAdapter:
             
             # 调用导航方法，所有支持避障的机器人都传递 scene_objects
             print(f"[_handle_navigate] 调用 robot.navigate_to...")
-            success = robot.navigate_to(position, orientation, scene_objects)
-            print(f"[_handle_navigate] navigate_to 返回: success={success}")
+            result = robot.navigate_to(position, orientation, scene_objects)
+            
+            # 处理新的返回值格式 (success, message)
+            if isinstance(result, tuple):
+                success, message = result
+            else:
+                # 兼容旧格式
+                success = result
+                message = "导航完成" if success else "导航失败"
+            
+            print(f"[_handle_navigate] navigate_to 返回: success={success}, message={message}")
             
             state = robot.get_state()
             
             if not success:
                 error_info = getattr(robot, 'error_status', 'Unknown error')
-                return False, f"导航到 {position}", {
+                return False, message, {
                     "position": state.get("position"),
                     "orientation": state.get("orientation"),
                     "error": error_info
                 }
             
-            return True, f"导航到 {position}", {
+            return True, message, {
                 "position": state.get("position"),
                 "orientation": state.get("orientation")
             }

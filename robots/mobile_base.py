@@ -95,7 +95,7 @@ class MobileBase:
         target_position: List[float],
         target_orientation: Optional[List[float]] = None,
         scene_objects: Optional[Dict[str, Dict]] = None
-    ) -> bool:
+    ) -> Tuple[bool, str]:
         """
         导航到目标位置（支持避障）
         
@@ -105,7 +105,7 @@ class MobileBase:
             scene_objects: 场景物体信息，用于避障
         
         Returns:
-            是否成功
+            (是否成功, 消息)
         """
         try:
             self.is_busy = True
@@ -125,13 +125,15 @@ class MobileBase:
             self._update_pose()
             if success:
                 print(f"[MobileBase] 导航完成，当前位置: {self.position}")
-            return success
+                return True, f"成功导航到 {target_position}"
+            else:
+                return False, f"导航到 {target_position} 失败"
             
         except Exception as e:
             import traceback
             self.error_status = f"navigation_failed: {str(e)}\n{traceback.format_exc()}"
             print(f"[MobileBase] 导航失败: {self.error_status}")
-            return False
+            return False, str(e)
         finally:
             self.is_busy = False
             self.current_task = None
