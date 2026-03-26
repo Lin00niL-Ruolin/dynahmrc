@@ -27,6 +27,7 @@ class ActionType(Enum):
     WAIT = "wait"                   # 等待
     STOP = "stop"                   # 停止
     EMERGENCY_STOP = "emergency_stop"  # 紧急停止
+    COMMUNICATE = "communicate"     # 机器人间通信
 
 
 @dataclass
@@ -100,6 +101,7 @@ class BestManAdapter:
             ActionType.WAIT: self._handle_wait,
             ActionType.STOP: self._handle_stop,
             ActionType.EMERGENCY_STOP: self._handle_emergency_stop,
+            ActionType.COMMUNICATE: self._handle_communicate,
         }
     
     def execute_action(
@@ -171,7 +173,7 @@ class BestManAdapter:
         try:
             handler = self.action_handlers[action_type]
             # 对于需要 robot_id 的 handler，传递 robot_id
-            if action_type in [ActionType.NAVIGATE, ActionType.PICK]:
+            if action_type in [ActionType.NAVIGATE, ActionType.PICK, ActionType.COMMUNICATE]:
                 success, message, state_changes = handler(robot, params, robot_id)
             else:
                 success, message, state_changes = handler(robot, params)
@@ -228,6 +230,7 @@ class BestManAdapter:
             ActionType.WAIT: [],  # 所有机器人都可等待
             ActionType.STOP: [],  # 所有机器人都可停止
             ActionType.EMERGENCY_STOP: [],  # 所有机器人都可紧急停止
+            ActionType.COMMUNICATE: [],  # 所有机器人都可通信
         }
         
         required = capability_map.get(action_type, [])
@@ -264,7 +267,7 @@ class BestManAdapter:
             scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
             print(f"[_handle_navigate] 获取场景物体: {len(scene_objects)} 个")
             
-            # 调用导航方法，传递场景物体信息
+            # 调用导航方法，所有支持避障的机器人都传递 scene_objects
             print(f"[_handle_navigate] 调用 robot.navigate_to...")
             success = robot.navigate_to(position, orientation, scene_objects)
             print(f"[_handle_navigate] navigate_to 返回: success={success}")
@@ -453,6 +456,53 @@ class BestManAdapter:
         """处理紧急停止"""
         robot.emergency_stop()
         return True, "紧急停止", {}
+    
+    def _handle_communicate(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
+        """处理机器人间通信"""
+        print(f"[_handle_communicate] 开始: robot_id={robot_id}, params={params}")
+        
+        to_robot = params.get("to")
+        message = params.get("message", "")
+        broadcast = params.get("broadcast", False)
+        
+        if not message:
+            print(f"[_handle_communicate] 错误: 消息为空")
+            return False, "消息不能为空", {}
+        
+        # 获取发送者名称
+        sender_name = robot_id or "unknown"
+        
+        if broadcast:
+            # 广播给所有机器人
+            print(f"[_handle_communicate] 广播消息: {sender_name} -> all: {message[:50]}...")
+            for rid, other_robot in self.robot_registry.items():
+                if rid != robot_id and hasattr(other_robot, 'receive_message'):
+                    try:
+                        other_robot.receive_message(sender_name, message)
+                    except Exception as e:
+                        print(f"[_handle_communicate] 发送给 {rid} 失败: {e}")
+            return True, f"广播消息: {message[:50]}...", {"broadcast": True}
+        
+        elif to_robot:
+            # 发送给特定机器人
+            print(f"[_handle_communicate] 发送消息: {sender_name} -> {to_robot}: {message[:50]}...")
+            if to_robot in self.robot_registry:
+                target_robot = self.robot_registry[to_robot]
+                if hasattr(target_robot, 'receive_message'):
+                    try:
+                        target_robot.receive_message(sender_name, message)
+                        return True, f"发送消息给 {to_robot}: {message[:50]}...", {"to": to_robot}
+                    except Exception as e:
+                        print(f"[_handle_communicate] 发送失败: {e}")
+                        return False, f"发送消息失败: {e}", {"error": str(e)}
+                else:
+                    return False, f"机器人 {to_robot} 不支持接收消息", {}
+            else:
+                return False, f"机器人 {to_robot} 未找到", {}
+        
+        else:
+            print(f"[_handle_communicate] 错误: 未指定接收者")
+            return False, "必须指定接收者 (to) 或设置为广播 (broadcast)", {}
     
     def _get_sensor_data(self, robot: Any) -> Dict[str, Any]:
         """获取机器人传感器数据"""
