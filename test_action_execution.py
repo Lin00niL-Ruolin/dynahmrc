@@ -298,6 +298,55 @@ class ActionExecutionTester:
             traceback.print_exc()
             return False
     
+    def test_json_parsing(self):
+        """测试 JSON 解析功能"""
+        print("\n   [测试 JSON 解析]")
+        
+        # 导入解析函数
+        from dynahmrc.core.robot_agent import RobotAgent
+        
+        test_cases = [
+            # 标准格式
+            ("标准格式", '''{"action": "navigate", "params": {"target": [1.0, 2.0, 0.0]}, "reasoning": "Go to target"}'''),
+            # 带代码块标记
+            ("带代码块标记", '''```json\n{"action": "pick", "params": {"object_id": "box"}, "reasoning": "Pick box"}\n```'''),
+            # 单引号
+            ("单引号", "{'action': 'place', 'params': {'location': [1.0, 2.0, 0.5]}, 'reasoning': 'Place item'}"),
+            # 嵌套代码块
+            ("嵌套代码块", '''```json\n```json\n{"action": "communicate", "params": {"to": "robot1", "message": "hello"}, "reasoning": "Say hi"}\n```\n```'''),
+            # 多余空白
+            ("多余空白", '''   {"action": "wait", "params": {"duration": 1.0}, "reasoning": "Wait"}   '''),
+            # 缺少 reasoning
+            ("缺少 reasoning", '{"action": "navigate", "params": {"target": [0.0, 0.0, 0.0]}}'),
+            # 复杂嵌套参数
+            ("复杂嵌套参数", '''{"action": "navigate", "params": {"target": {"x": 1.0, "y": 2.0, "z": 0.0}, "orientation": [0.0, 0.0, 1.0, 0.0]}, "reasoning": "Navigate with orientation"}'''),
+        ]
+        
+        results = []
+        for test_name, json_str in test_cases:
+            try:
+                print(f"\n      测试: {test_name}")
+                print(f"      输入: {json_str[:60]}...")
+                
+                # 使用 RobotAgent 的解析方法
+                parsed = RobotAgent._parse_llm_response(json_str)
+                
+                if parsed:
+                    action = parsed.get('action', 'N/A')
+                    params = parsed.get('params', {})
+                    reasoning = parsed.get('reasoning', 'N/A')
+                    print(f"      解析成功: action={action}, params={params}, reasoning={reasoning[:30] if reasoning else 'N/A'}...")
+                    results.append((test_name, True, None))
+                else:
+                    print(f"      ✗ 解析失败: 返回 None")
+                    results.append((test_name, False, "返回 None"))
+                    
+            except Exception as e:
+                print(f"      ✗ 解析异常: {e}")
+                results.append((test_name, False, str(e)))
+        
+        return results
+    
     def run_action_tests(self):
         """运行所有动作测试"""
         print("\n" + "="*60)
@@ -306,31 +355,37 @@ class ActionExecutionTester:
         
         results = []
         
-        # 5.1 测试 MobileManipulator 的导航
-        print("\n5.1 测试 MobileManipulator 导航")
+        # 5.1 测试 JSON 解析
+        print("\n5.1 测试 JSON 解析功能")
+        json_results = self.test_json_parsing()
+        for test_name, success, error in json_results:
+            results.append((f"JSON解析: {test_name}", success))
+        
+        # 5.2 测试 MobileManipulator 的导航
+        print("\n5.2 测试 MobileManipulator 导航")
         results.append(("MobileManipulator 导航到目标区域", 
                        self.test_navigate_action("test_mobile_manipulator", [1.5, 0.0, 0.0], "目标区域")))
         
         results.append(("MobileManipulator 导航到箱子附近",
                        self.test_navigate_action("test_mobile_manipulator", [0.0, 0.0, 0.0], "箱子附近")))
         
-        # 5.2 测试 MobileBase 的导航
-        print("\n5.2 测试 MobileBase 导航")
+        # 5.3 测试 MobileBase 的导航
+        print("\n5.3 测试 MobileBase 导航")
         results.append(("MobileBase 导航到目标区域",
                        self.test_navigate_action("test_mobile_base", [1.5, 1.0, 0.0], "目标区域")))
         
-        # 5.3 测试抓取动作
-        print("\n5.3 测试抓取动作")
+        # 5.4 测试抓取动作
+        print("\n5.4 测试抓取动作")
         results.append(("MobileManipulator 抓取箱子",
                        self.test_pick_action("test_mobile_manipulator", "box")))
         
-        # 5.4 测试放置动作
-        print("\n5.4 测试放置动作")
+        # 5.5 测试放置动作
+        print("\n5.5 测试放置动作")
         results.append(("MobileManipulator 放置到目标区域",
                        self.test_place_action("test_mobile_manipulator", [2.0, 0.0, 0.5])))
         
-        # 5.5 测试通信动作
-        print("\n5.5 测试通信动作")
+        # 5.6 测试通信动作
+        print("\n5.6 测试通信动作")
         results.append(("MobileManipulator 发送消息",
                        self.test_communicate_action("test_mobile_manipulator", "test_mobile_base", 
                                                    "Hello from mobile manipulator!")))
@@ -339,8 +394,8 @@ class ActionExecutionTester:
                        self.test_communicate_action("test_mobile_base", "", 
                                                    "Broadcast from mobile base!", broadcast=True)))
         
-        # 5.6 测试等待动作
-        print("\n5.6 测试等待动作")
+        # 5.7 测试等待动作
+        print("\n5.7 测试等待动作")
         results.append(("MobileManipulator 等待",
                        self.test_wait_action("test_mobile_manipulator", 1.0)))
         
