@@ -367,7 +367,13 @@ class BestManAdapter:
     
     def _handle_place(self, robot: Any, params: Dict) -> tuple:
         """处理放置动作"""
-        target = params.get("target")
+        # 支持多种参数格式
+        # 格式1: params = {"target": [x, y, z]} 或 {"target": {"x": x, "y": y, "z": z}}
+        # 格式2: params = {"location": [x, y, z]} 或 {"location": {"x": x, "y": y, "z": z}}
+        target = params.get("target") or params.get("location")
+        
+        if target is None:
+            return False, "缺少目标位置参数 (target 或 location)", {}
         
         if isinstance(target, dict):
             position = [target.get("x", 0), target.get("y", 0), target.get("z", 0)]
