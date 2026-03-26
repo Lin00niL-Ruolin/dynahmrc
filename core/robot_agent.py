@@ -626,6 +626,14 @@ You specialize in aerial operations and accessing elevated areas."""
         # 获取当前机器人位置
         my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
         
+        # 更新障碍物地图（如果有path_planner且支持）
+        if path_planner and hasattr(path_planner, 'update_obstacles_from_scene'):
+            try:
+                path_planner.update_obstacles_from_scene(scene_graph)
+                print(f"[_calculate_reachable_positions] {self.name} 障碍物地图已更新")
+            except Exception as e:
+                print(f"[_calculate_reachable_positions] 更新障碍物地图失败: {e}")
+        
         # 根据机器人类型计算候选位置，并使用A*验证
         if self.normalized_robot_type == 'Manipulator':
             # 固定机械臂：只能在当前位置操作
@@ -646,14 +654,27 @@ You specialize in aerial operations and accessing elevated areas."""
                 
                 # 使用A*验证路径
                 if path_planner:
-                    path = path_planner.plan(
-                        my_position[:2], 
-                        target_pos[:2],
-                        robot_id=self.name,
-                        use_cache=True
-                    )
+                    # 使用plan_global_path而不是plan，保持一致性
+                    if hasattr(path_planner, 'plan_global_path'):
+                        path = path_planner.plan_global_path(
+                            my_position[:2], 
+                            target_pos[:2],
+                            scene_objects=scene_graph,
+                            max_search_radius=5.0,
+                            radius_step=0.5
+                        )
+                    else:
+                        path = path_planner.plan(
+                            my_position[:2], 
+                            target_pos[:2],
+                            robot_id=self.name,
+                            use_cache=True
+                        )
                     if path is not None:
                         reachable_positions[f"{name}_approach"] = target_pos
+                        print(f"[_calculate_reachable_positions] {self.name} -> {name}_approach 可达")
+                    else:
+                        print(f"[_calculate_reachable_positions] {self.name} -> {name}_approach 不可达")
                 else:
                     # 无路径规划器时，直接添加
                     reachable_positions[f"{name}_approach"] = target_pos
@@ -687,19 +708,33 @@ You specialize in aerial operations and accessing elevated areas."""
                 
                 # 使用A*验证路径
                 if path_planner:
-                    path = path_planner.plan(
-                        my_position[:2],
-                        approach_pos[:2],
-                        robot_id=self.name,
-                        use_cache=True
-                    )
+                    # 使用plan_global_path而不是plan，保持一致性
+                    if hasattr(path_planner, 'plan_global_path'):
+                        path = path_planner.plan_global_path(
+                            my_position[:2],
+                            approach_pos[:2],
+                            scene_objects=scene_graph,
+                            max_search_radius=5.0,
+                            radius_step=0.5
+                        )
+                    else:
+                        path = path_planner.plan(
+                            my_position[:2],
+                            approach_pos[:2],
+                            robot_id=self.name,
+                            use_cache=True
+                        )
                     if path is not None:
                         reachable_positions[f"{name}_approach"] = approach_pos
                         reachable_positions[f"{name}_position"] = pos
+                        print(f"[_calculate_reachable_positions] {self.name} -> {name} 可达")
+                    else:
+                        print(f"[_calculate_reachable_positions] {self.name} -> {name} 不可达")
                 else:
                     reachable_positions[f"{name}_approach"] = approach_pos
                     reachable_positions[f"{name}_position"] = pos
         
+        print(f"[_calculate_reachable_positions] {self.name} 共找到 {len(reachable_positions)} 个可达位置")
         return reachable_positions
     
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
