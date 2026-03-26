@@ -762,10 +762,12 @@ class PathPlanner:
             if obj_type == 'graspable':
                 continue
             
-            # 获取物体尺寸（如果有）
-            size = obj_info.get('size', [0.1, 0.1, 0.1])
-            # 使用 x-y 平面的最大半径
-            radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+            # 获取物体半径（优先使用 radius 字段，否则从 size 计算）
+            radius = obj_info.get('radius')
+            if radius is None:
+                # 从 size 字段计算
+                size = obj_info.get('size', [0.1, 0.1, 0.1])
+                radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
             
             # 跳过小物品（半径小于阈值）
             if radius < min_obstacle_radius:
