@@ -190,6 +190,15 @@ class Stage4Tester:
             )
             print(f"   ✓ 创建机器人 precision_arm_2")
             
+            # 创建无人机机器人 (aerial_drone)
+            robot5 = self.robot_factory.create_robot(
+                robot_id="aerial_drone",
+                robot_type="drone",
+                robot_model="drone",
+                init_position=[0.0, 0.0, 1.5]  # 空中初始位置
+            )
+            print(f"   ✓ 创建机器人 aerial_drone")
+            
             return self.robot_factory.get_all_robots()
             
         except Exception as e:
@@ -275,6 +284,10 @@ class Stage4Tester:
                     robot_name = "precision_arm_2"
                     robot_type = "arm"
                     available_actions = ['pick', 'place', 'communicate', 'wait']
+                elif "aerial_drone" in prompt:
+                    robot_name = "aerial_drone"
+                    robot_type = "drone"
+                    available_actions = ['navigate', 'pick', 'place', 'communicate', 'wait']
                 else:
                     robot_name = "unknown"
                     robot_type = "unknown"
@@ -383,7 +396,8 @@ class Stage4Tester:
                 type_mapping = {
                     'mobile_manipulator': 'MobileManipulation',
                     'mobile_base': 'Mobile',
-                    'arm': 'Manipulator'
+                    'arm': 'Manipulator',
+                    'drone': 'Aerial'
                 }
                 agent_robot_type = type_mapping.get(robot.robot_type, robot.robot_type)
                 
@@ -416,7 +430,8 @@ class Stage4Tester:
                     {"id": "subtask_1", "description": "Navigate to prep station", "assigned_to": "helper_mobile_manipulator"},
                     {"id": "subtask_2", "description": "Transport to target", "assigned_to": "logistics_mobile_base"},
                     {"id": "subtask_3", "description": "Pick object", "assigned_to": "precision_arm_1"},
-                    {"id": "subtask_4", "description": "Place object", "assigned_to": "precision_arm_2"}
+                    {"id": "subtask_4", "description": "Place object", "assigned_to": "precision_arm_2"},
+                    {"id": "subtask_5", "description": "Aerial surveillance", "assigned_to": "aerial_drone"}
                 ]
             }
             

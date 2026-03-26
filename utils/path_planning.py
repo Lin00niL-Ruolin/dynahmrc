@@ -31,7 +31,7 @@ class Node:
 
 
 class AStarPlanner:
-    """A* 全局路径规划器"""
+    """A* 全局路径规划器 - 支持动态障碍物和智能点转换"""
     
     def __init__(self, resolution: float = 0.1, robot_radius: float = 0.3):
         """
@@ -43,68 +43,178 @@ class AStarPlanner:
         """
         self.resolution = resolution
         self.robot_radius = robot_radius
-        self.obstacles: Set[Tuple[int, int]] = set()
+        self.static_obstacles: Set[Tuple[int, int]] = set()  # 静态障碍物
+        self.dynamic_obstacles: Dict[str, Tuple[int, int]] = {}  # 动态障碍物 {robot_id: (x, y)}
+        self.obstacles: Set[Tuple[int, int]] = set()  # 合并后的障碍物
+        
+        # 动态规划缓存
+        self.path_cache: Dict[str, List[List[float]]] = {}  # 路径缓存
+        self.cache_timestamp: Dict[str, float] = {}  # 缓存时间戳
+        self.cache_validity = 5.0  # 缓存有效期（秒）
+        
+        # 异常统计
+        self.stats = {
+            'planning_attempts': 0,
+            'planning_success': 0,
+            'planning_failures': 0,
+            'point_conversions': 0,
+            'cache_hits': 0,
+            'cache_misses': 0
+        }
     
-    def update_obstacles(self, obstacle_positions: List[List[float]], obstacle_sizes: Optional[List[float]] = None, client_id: int = 0):
+    def update_static_obstacles(self, obstacle_positions: List[List[float]], 
+                                 obstacle_sizes: Optional[List[float]] = None, 
+                                 client_id: int = 0):
         """
-        更新障碍物地图
+        更新静态障碍物地图
         
         Args:
             obstacle_positions: 障碍物位置列表 [[x, y, z], ...]
             obstacle_sizes: 障碍物尺寸列表（半径），可选
             client_id: PyBullet 客户端 ID
         """
-        self.obstacles.clear()
+        self.static_obstacles.clear()
         
-        print(f"[A*] 更新障碍物地图: {len(obstacle_positions)} 个障碍物")
+        print(f"[A*] 更新静态障碍物地图: {len(obstacle_positions)} 个障碍物")
         
         for i, pos in enumerate(obstacle_positions):
-            # 将障碍物位置转换为栅格坐标
-            grid_x = int(pos[0] / self.resolution)
-            grid_y = int(pos[1] / self.resolution)
-            
-            # 获取障碍物尺寸（如果有）
-            obj_radius = obstacle_sizes[i] if obstacle_sizes and i < len(obstacle_sizes) else 0.0
-            
-            # 添加障碍物及其周围区域（考虑机器人半径 + 障碍物尺寸）
-            # 使用较小的膨胀半径，避免过度膨胀
-            total_radius = self.robot_radius + obj_radius + 0.05  # 额外 5cm 安全距离
-            radius_cells = int(total_radius / self.resolution) + 1
-            
-            print(f"[A*] 障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.2f}) -> 栅格 ({grid_x}, {grid_y}), "
-                  f"物体半径 {obj_radius:.2f}m, 膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
-            
+            try:
+                # 将障碍物位置转换为栅格坐标
+                grid_x = int(pos[0] / self.resolution)
+                grid_y = int(pos[1] / self.resolution)
+                
+                # 获取障碍物尺寸（如果有）
+                obj_radius = obstacle_sizes[i] if obstacle_sizes and i < len(obstacle_sizes) else 0.0
+                
+                # 添加障碍物及其周围区域（考虑机器人半径 + 障碍物尺寸）
+                total_radius = self.robot_radius + obj_radius + 0.05  # 额外 5cm 安全距离
+                radius_cells = int(total_radius / self.resolution) + 1
+                
+                if i < 3:  # 只打印前3个障碍物的详细信息
+                    print(f"[A*] 静态障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.2f}) -> 栅格 ({grid_x}, {grid_y}), "
+                          f"膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
+                
+                for dx in range(-radius_cells, radius_cells + 1):
+                    for dy in range(-radius_cells, radius_cells + 1):
+                        if dx * dx + dy * dy <= radius_cells * radius_cells:
+                            self.static_obstacles.add((grid_x + dx, grid_y + dy))
+            except Exception as e:
+                print(f"[A*] 警告: 处理障碍物 {i} 时出错: {e}")
+                continue
+        
+        self._merge_obstacles()
+        print(f"[A*] 静态障碍物地图更新完成: 共 {len(self.static_obstacles)} 个栅格")
+    
+    def update_dynamic_obstacles(self, robot_positions: Dict[str, List[float]]):
+        """
+        更新动态障碍物（其他机器人位置）
+        
+        Args:
+            robot_positions: 机器人位置字典 {robot_id: [x, y, z], ...}
+        """
+        self.dynamic_obstacles.clear()
+        
+        for robot_id, pos in robot_positions.items():
+            try:
+                grid_x = int(pos[0] / self.resolution)
+                grid_y = int(pos[1] / self.resolution)
+                self.dynamic_obstacles[robot_id] = (grid_x, grid_y)
+            except Exception as e:
+                print(f"[A*] 警告: 更新动态障碍物 {robot_id} 时出错: {e}")
+                continue
+        
+        self._merge_obstacles()
+    
+    def _merge_obstacles(self):
+        """合并静态和动态障碍物"""
+        self.obstacles = self.static_obstacles.copy()
+        
+        # 为动态障碍物添加膨胀区域
+        for robot_id, (grid_x, grid_y) in self.dynamic_obstacles.items():
+            # 动态障碍物使用更大的安全距离
+            radius_cells = int((self.robot_radius * 2) / self.resolution) + 1
             for dx in range(-radius_cells, radius_cells + 1):
                 for dy in range(-radius_cells, radius_cells + 1):
                     if dx * dx + dy * dy <= radius_cells * radius_cells:
                         self.obstacles.add((grid_x + dx, grid_y + dy))
-        
-        print(f"[A*] 障碍物地图更新完成: 共 {len(self.obstacles)} 个栅格被标记为障碍物")
     
-    def plan(self, start: List[float], goal: List[float]) -> Optional[List[List[float]]]:
+    def update_obstacles(self, obstacle_positions: List[List[float]], 
+                        obstacle_sizes: Optional[List[float]] = None, 
+                        client_id: int = 0):
+        """兼容旧接口，更新静态障碍物"""
+        self.update_static_obstacles(obstacle_positions, obstacle_sizes, client_id)
+    
+    def plan(self, start: List[float], goal: List[float], 
+             robot_id: str = None,
+             use_cache: bool = True,
+             max_retries: int = 3) -> Optional[List[List[float]]]:
         """
-        规划路径
+        规划路径 - 支持动态障碍物、缓存和智能点转换
         
         Args:
             start: 起点 [x, y]
             goal: 终点 [x, y]
+            robot_id: 机器人ID（用于动态障碍物排除和缓存）
+            use_cache: 是否使用缓存
+            max_retries: 最大重试次数
         
         Returns:
             路径点列表 [[x, y], ...]，如果无法到达返回 None
         """
+        import time
+        self.stats['planning_attempts'] += 1
+        start_time = time.time()
+        
+        # 生成缓存键
+        cache_key = None
+        if robot_id and use_cache:
+            cache_key = f"{robot_id}_{start[0]:.2f}_{start[1]:.2f}_{goal[0]:.2f}_{goal[1]:.2f}"
+            
+            # 检查缓存是否有效
+            if cache_key in self.path_cache:
+                cache_age = time.time() - self.cache_timestamp.get(cache_key, 0)
+                if cache_age < self.cache_validity:
+                    self.stats['cache_hits'] += 1
+                    print(f"[A*] 使用缓存路径 (年龄: {cache_age:.1f}s)")
+                    return self.path_cache[cache_key].copy()
+                else:
+                    # 缓存过期
+                    del self.path_cache[cache_key]
+                    del self.cache_timestamp[cache_key]
+            
+            self.stats['cache_misses'] += 1
+        
         # 转换为栅格坐标
         start_node = Node(int(start[0] / self.resolution), int(start[1] / self.resolution))
         goal_node = Node(int(goal[0] / self.resolution), int(goal[1] / self.resolution))
         
-        # 检查起点和终点是否在障碍物中
+        # 智能点转换：将不合理的点（在障碍物中）转换为合理的点
+        start_converted = False
+        goal_converted = False
+        
         if (start_node.x, start_node.y) in self.obstacles:
-            print(f"[A*] 起点在障碍物中: ({start_node.x}, {start_node.y})")
-            # 尝试清除起点附近的障碍物
-            self._clear_nearby_obstacles(start_node.x, start_node.y, radius=2)
+            print(f"[A*] 起点在障碍物中: ({start_node.x}, {start_node.y})，尝试转换...")
+            converted = self._convert_invalid_point(start_node.x, start_node.y, 'start')
+            if converted:
+                start_node.x, start_node.y = converted
+                start_converted = True
+                self.stats['point_conversions'] += 1
+                print(f"[A*] 起点已转换到: ({start_node.x}, {start_node.y})")
+            else:
+                # 无法转换，清除附近障碍物
+                self._clear_nearby_obstacles(start_node.x, start_node.y, radius=2)
+        
         if (goal_node.x, goal_node.y) in self.obstacles:
-            print(f"[A*] 终点在障碍物中: ({goal_node.x}, {goal_node.y})，尝试清除附近障碍物")
-            # 清除终点附近的障碍物（允许终点靠近障碍物）
-            self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=2)
+            print(f"[A*] 终点在障碍物中: ({goal_node.x}, {goal_node.y})，尝试转换...")
+            converted = self._convert_invalid_point(goal_node.x, goal_node.y, 'goal')
+            if converted:
+                goal_node.x, goal_node.y = converted
+                goal_converted = True
+                self.stats['point_conversions'] += 1
+                print(f"[A*] 终点已转换到: ({goal_node.x}, {goal_node.y})")
+            else:
+                # 无法转换，清除附近障碍物
+                self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=2)
         
         # A* 算法
         open_set = []
@@ -161,8 +271,10 @@ class AStarPlanner:
             
             # 到达目标
             if current == goal_node:
-                path = self._reconstruct_path(current)
-                print(f"[A*] 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点")
+                path = self._reconstruct_path(current, cache_key)
+                self.stats['planning_success'] += 1
+                elapsed_time = time.time() - start_time
+                print(f"[A*] 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
                 print(f"[A*] 路径: {path[:5]}{'...' if len(path) > 5 else ''}")
                 return path
             
@@ -204,6 +316,11 @@ class AStarPlanner:
             print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
         print(f"[A*] 已探索节点数: {len(closed_set)}")
         
+        # 更新统计
+        self.stats['planning_failures'] += 1
+        elapsed_time = time.time() - start_time
+        print(f"[A*] 规划失败，耗时 {elapsed_time:.3f}s")
+        
         # 尝试扩大搜索范围：清除起点和终点周围的障碍物后重试
         print(f"[A*] 尝试扩大搜索范围，清除起点和终点周围障碍物...")
         self._clear_nearby_obstacles(start_node.x, start_node.y, radius=3)
@@ -211,7 +328,75 @@ class AStarPlanner:
         
         # 重新规划
         print(f"[A*] 重新规划路径...")
-        return self._plan_with_current_obstacles(start_node, goal_node)
+        return self._plan_with_current_obstacles(start_node, goal_node, cache_key)
+    
+    def _convert_invalid_point(self, x: int, y: int, point_type: str = 'point') -> Optional[Tuple[int, int]]:
+        """
+        将不合理的点（在障碍物中）转换为合理的点
+        
+        策略：
+        1. 优先在原地周围寻找最近的空闲点
+        2. 使用螺旋搜索模式，从内到外
+        3. 对于起点：优先寻找机器人当前朝向的方向
+        4. 对于终点：优先寻找从起点到终点的延长线方向
+        
+        Args:
+            x: 原始栅格X坐标
+            y: 原始栅格Y坐标
+            point_type: 'start' 或 'goal'
+        
+        Returns:
+            转换后的 (x, y) 坐标，如果找不到则返回 None
+        """
+        print(f"[A*] 开始点转换: ({x}, {y}) 类型={point_type}")
+        
+        # 搜索半径逐步扩大
+        for radius in range(1, 10):
+            candidates = []
+            
+            # 在当前半径上搜索所有点
+            for dx in range(-radius, radius + 1):
+                for dy in range(-radius, radius + 1):
+                    # 只检查半径边界上的点（避免重复检查）
+                    if abs(dx) != radius and abs(dy) != radius:
+                        continue
+                    
+                    nx, ny = x + dx, y + dy
+                    
+                    # 检查是否在障碍物外
+                    if (nx, ny) not in self.obstacles:
+                        # 计算距离和方向得分
+                        distance = math.sqrt(dx * dx + dy * dy)
+                        
+                        # 检查周围是否有足够的自由空间（避免狭窄区域）
+                        free_space = self._count_free_space(nx, ny, radius=2)
+                        
+                        if free_space >= 4:  # 至少4个方向是自由的
+                            candidates.append((nx, ny, distance, free_space))
+            
+            if candidates:
+                # 按距离优先，其次按自由空间排序
+                candidates.sort(key=lambda c: (c[2], -c[3]))
+                best = candidates[0]
+                print(f"[A*] 点转换成功: ({x}, {y}) -> ({best[0]}, {best[1]}), "
+                      f"距离={best[2]:.1f}, 自由空间={best[3]}")
+                return (best[0], best[1])
+        
+        print(f"[A*] 点转换失败: 在 ({x}, {y}) 周围找不到合理的点")
+        return None
+    
+    def _count_free_space(self, x: int, y: int, radius: int = 2) -> int:
+        """计算某点周围自由空间的数量（8方向）"""
+        free_count = 0
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), 
+                      (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        
+        for dx, dy in directions:
+            nx, ny = x + dx, y + dy
+            if (nx, ny) not in self.obstacles:
+                free_count += 1
+        
+        return free_count
     
     def _clear_nearby_obstacles(self, x: int, y: int, radius: int = 2):
         """清除指定位置附近的障碍物"""
@@ -233,8 +418,11 @@ class AStarPlanner:
         else:
             print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
     
-    def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node) -> Optional[List[List[float]]]:
+    def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node, cache_key: str = None) -> Optional[List[List[float]]]:
         """使用当前的障碍物地图重新规划路径（使用更宽容的启发式，允许绕路）"""
+        import time
+        retry_start_time = time.time()
+        
         open_set = []
         heapq.heappush(open_set, start_node)
         closed_set: Set[Tuple[int, int]] = set()
@@ -259,8 +447,10 @@ class AStarPlanner:
                 del open_set_dict[(current.x, current.y)]
             
             if current == goal_node:
-                path = self._reconstruct_path(current)
-                print(f"[A*] 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点")
+                path = self._reconstruct_path(current, cache_key)
+                self.stats['planning_success'] += 1
+                elapsed_time = time.time() - retry_start_time
+                print(f"[A*] 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
                 return path
             
             closed_set.add((current.x, current.y))
@@ -298,14 +488,17 @@ class AStarPlanner:
             print(f"[A*] 重新规划超时! 已探索 {len(closed_set)} 个节点")
         else:
             print(f"[A*] 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
+        
+        self.stats['planning_failures'] += 1
         return None
     
     def _heuristic(self, x: int, y: int, goal: Node) -> float:
         """启发式函数（欧几里得距离）"""
         return math.sqrt((x - goal.x) ** 2 + (y - goal.y) ** 2) * self.resolution
     
-    def _reconstruct_path(self, node: Node) -> List[List[float]]:
-        """重建路径"""
+    def _reconstruct_path(self, node: Node, cache_key: str = None) -> List[List[float]]:
+        """重建路径并可选地缓存结果"""
+        import time
         path = []
         current = node
         while current:
@@ -331,7 +524,34 @@ class AStarPlanner:
         else:
             print(f"[A*] ✓ 路径检查通过，无碰撞")
         
+        # 缓存路径
+        if cache_key:
+            self.path_cache[cache_key] = path.copy()
+            self.cache_timestamp[cache_key] = time.time()
+            print(f"[A*] 路径已缓存: {cache_key}")
+        
         return path
+    
+    def get_stats(self) -> Dict:
+        """获取规划统计信息"""
+        return self.stats.copy()
+    
+    def clear_cache(self):
+        """清除路径缓存"""
+        self.path_cache.clear()
+        self.cache_timestamp.clear()
+        print("[A*] 路径缓存已清除")
+    
+    def reset_stats(self):
+        """重置统计信息"""
+        self.stats = {
+            'planning_attempts': 0,
+            'planning_success': 0,
+            'planning_failures': 0,
+            'point_conversions': 0,
+            'cache_hits': 0,
+            'cache_misses': 0
+        }
 
 
 class DWAPlanner:
