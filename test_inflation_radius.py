@@ -162,7 +162,7 @@ class InflationRadiusVisualizer:
                 
                 self.scene_objects[obj_name] = {
                     'id': obj_id,
-                    'type': 'object',
+                    'type': 'graspable',  # 标记为可抓取物品，不作为障碍物
                     'position': obj_config['position'],
                     'radius': obj_radius
                 }
@@ -266,9 +266,9 @@ class InflationRadiusVisualizer:
                         if obj_type in ['furniture', 'obstacle']:
                             obj_category = 'furniture'
                         elif obj_type in ['graspable', 'object', 'item']:
-                            obj_category = 'object'
+                            obj_category = 'graspable'  # 可抓取物品不作为障碍物
                         else:
-                            obj_category = 'object'
+                            obj_category = 'furniture'
                         
                         self.scene_objects[obj_name] = {
                             'id': obj_id,
