@@ -211,15 +211,20 @@ class MobileManipulator:
         print(f"[MobileManipulator] 开始 DWA 导航，全局路径 {len(global_path)} 点")
         print(f"[MobileManipulator] 起点: {self.position[:2]}, 终点: {global_path[-1]}")
         
-        # 提取障碍物位置用于调试
+        # 提取障碍物位置用于调试（排除自己）
         obstacle_positions = []
         obstacle_details = []
         for obj_name, obj_info in scene_objects.items():
             obj_type = obj_info.get('type', 'unknown')
-            if obj_type != 'graspable':
-                pos = obj_info.get('position', [0, 0, 0])
-                obstacle_positions.append([pos[0], pos[1]])
-                obstacle_details.append(f"{obj_name}({obj_type}):[{pos[0]:.2f},{pos[1]:.2f}]")
+            # 排除可抓取物体和机器人自己
+            if obj_type == 'graspable':
+                continue
+            if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
+                print(f"[MobileManipulator] 排除自己 '{obj_name}' 不作为障碍物")
+                continue
+            pos = obj_info.get('position', [0, 0, 0])
+            obstacle_positions.append([pos[0], pos[1]])
+            obstacle_details.append(f"{obj_name}({obj_type}):[{pos[0]:.2f},{pos[1]:.2f}]")
         print(f"[MobileManipulator] 障碍物数量: {len(obstacle_positions)}")
         print(f"[MobileManipulator] 障碍物详情: {obstacle_details}")
         
@@ -256,10 +261,13 @@ class MobileManipulator:
                 stuck_counter = 0
                 last_position = [self.position[0], self.position[1]]
             
-            # 检查是否碰撞障碍物
+            # 检查是否碰撞障碍物（排除自己）
             collision = False
             for obj_name, obj_info in scene_objects.items():
                 if obj_info.get('type') == 'graspable':
+                    continue
+                # 排除自己
+                if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
                     continue
                 obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(
@@ -305,10 +313,13 @@ class MobileManipulator:
         new_x = self.position[0] + v * math.cos(new_yaw) * dt
         new_y = self.position[1] + v * math.sin(new_yaw) * dt
         
-        # 检查新位置是否会碰撞障碍物
+        # 检查新位置是否会碰撞障碍物（排除自己）
         if scene_objects:
             for obj_name, obj_info in scene_objects.items():
                 if obj_info.get('type') == 'graspable':
+                    continue
+                # 排除自己
+                if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
                     continue
                 obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(
