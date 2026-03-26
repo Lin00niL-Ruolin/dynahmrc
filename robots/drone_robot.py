@@ -37,6 +37,9 @@ class DroneRobot:
         self.robot_type = "drone"  # 机器人类型标识
         self.bestman = bestman_instance
         
+        # 能力列表
+        self.capabilities = ["navigation", "pick", "place", "perception"]
+        
         # 基础属性
         self.position = [0.0, 0.0, 0.0]
         self.orientation = [0.0, 0.0, 0.0, 1.0]
