@@ -482,7 +482,7 @@ class MobileManipulator:
 
         算法流程:
         1. 检查物体是否在操作范围内
-        2. 如有必要，导航到合适位置
+        2. 如有必要，导航到合适位置（排除目标物体作为障碍物）
         3. 执行抓取动作
         """
         try:
@@ -517,7 +517,17 @@ class MobileManipulator:
                     self.position[2]
                 ]
 
-                if not self.navigate_to(approach_pos, scene_objects=scene_objects):
+                # 准备导航用的场景物体列表，排除目标物体（不要把它当障碍物）
+                navigation_scene_objects = {}
+                if scene_objects:
+                    for obj_name, obj_info in scene_objects.items():
+                        # 排除目标物体（通过 object_id 或物体名称匹配）
+                        if obj_info.get('id') != object_id:
+                            navigation_scene_objects[obj_name] = obj_info
+                        else:
+                            print(f"[MobileManipulator] pick: 排除目标物体 '{obj_name}' 不作为障碍物")
+                
+                if not self.navigate_to(approach_pos, scene_objects=navigation_scene_objects):
                     self.error_status = f"pick_failed: 导航到抓取位置失败"
                     return False
 
@@ -608,8 +618,18 @@ class MobileManipulator:
                     self.position[2]
                 ]
 
+                # 准备导航用的场景物体列表，排除手中持有的物体（不要把它当障碍物）
+                navigation_scene_objects = {}
+                if scene_objects:
+                    for obj_name, obj_info in scene_objects.items():
+                        # 排除手中持有的物体
+                        if obj_info.get('id') != self.held_object_id:
+                            navigation_scene_objects[obj_name] = obj_info
+                        else:
+                            print(f"[MobileManipulator] place: 排除手中物体 '{obj_name}' 不作为障碍物")
+
                 print(f"[MobileManipulator] 导航到接近位置: {approach_pos}")
-                if not self.navigate_to(approach_pos, scene_objects=scene_objects):
+                if not self.navigate_to(approach_pos, scene_objects=navigation_scene_objects):
                     self.error_status = "place_failed: 导航到接近位置失败"
                     return False
 
