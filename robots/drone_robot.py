@@ -34,6 +34,7 @@ class DroneRobot:
             bestman_instance: BestMan 控制器实例
         """
         self.robot_id = robot_id
+        self.robot_type = "drone"  # 机器人类型标识
         self.bestman = bestman_instance
         
         # 基础属性
