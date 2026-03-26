@@ -745,24 +745,37 @@ class PathPlanner:
         self.global_path: Optional[List[List[float]]] = None
         self.current_path_index = 0
     
-    def update_obstacles_from_scene(self, scene_objects: Dict[str, Dict]):
-        """从场景图中更新障碍物"""
+    def update_obstacles_from_scene(self, scene_objects: Dict[str, Dict], min_obstacle_radius: float = 0.2):
+        """从场景图中更新障碍物
+        
+        Args:
+            scene_objects: 场景物体字典
+            min_obstacle_radius: 最小障碍物半径阈值，小于此值的物体不被视为障碍物（默认0.2m）
+        """
         obstacle_positions = []
         obstacle_sizes = []
         
         for obj_name, obj_info in scene_objects.items():
             obj_type = obj_info.get('type', 'unknown')
-            if obj_type != 'graspable':  # 不将可抓取物体视为障碍物
-                pos = obj_info.get('position', [0, 0, 0])
-                obstacle_positions.append(pos)
-                
-                # 获取物体尺寸（如果有）
-                size = obj_info.get('size', [0.1, 0.1, 0.1])
-                # 使用 x-y 平面的最大半径
-                radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
-                
-                obstacle_sizes.append(radius)
-                print(f"[PathPlanner] 障碍物 '{obj_name}': 位置 [{pos[0]:.2f}, {pos[1]:.2f}], 半径 {radius:.2f}m")
+            
+            # 不将可抓取物体视为障碍物
+            if obj_type == 'graspable':
+                continue
+            
+            # 获取物体尺寸（如果有）
+            size = obj_info.get('size', [0.1, 0.1, 0.1])
+            # 使用 x-y 平面的最大半径
+            radius = max(size[0], size[1]) / 2.0 if len(size) >= 2 else 0.1
+            
+            # 跳过小物品（半径小于阈值）
+            if radius < min_obstacle_radius:
+                print(f"[PathPlanner] 跳过小物品 '{obj_name}': 半径 {radius:.2f}m < 阈值 {min_obstacle_radius}m")
+                continue
+            
+            pos = obj_info.get('position', [0, 0, 0])
+            obstacle_positions.append(pos)
+            obstacle_sizes.append(radius)
+            print(f"[PathPlanner] 障碍物 '{obj_name}': 位置 [{pos[0]:.2f}, {pos[1]:.2f}], 半径 {radius:.2f}m")
         
         self.astar.update_obstacles(obstacle_positions, obstacle_sizes, self.client_id)
     
