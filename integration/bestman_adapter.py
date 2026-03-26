@@ -508,7 +508,10 @@ class BestManAdapter:
         """处理机器人间通信"""
         print(f"[_handle_communicate] 开始: robot_id={robot_id}, params={params}")
         
-        to_robot = params.get("to")
+        # 支持多种参数格式
+        # 格式1: params = {"to": "robot1", "message": "...", "broadcast": false}
+        # 格式2: params = {"recipient": "robot1", "message": "..."}
+        to_robot = params.get("to") or params.get("recipient")
         message = params.get("message", "")
         broadcast = params.get("broadcast", False)
         
