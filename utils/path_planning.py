@@ -582,7 +582,7 @@ class PathPlanner:
             if attempt < max_retries - 1 and scene_objects is not None:
                 print(f"[PathPlanner] 目标 {current_goal} 不可达，寻找替代目标...")
                 current_goal = self._find_alternative_goal(
-                    original_goal, scene_objects, attempt
+                    start, original_goal, scene_objects, attempt
                 )
                 if current_goal is None:
                     print(f"[PathPlanner] 无法找到替代目标")
@@ -598,18 +598,21 @@ class PathPlanner:
     
     def _find_alternative_goal(
         self,
+        start: List[float],
         original_goal: List[float],
         scene_objects: Dict[str, Dict],
         attempt: int
     ) -> Optional[List[float]]:
         """
-        寻找替代目标点
+        寻找替代目标点，并用 A* 验证路径可达性
         
         策略：
-        1. 在原目标周围搜索可达的位置
-        2. 优先选择距离原目标近且远离障碍物的位置
+        1. 在原目标周围搜索候选位置
+        2. 对每个候选点用 A* 验证从起点是否可达
+        3. 返回第一个验证通过的点
         
         Args:
+            start: 起点位置 [x, y]
             original_goal: 原始目标位置 [x, y]
             scene_objects: 场景物体信息
             attempt: 当前尝试次数
@@ -617,72 +620,50 @@ class PathPlanner:
         Returns:
             替代目标位置 [x, y] 或 None
         """
-        print(f"[PathPlanner] 寻找替代目标，原目标: {original_goal}, 尝试: {attempt}")
+        print(f"[PathPlanner] 寻找替代目标，原目标: {original_goal}, 起点: {start}, 尝试: {attempt}")
         
         # 搜索半径（米）
         search_radius = 0.5 + attempt * 0.3  # 0.5, 0.8, 1.1, ...
         
         # 在圆周上采样候选点
         num_samples = 12
-        best_goal = None
-        best_score = float('-inf')
+        candidates = []
         
         for i in range(num_samples):
             angle = 2 * math.pi * i / num_samples
             candidate_x = original_goal[0] + search_radius * math.cos(angle)
             candidate_y = original_goal[1] + search_radius * math.sin(angle)
-            
-            # 检查该点是否可达（不在障碍物中）
-            candidate_node_x = int(candidate_x / self.astar.resolution)
-            candidate_node_y = int(candidate_y / self.astar.resolution)
+            candidates.append([candidate_x, candidate_y])
+        
+        # 按距离原目标的远近排序
+        candidates.sort(key=lambda c: math.sqrt((c[0] - original_goal[0])**2 + (c[1] - original_goal[1])**2))
+        
+        print(f"[PathPlanner] 在半径 {search_radius:.1f}m 处采样 {num_samples} 个候选点")
+        
+        # 对每个候选点用 A* 验证路径
+        for i, candidate in enumerate(candidates):
+            # 检查该点是否可达（不在障碍物栅格中）
+            candidate_node_x = int(candidate[0] / self.astar.resolution)
+            candidate_node_y = int(candidate[1] / self.astar.resolution)
             
             if (candidate_node_x, candidate_node_y) in self.astar.obstacles:
                 continue  # 在障碍物中，跳过
             
-            # 检查周围是否有足够空间
-            is_valid = True
-            min_obstacle_dist = float('inf')
+            # 用 A* 验证从起点到该候选点的路径是否存在
+            print(f"[PathPlanner] 验证候选点 {i+1}/{num_samples}: {candidate}")
+            test_path = self.astar.plan(start, candidate)
             
-            for obj_name, obj_info in scene_objects.items():
-                if obj_info.get('type') == 'graspable':
-                    continue  # 忽略可抓取物体
-                
-                obj_pos = obj_info.get('position', [0, 0, 0])
-                dist = math.sqrt(
-                    (obj_pos[0] - candidate_x) ** 2 +
-                    (obj_pos[1] - candidate_y) ** 2
-                )
-                
-                # 安全距离
-                safety_dist = 0.4
-                if 'size' in obj_info:
-                    obj_size = obj_info['size']
-                    safety_dist += max(obj_size[0], obj_size[1]) / 2
-                
-                if dist < safety_dist:
-                    is_valid = False
-                    break
-                
-                min_obstacle_dist = min(min_obstacle_dist, dist)
-            
-            if is_valid:
-                # 计算得分：距离原目标越近越好，距离障碍物越远越好
+            if test_path is not None:
+                # 找到可达的替代目标
                 dist_to_original = math.sqrt(
-                    (candidate_x - original_goal[0]) ** 2 +
-                    (candidate_y - original_goal[1]) ** 2
+                    (candidate[0] - original_goal[0]) ** 2 +
+                    (candidate[1] - original_goal[1]) ** 2
                 )
-                score = -dist_to_original + min_obstacle_dist * 0.5
-                
-                if score > best_score:
-                    best_score = score
-                    best_goal = [candidate_x, candidate_y]
+                print(f"[PathPlanner] 找到可达替代目标: {candidate}, 距离原目标: {dist_to_original:.3f}m")
+                return candidate
         
-        if best_goal:
-            print(f"[PathPlanner] 找到替代目标: {best_goal}, 得分: {best_score:.3f}")
-        else:
-            print(f"[PathPlanner] 未找到替代目标")
-        
-        return best_goal
+        print(f"[PathPlanner] 未找到可达的替代目标")
+        return None
     
     def get_local_goal(self, current_pos: List[float], lookahead_distance: float = 1.0) -> List[float]:
         """获取局部目标点（前瞻）"""
