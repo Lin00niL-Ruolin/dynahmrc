@@ -791,12 +791,11 @@ Your capabilities list: {', '.join(self.capabilities)}{leader_info}
 === CURRENT SITUATION ===
 {scene_str}{teammates_str}
 
-=== REACHABLE POSITIONS FOR YOU ===
-Based on your robot type and current position, you can reach these locations:
+=== REACHABLE POSITIONS FOR NAVIGATION ===
+When you need to navigate, use these pre-calculated reachable positions as targets:
 {reachable_str}
 
-IMPORTANT: When planning navigation, use these pre-calculated reachable positions as targets.
-Do not generate arbitrary positions that may be unreachable or in obstacles.
+Note: These positions are ONLY for navigation actions. For pick/place/manipulate actions, use object names directly.
 
 Leader's Plan: {json.dumps(leader_plan, indent=2)}
 
@@ -805,8 +804,28 @@ Leader's Plan: {json.dumps(leader_plan, indent=2)}
 
 {messages_str}
 
-=== INSTRUCTIONS ===
+=== ACTION SELECTION GUIDE ===
 Based on the current observation and leader's plan, choose your next action.
+
+STEP-BY-STEP DECISION PROCESS:
+1. Analyze your current task: What needs to be done?
+2. Check your current state: Where are you? What are you holding?
+3. Choose the appropriate action type:
+
+   IF you need to move to a location:
+   → Use "navigate" action with one of the pre-calculated reachable positions
+   
+   IF you are at the object location and need to grab it:
+   → Use "pick" action with the object name
+   
+   IF you are holding an object and need to put it down:
+   → Use "place" action with the target location/object
+   
+   IF you need to manipulate something (open/close):
+   → Use "manipulate" action
+   
+   IF you need help from teammates:
+   → Use "communicate" action
 
 CRITICAL RULES:
 1. You can ONLY use these action types: {', '.join(self.available_actions)}
@@ -815,13 +834,19 @@ CRITICAL RULES:
    - If you are a Fixed Arm: NEVER try to navigate - ask others to bring objects to you
    - If you are a Mobile Base: NEVER try to pick/place - only transport
    - If you are a Drone: Only handle lightweight objects, avoid heavy lifting
-   - If you are a Mobile Manipulator: You can do most tasks independently
+   - If you are a Mobile Manipulator: You can navigate, pick, place, and manipulate
 
-4. If the task requires capabilities you don't have:
+4. BALANCED ACTION SELECTION:
+   - Navigation is just ONE step in completing a task
+   - After navigating to an object, you MUST pick it up
+   - After picking up, you MUST navigate to destination and place it
+   - Do NOT get stuck in infinite navigation loops
+
+5. If the task requires capabilities you don't have:
    - Use "communicate" action to request help from appropriate teammates
    - Do not attempt actions outside your capabilities
 
-5. Consider:
+6. Consider:
    - Your assigned subtasks
    - Current state of the environment  
    - Recent action history and feedback
