@@ -405,13 +405,7 @@ class Stage4Tester:
             # 设置 Adapter
             self.collaboration.set_adapter(self.adapter)
             
-            # 创建机器人代理并注册
-            for robot_id, robot in robots.items():
-                    capabilities=robot.capabilities,
-                    llm_client=mock_llm
-                )
-                self.collaboration.register_robot(agent)
-                print(f"   ✓ 注册机器人代理: {robot_id}")
+            print(f"   ✓ 已注册 {len(robot_agents)} 个机器人代理")
             
             # 直接设置 Leader 和任务计划（跳过前三个阶段）
             self.collaboration.leader_name = "helper_mobile_manipulator"
