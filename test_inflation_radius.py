@@ -176,6 +176,23 @@ class InflationRadiusVisualizer:
             traceback.print_exc()
             return False
     
+    def _eval_orientation(self, orientation):
+        """处理朝向中的数学表达式"""
+        import math
+        
+        if isinstance(orientation, list):
+            result = []
+            for val in orientation:
+                if isinstance(val, str):
+                    try:
+                        # 安全地评估数学表达式
+                        val = eval(val, {"__builtins__": {}}, {"math": math})
+                    except:
+                        val = 0.0
+                result.append(float(val))
+            return result
+        return [0, 0, 0, 1]
+    
     def _load_scene_from_json(self, scene_path):
         """从 JSON 文件加载场景"""
         import json
@@ -205,13 +222,22 @@ class InflationRadiusVisualizer:
             print(f"   场景中有 {len(objects)} 个物体")
             
             for obj in objects:
-                obj_name = obj.get('name', 'unknown')
+                # 支持多种字段名格式
+                obj_name = obj.get('obj_name') or obj.get('name', 'unknown')
                 obj_type = obj.get('type', 'object')
-                model_path = obj.get('model_path', '')
-                position = obj.get('position', [0, 0, 0])
-                orientation = obj.get('orientation', [0, 0, 0, 1])
+                model_path = obj.get('model_path') or obj.get('urdf_path', '')
+                
+                # 位置字段可能是 position 或 object_position
+                position = obj.get('object_position') or obj.get('position', [0, 0, 0])
+                
+                # 朝向字段可能是 orientation 或 object_orientation
+                orientation = obj.get('object_orientation') or obj.get('orientation', [0, 0, 0, 1])
+                
+                # 处理朝向中的数学表达式（如 "math.pi"）
+                orientation = self._eval_orientation(orientation)
+                
                 scale = obj.get('scale', 1.0)
-                fixed = obj.get('fixed', True)
+                fixed = obj.get('fixed_base') or obj.get('fixed', True)
                 
                 # 估算物体半径（从 size 或 scale）
                 size = obj.get('size', [0.1, 0.1, 0.1])
