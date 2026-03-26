@@ -497,12 +497,14 @@ class MobileBaseAdapter:
     def move_base_to(self, target_pose, **kwargs):
         """
         移动基座到目标位姿（支持3D位置，用于无人机）
+        使用平滑插值实现动画效果
         
         Args:
             target_pose: Pose 对象，包含目标位置和朝向
         """
         import math
         import pybullet as p
+        import numpy as np
         
         try:
             target_pos = target_pose.get_position()
@@ -510,16 +512,48 @@ class MobileBaseAdapter:
             
             print(f"[MobileBaseAdapter] move_base_to: 目标位置 {target_pos}")
             
-            # 直接设置位置和朝向
-            p.resetBasePositionAndOrientation(
-                self.base_id,
-                target_pos,
-                target_orientation,
-                physicsClientId=self.client_id
+            # 获取当前位置
+            current_pose = self.sim_get_current_base_pose()
+            current_pos = current_pose.get_position()
+            current_orientation = current_pose.get_orientation()
+            
+            # 计算距离
+            distance = math.sqrt(
+                (target_pos[0] - current_pos[0])**2 +
+                (target_pos[1] - current_pos[1])**2 +
+                (target_pos[2] - current_pos[2])**2
             )
             
-            # 运行仿真步让物理引擎更新
-            self.client.run(10)
+            if distance < 0.01:  # 已经在目标位置附近
+                print(f"[MobileBaseAdapter] 已经在目标位置附近")
+                return True
+            
+            # 使用插值实现平滑移动
+            steps = max(int(distance * 50), 20)  # 根据距离计算步数，最少20步
+            print(f"[MobileBaseAdapter] 平滑移动: {distance:.2f}m, {steps} 步")
+            
+            for i in range(1, steps + 1):
+                t = i / steps
+                # 线性插值位置
+                new_pos = [
+                    current_pos[0] + (target_pos[0] - current_pos[0]) * t,
+                    current_pos[1] + (target_pos[1] - current_pos[1]) * t,
+                    current_pos[2] + (target_pos[2] - current_pos[2]) * t
+                ]
+                
+                # 球面插值朝向（SLERP）
+                new_orientation = self._slerp(current_orientation, target_orientation, t)
+                
+                # 设置位置和朝向
+                p.resetBasePositionAndOrientation(
+                    self.base_id,
+                    new_pos,
+                    new_orientation,
+                    physicsClientId=self.client_id
+                )
+                
+                # 运行仿真步
+                self.client.run(1)
             
             # 更新当前朝向
             euler = p.getEulerFromQuaternion(target_orientation)
@@ -533,6 +567,40 @@ class MobileBaseAdapter:
             import traceback
             traceback.print_exc()
             return False
+    
+    def _slerp(self, q1, q2, t):
+        """四元数球面插值（SLERP）"""
+        import numpy as np
+        
+        # 转换为numpy数组
+        q1 = np.array(q1)
+        q2 = np.array(q2)
+        
+        # 计算点积
+        dot = np.dot(q1, q2)
+        
+        # 如果点积为负，反转一个四元数以获得最短路径
+        if dot < 0:
+            q2 = -q2
+            dot = -dot
+        
+        # 如果点积接近1，使用线性插值
+        if dot > 0.9995:
+            result = q1 + t * (q2 - q1)
+            return (result / np.linalg.norm(result)).tolist()
+        
+        # 计算插值角度
+        theta_0 = np.arccos(dot)
+        theta = theta_0 * t
+        
+        sin_theta = np.sin(theta)
+        sin_theta_0 = np.sin(theta_0)
+        
+        s1 = np.cos(theta) - dot * sin_theta / sin_theta_0
+        s2 = sin_theta / sin_theta_0
+        
+        result = s1 * q1 + s2 * q2
+        return (result / np.linalg.norm(result)).tolist()
     
     def set_base_pose(self, position, orientation):
         """直接设置基座位姿"""
