@@ -122,8 +122,11 @@ class BestManAdapter:
         import time
         start_time = time.time()
         
+        print(f"[BestManAdapter.execute_action] 开始执行: robot_id={robot_id}, action={action}, params={params}")
+        
         # 检查机器人是否存在
         if robot_id not in self.robot_registry:
+            print(f"[BestManAdapter.execute_action] 错误: 机器人 {robot_id} 未找到")
             return ExecutionFeedback(
                 success=False,
                 action_type=action,
@@ -134,11 +137,14 @@ class BestManAdapter:
             )
         
         robot = self.robot_registry[robot_id]
+        print(f"[BestManAdapter.execute_action] 找到机器人: {robot_id}, 类型={robot.robot_type}")
         
         # 解析动作类型
         try:
             action_type = ActionType(action.lower())
+            print(f"[BestManAdapter.execute_action] 动作类型解析成功: {action_type}")
         except ValueError:
+            print(f"[BestManAdapter.execute_action] 错误: 未知动作类型 {action}")
             return ExecutionFeedback(
                 success=False,
                 action_type=action,
@@ -150,6 +156,7 @@ class BestManAdapter:
         
         # 检查机器人能力是否匹配
         if not self._check_capability(robot, action_type):
+            print(f"[BestManAdapter.execute_action] 错误: 能力不匹配")
             return ExecutionFeedback(
                 success=False,
                 action_type=action,
@@ -160,6 +167,7 @@ class BestManAdapter:
             )
         
         # 执行动作
+        print(f"[BestManAdapter.execute_action] 调用 handler: {action_type}")
         try:
             handler = self.action_handlers[action_type]
             # 对于需要 robot_id 的 handler，传递 robot_id
@@ -167,6 +175,7 @@ class BestManAdapter:
                 success, message, state_changes = handler(robot, params, robot_id)
             else:
                 success, message, state_changes = handler(robot, params)
+            print(f"[BestManAdapter.execute_action] handler 返回: success={success}, message={message}")
             
             execution_time = time.time() - start_time
             
@@ -230,8 +239,11 @@ class BestManAdapter:
     
     def _handle_navigate(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
         """处理导航动作"""
+        print(f"[_handle_navigate] 开始: robot_id={robot_id}, params={params}")
+        
         target = params.get("target")
         if not target:
+            print(f"[_handle_navigate] 错误: 缺少目标位置参数")
             return False, "缺少目标位置参数", {}
         
         # 支持多种位置格式
@@ -242,14 +254,20 @@ class BestManAdapter:
             position = target[:3]
             orientation = target[3:] if len(target) > 3 else None
         else:
+            print(f"[_handle_navigate] 错误: 不支持的目标格式 {type(target)}")
             return False, f"不支持的目标格式: {type(target)}", {}
+        
+        print(f"[_handle_navigate] 目标位置: {position}, 朝向: {orientation}")
         
         try:
             # 获取场景物体信息用于避障（排除当前机器人自身）
             scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
+            print(f"[_handle_navigate] 获取场景物体: {len(scene_objects)} 个")
             
             # 调用导航方法，传递场景物体信息
+            print(f"[_handle_navigate] 调用 robot.navigate_to...")
             success = robot.navigate_to(position, orientation, scene_objects)
+            print(f"[_handle_navigate] navigate_to 返回: success={success}")
             
             state = robot.get_state()
             
@@ -273,10 +291,13 @@ class BestManAdapter:
     
     def _handle_pick(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
         """处理抓取动作"""
+        print(f"[_handle_pick] 开始: robot_id={robot_id}, params={params}")
+        
         object_id = params.get("object_id")
         object_name = params.get("object_name", str(object_id))
         
         if object_id is None:
+            print(f"[_handle_pick] 错误: 缺少物体 ID 参数")
             return False, "缺少物体 ID 参数", {}
         
         # 转换 object_id 为整数（PyBullet 物体 ID）

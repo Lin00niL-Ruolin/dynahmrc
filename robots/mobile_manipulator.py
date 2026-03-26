@@ -112,15 +112,19 @@ class MobileManipulator:
             self.current_task = f"navigate_to_{target_position}"
             
             print(f"[MobileManipulator] 开始导航到 {target_position}")
+            print(f"[MobileManipulator] 当前位置: {self.position}, 场景物体数: {len(scene_objects) if scene_objects else 0}")
             
             # 更新障碍物信息
             if scene_objects:
+                print(f"[MobileManipulator] 更新障碍物信息...")
                 self.path_planner.update_obstacles_from_scene(scene_objects)
+                print(f"[MobileManipulator] 障碍物更新完成")
             
             # 规划全局路径（A*）
             start_pos = [self.position[0], self.position[1]]
             goal_pos = [target_position[0], target_position[1]]
             
+            print(f"[MobileManipulator] 规划全局路径: {start_pos} -> {goal_pos}")
             global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
             
             if global_path is None:
@@ -130,7 +134,9 @@ class MobileManipulator:
                 print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
                 
                 # 使用 DWA 沿路径导航
+                print(f"[MobileManipulator] 开始 DWA 导航...")
                 self._dwa_navigation(global_path, scene_objects or {})
+                print(f"[MobileManipulator] DWA 导航完成")
             
             # 调整最终朝向
             if target_orientation:

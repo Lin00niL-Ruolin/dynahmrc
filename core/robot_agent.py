@@ -374,13 +374,17 @@ Vote: <Name of the robot you vote for>"""
         
         response = self.llm_client.generate(prompt, temperature=1.0)
         
-        print(f"[DEBUG] Execution Response: {response}")
+        print(f"[DEBUG] {self.name} Execution Response: {response}")
         
         action = self._parse_action_response(response)
+        print(f"[DEBUG] {self.name} Parsed action: {action}")
         
         # Validate action against capabilities
         if not self._validate_action(action):
+            print(f"[DEBUG] {self.name} Action validation failed: {action.get('action')} not in {self.available_actions}")
             action = self._fallback_action()
+        else:
+            print(f"[DEBUG] {self.name} Action validation passed")
         
         self.current_action = action
         self.step_count += 1

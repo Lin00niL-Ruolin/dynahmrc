@@ -451,8 +451,12 @@ class FourStageCollaboration:
         
         step = 0
         
+        print(f"[Execution] 开始执行阶段，最大步数: {self.max_execution_steps}")
+        print(f"[Execution] 机器人数量: {len(self.robots)}, Leader: {self.leader_name}")
+        print(f"[Execution] 任务计划: {self.task_plan}")
+        
         while step < self.max_execution_steps:
-            print(f"\n[Execution] Step {step + 1}/{self.max_execution_steps}")
+            print(f"\n[Execution] ===== Step {step + 1}/{self.max_execution_steps} =====")
             
             # Stage 5: Reflection (triggered at fixed intervals)
             if self.enable_reflection and step > 0 and step % self.reflection_interval == 0:
@@ -460,6 +464,7 @@ class FourStageCollaboration:
             
             # Get current observation (would come from simulation in real implementation)
             observation = self._get_observation()
+            print(f"[Execution] 获取观察: {len(observation.get('scene_graph', {}))} 个场景物体")
             
             # Execute robot steps in parallel
             active_robots = [
@@ -487,7 +492,9 @@ class FourStageCollaboration:
                         self.visualizer.show_action(name, action_str, reasoning)
                 
                 # Execute action and get feedback
+                print(f"[Execution] 调用 _execute_action: robot={name}, action={action}")
                 feedback = self._execute_action(name, action)
+                print(f"[Execution] _execute_action 返回: {feedback}")
                 
                 # Store result in robot's memory
                 robot.store_action_result(action, feedback)
@@ -657,10 +664,14 @@ class FourStageCollaboration:
         action_type = action.get('action', 'wait')
         params = action.get('params', {})
         
+        print(f"[_execute_action] 开始执行: robot={robot_name}, action_type={action_type}, params={params}")
+        
         # Use BestManAdapter to execute the action
         if hasattr(self, 'adapter') and self.adapter:
             from dynahmrc.integration.bestman_adapter import ExecutionFeedback
+            print(f"[_execute_action] 调用 adapter.execute_action...")
             feedback = self.adapter.execute_action(robot_name, action_type, params)
+            print(f"[_execute_action] adapter 返回: success={feedback.success}, message={feedback.message}")
             return {
                 'success': feedback.success,
                 'message': feedback.message,
