@@ -748,8 +748,8 @@ class MobileManipulator:
         self,
         target_position: List[float],
         target_orientation: Optional[List[float]] = None,
-        max_steps: int = 100,
-        tolerance: float = 0.05
+        max_steps: int = 200,
+        tolerance: float = 0.1
     ) -> bool:
         """移动机械臂到目标位置，并等待到达"""
         print(f"[MobileManipulator] _move_arm_to_position 被调用，目标: {target_position}")
@@ -822,7 +822,7 @@ class MobileManipulator:
             traceback.print_exc()
             return False
     
-    def _simple_ik_move(self, target_pos, target_orn, max_steps=100, tolerance=0.05):
+    def _simple_ik_move(self, target_pos, target_orn, max_steps=200, tolerance=0.1):
         """简单的 IK 移动，带位置检查"""
         print(f"[MobileManipulator] _simple_ik_move 开始，目标: {target_pos}")
         try:
