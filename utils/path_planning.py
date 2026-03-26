@@ -580,11 +580,12 @@ class PathPlanner:
         
         print(f"[PathPlanner] 直接路径规划失败，开始递归搜索替代目标...")
         
-        # 递归寻找可达的替代目标
+        # 递归寻找可达的替代目标（最大深度 2，最多 2 个中间点）
         waypoints = self._find_reachable_waypoints_recursive(
             start, goal, scene_objects or {}, 
             max_search_radius=max_search_radius,
-            radius_step=radius_step
+            radius_step=radius_step,
+            max_depth=2
         )
         
         if waypoints is None or len(waypoints) == 0:
@@ -628,15 +629,17 @@ class PathPlanner:
         max_search_radius: float,
         radius_step: float,
         current_radius: float = 0.5,
+        max_depth: int = 3,
+        current_depth: int = 0,
         visited_goals: Optional[Set[Tuple[float, float]]] = None
     ) -> Optional[List[List[float]]]:
         """
-        递归寻找可达的中间目标点
+        递归寻找可达的中间目标点（优化版本）
         
         策略：
         1. 在当前半径范围内搜索可达的候选点
-        2. 如果找到，递归检查从该点是否能到达最终目标
-        3. 如果距离太远，继续向外扩展
+        2. 只对最有希望的候选点用 A* 验证
+        3. 限制递归深度，避免过深搜索
         
         Args:
             start: 起点 [x, y]
@@ -645,6 +648,8 @@ class PathPlanner:
             max_search_radius: 最大搜索半径
             radius_step: 半径步长
             current_radius: 当前搜索半径
+            max_depth: 最大递归深度
+            current_depth: 当前递归深度
             visited_goals: 已访问的目标点（避免循环）
         
         Returns:
@@ -653,21 +658,48 @@ class PathPlanner:
         if visited_goals is None:
             visited_goals = set()
         
+        # 检查递归深度
+        if current_depth >= max_depth:
+            print(f"[PathPlanner] 达到最大递归深度 {max_depth}，停止搜索")
+            return None
+        
         # 检查是否超过最大搜索半径
         if current_radius > max_search_radius:
             print(f"[PathPlanner] 超过最大搜索半径 {max_search_radius}m，停止搜索")
             return None
         
-        print(f"[PathPlanner] 递归搜索: 起点 {start}, 目标 {goal}, 半径 {current_radius:.1f}m")
+        print(f"[PathPlanner] 递归搜索: 起点 {start}, 目标 {goal}, 半径 {current_radius:.1f}m, 深度 {current_depth}")
         
         # 在当前半径范围内生成候选点
-        candidates = self._generate_candidates_at_radius(start, goal, current_radius)
+        candidates = self._generate_candidates_at_radius(start, goal, current_radius, num_samples=8)
         
-        # 按距离最终目标的远近排序
-        candidates.sort(key=lambda c: math.sqrt((c[0] - goal[0])**2 + (c[1] - goal[1])**2))
-        
+        # 快速筛选：排除在障碍物中的点，按距离目标远近排序
+        valid_candidates = []
         for candidate in candidates:
-            candidate_tuple = (round(candidate[0], 3), round(candidate[1], 3))
+            candidate_node_x = int(candidate[0] / self.astar.resolution)
+            candidate_node_y = int(candidate[1] / self.astar.resolution)
+            
+            if (candidate_node_x, candidate_node_y) not in self.astar.obstacles:
+                dist_to_goal = math.sqrt((candidate[0] - goal[0])**2 + (candidate[1] - goal[1])**2)
+                valid_candidates.append((dist_to_goal, candidate))
+        
+        if not valid_candidates:
+            # 当前半径没有有效候选点，扩大半径
+            print(f"[PathPlanner] 半径 {current_radius:.1f}m 范围内无有效候选点，扩大搜索半径...")
+            return self._find_reachable_waypoints_recursive(
+                start, goal, scene_objects,
+                max_search_radius, radius_step,
+                current_radius + radius_step, max_depth, current_depth, visited_goals
+            )
+        
+        # 按距离目标远近排序
+        valid_candidates.sort(key=lambda x: x[0])
+        
+        print(f"[PathPlanner] 找到 {len(valid_candidates)} 个有效候选点，开始验证...")
+        
+        # 只验证前 3 个最有希望的候选点
+        for i, (dist_to_goal, candidate) in enumerate(valid_candidates[:3]):
+            candidate_tuple = (round(candidate[0], 2), round(candidate[1], 2))
             
             # 避免重复访问
             if candidate_tuple in visited_goals:
@@ -675,12 +707,7 @@ class PathPlanner:
             
             visited_goals.add(candidate_tuple)
             
-            # 检查该点是否可达（不在障碍物中）
-            candidate_node_x = int(candidate[0] / self.astar.resolution)
-            candidate_node_y = int(candidate[1] / self.astar.resolution)
-            
-            if (candidate_node_x, candidate_node_y) in self.astar.obstacles:
-                continue
+            print(f"[PathPlanner] 验证候选点 {i+1}/3: {candidate}, 距离目标: {dist_to_goal:.3f}m")
             
             # 用 A* 验证从起点到该候选点的路径
             test_path = self.astar.plan(start, candidate)
@@ -688,37 +715,35 @@ class PathPlanner:
             if test_path is None:
                 continue
             
-            # 找到可达的候选点，检查是否能到达最终目标
-            dist_to_goal = math.sqrt((candidate[0] - goal[0])**2 + (candidate[1] - goal[1])**2)
-            
-            print(f"[PathPlanner] 找到可达候选点: {candidate}, 距离最终目标: {dist_to_goal:.3f}m")
+            print(f"[PathPlanner] 候选点可达，检查是否能到达最终目标...")
             
             # 尝试从该候选点直接到达最终目标
             final_path = self.astar.plan(candidate, goal)
             
             if final_path is not None:
                 # 可以直接到达最终目标
-                print(f"[PathPlanner] 从候选点可以直接到达最终目标")
+                print(f"[PathPlanner] 找到直达路径！")
                 return [candidate, goal]
             
-            # 不能直接到达，递归搜索
-            print(f"[PathPlanner] 从候选点无法直接到达目标，继续递归搜索...")
-            sub_waypoints = self._find_reachable_waypoints_recursive(
-                candidate, goal, scene_objects,
-                max_search_radius, radius_step,
-                current_radius + radius_step, visited_goals
-            )
-            
-            if sub_waypoints is not None:
-                # 找到完整路径
-                return [candidate] + sub_waypoints
+            # 不能直接到达，递归搜索（但限制深度）
+            if current_depth < max_depth - 1:
+                print(f"[PathPlanner] 需要更多中间点，继续递归...")
+                sub_waypoints = self._find_reachable_waypoints_recursive(
+                    candidate, goal, scene_objects,
+                    max_search_radius, radius_step,
+                    radius_step, max_depth, current_depth + 1, visited_goals
+                )
+                
+                if sub_waypoints is not None:
+                    # 找到完整路径
+                    return [candidate] + sub_waypoints
         
-        # 当前半径范围内没有找到可达点，扩大半径继续搜索
-        print(f"[PathPlanner] 半径 {current_radius:.1f}m 范围内未找到可达点，扩大搜索半径...")
+        # 当前半径范围内没有找到可行路径，扩大半径继续搜索
+        print(f"[PathPlanner] 半径 {current_radius:.1f}m 范围内未找到可行路径，扩大搜索半径...")
         return self._find_reachable_waypoints_recursive(
             start, goal, scene_objects,
             max_search_radius, radius_step,
-            current_radius + radius_step, visited_goals
+            current_radius + radius_step, max_depth, current_depth, visited_goals
         )
     
     def _generate_candidates_at_radius(
