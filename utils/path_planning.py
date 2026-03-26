@@ -549,121 +549,226 @@ class PathPlanner:
         start: List[float], 
         goal: List[float],
         scene_objects: Optional[Dict[str, Dict]] = None,
-        max_retries: int = 3
+        max_search_radius: float = 5.0,
+        radius_step: float = 0.5
     ) -> Optional[List[List[float]]]:
         """
-        规划全局路径
+        规划全局路径，支持递归寻找替代目标
+        
+        如果目标不可达，会向外递归搜索可达的替代目标。
+        如果替代目标距离原目标太远，会分多段导航。
         
         Args:
             start: 起点 [x, y]
             goal: 目标点 [x, y]
             scene_objects: 场景物体信息，用于寻找替代目标
-            max_retries: 最大重试次数（当目标不可达时）
+            max_search_radius: 最大搜索半径（米）
+            radius_step: 搜索半径步长（米）
         
         Returns:
-            路径点列表，如果无法到达返回 None
+            路径点列表（包含可能的中间目标点），如果无法到达返回 None
         """
-        original_goal = goal.copy()
-        current_goal = goal.copy()
+        print(f"[PathPlanner] 开始规划路径: {start} -> {goal}")
         
-        for attempt in range(max_retries):
-            print(f"[PathPlanner] 规划尝试 {attempt + 1}/{max_retries}: {start} -> {current_goal}")
+        # 首先尝试直接规划到目标
+        direct_path = self.astar.plan(start, goal)
+        if direct_path is not None:
+            print(f"[PathPlanner] 直接路径规划成功，路径长度: {len(direct_path)} 点")
+            self.global_path = direct_path
+            self.current_path_index = 0
+            return direct_path
+        
+        print(f"[PathPlanner] 直接路径规划失败，开始递归搜索替代目标...")
+        
+        # 递归寻找可达的替代目标
+        waypoints = self._find_reachable_waypoints_recursive(
+            start, goal, scene_objects or {}, 
+            max_search_radius=max_search_radius,
+            radius_step=radius_step
+        )
+        
+        if waypoints is None or len(waypoints) == 0:
+            print(f"[PathPlanner] 无法找到任何可达路径")
+            self.global_path = None
+            self.current_path_index = 0
+            return None
+        
+        # 连接所有路径段
+        full_path = []
+        current_pos = start
+        
+        for i, waypoint in enumerate(waypoints):
+            print(f"[PathPlanner] 规划第 {i+1}/{len(waypoints)} 段路径: {current_pos} -> {waypoint}")
+            segment_path = self.astar.plan(current_pos, waypoint)
             
-            self.global_path = self.astar.plan(start, current_goal)
+            if segment_path is None:
+                print(f"[PathPlanner] 第 {i+1} 段路径规划失败")
+                return None
             
-            if self.global_path is not None:
-                # 规划成功
-                if attempt > 0:
-                    print(f"[PathPlanner] 使用替代目标规划成功，原目标: {original_goal}, 替代目标: {current_goal}")
-                self.current_path_index = 0
-                return self.global_path
-            
-            # 规划失败，尝试寻找替代目标
-            if attempt < max_retries - 1 and scene_objects is not None:
-                print(f"[PathPlanner] 目标 {current_goal} 不可达，寻找替代目标...")
-                current_goal = self._find_alternative_goal(
-                    start, original_goal, scene_objects, attempt
-                )
-                if current_goal is None:
-                    print(f"[PathPlanner] 无法找到替代目标")
-                    break
-                print(f"[PathPlanner] 找到替代目标: {current_goal}")
+            # 添加路径段（避免重复添加起点）
+            if i == 0:
+                full_path.extend(segment_path)
             else:
-                print(f"[PathPlanner] 所有尝试失败，无法找到可达路径")
-                break
+                full_path.extend(segment_path[1:])  # 跳过重复的起点
+            
+            current_pos = waypoint
         
-        self.global_path = None
+        print(f"[PathPlanner] 多段路径规划成功，共 {len(waypoints)} 段，总路径长度: {len(full_path)} 点")
+        print(f"[PathPlanner] 中间目标点: {waypoints}")
+        
+        self.global_path = full_path
         self.current_path_index = 0
-        return None
+        return full_path
     
-    def _find_alternative_goal(
+    def _find_reachable_waypoints_recursive(
         self,
         start: List[float],
-        original_goal: List[float],
+        goal: List[float],
         scene_objects: Dict[str, Dict],
-        attempt: int
-    ) -> Optional[List[float]]:
+        max_search_radius: float,
+        radius_step: float,
+        current_radius: float = 0.5,
+        visited_goals: Optional[Set[Tuple[float, float]]] = None
+    ) -> Optional[List[List[float]]]:
         """
-        寻找替代目标点，并用 A* 验证路径可达性
+        递归寻找可达的中间目标点
         
         策略：
-        1. 在原目标周围搜索候选位置
-        2. 对每个候选点用 A* 验证从起点是否可达
-        3. 返回第一个验证通过的点
+        1. 在当前半径范围内搜索可达的候选点
+        2. 如果找到，递归检查从该点是否能到达最终目标
+        3. 如果距离太远，继续向外扩展
         
         Args:
-            start: 起点位置 [x, y]
-            original_goal: 原始目标位置 [x, y]
+            start: 起点 [x, y]
+            goal: 最终目标 [x, y]
             scene_objects: 场景物体信息
-            attempt: 当前尝试次数
+            max_search_radius: 最大搜索半径
+            radius_step: 半径步长
+            current_radius: 当前搜索半径
+            visited_goals: 已访问的目标点（避免循环）
         
         Returns:
-            替代目标位置 [x, y] 或 None
+            中间目标点列表（包含最终目标），如果无法到达返回 None
         """
-        print(f"[PathPlanner] 寻找替代目标，原目标: {original_goal}, 起点: {start}, 尝试: {attempt}")
+        if visited_goals is None:
+            visited_goals = set()
         
-        # 搜索半径（米）
-        search_radius = 0.5 + attempt * 0.3  # 0.5, 0.8, 1.1, ...
+        # 检查是否超过最大搜索半径
+        if current_radius > max_search_radius:
+            print(f"[PathPlanner] 超过最大搜索半径 {max_search_radius}m，停止搜索")
+            return None
         
-        # 在圆周上采样候选点
-        num_samples = 12
-        candidates = []
+        print(f"[PathPlanner] 递归搜索: 起点 {start}, 目标 {goal}, 半径 {current_radius:.1f}m")
         
-        for i in range(num_samples):
-            angle = 2 * math.pi * i / num_samples
-            candidate_x = original_goal[0] + search_radius * math.cos(angle)
-            candidate_y = original_goal[1] + search_radius * math.sin(angle)
-            candidates.append([candidate_x, candidate_y])
+        # 在当前半径范围内生成候选点
+        candidates = self._generate_candidates_at_radius(start, goal, current_radius)
         
-        # 按距离原目标的远近排序
-        candidates.sort(key=lambda c: math.sqrt((c[0] - original_goal[0])**2 + (c[1] - original_goal[1])**2))
+        # 按距离最终目标的远近排序
+        candidates.sort(key=lambda c: math.sqrt((c[0] - goal[0])**2 + (c[1] - goal[1])**2))
         
-        print(f"[PathPlanner] 在半径 {search_radius:.1f}m 处采样 {num_samples} 个候选点")
-        
-        # 对每个候选点用 A* 验证路径
-        for i, candidate in enumerate(candidates):
-            # 检查该点是否可达（不在障碍物栅格中）
+        for candidate in candidates:
+            candidate_tuple = (round(candidate[0], 3), round(candidate[1], 3))
+            
+            # 避免重复访问
+            if candidate_tuple in visited_goals:
+                continue
+            
+            visited_goals.add(candidate_tuple)
+            
+            # 检查该点是否可达（不在障碍物中）
             candidate_node_x = int(candidate[0] / self.astar.resolution)
             candidate_node_y = int(candidate[1] / self.astar.resolution)
             
             if (candidate_node_x, candidate_node_y) in self.astar.obstacles:
-                continue  # 在障碍物中，跳过
+                continue
             
-            # 用 A* 验证从起点到该候选点的路径是否存在
-            print(f"[PathPlanner] 验证候选点 {i+1}/{num_samples}: {candidate}")
+            # 用 A* 验证从起点到该候选点的路径
             test_path = self.astar.plan(start, candidate)
             
-            if test_path is not None:
-                # 找到可达的替代目标
-                dist_to_original = math.sqrt(
-                    (candidate[0] - original_goal[0]) ** 2 +
-                    (candidate[1] - original_goal[1]) ** 2
-                )
-                print(f"[PathPlanner] 找到可达替代目标: {candidate}, 距离原目标: {dist_to_original:.3f}m")
-                return candidate
+            if test_path is None:
+                continue
+            
+            # 找到可达的候选点，检查是否能到达最终目标
+            dist_to_goal = math.sqrt((candidate[0] - goal[0])**2 + (candidate[1] - goal[1])**2)
+            
+            print(f"[PathPlanner] 找到可达候选点: {candidate}, 距离最终目标: {dist_to_goal:.3f}m")
+            
+            # 尝试从该候选点直接到达最终目标
+            final_path = self.astar.plan(candidate, goal)
+            
+            if final_path is not None:
+                # 可以直接到达最终目标
+                print(f"[PathPlanner] 从候选点可以直接到达最终目标")
+                return [candidate, goal]
+            
+            # 不能直接到达，递归搜索
+            print(f"[PathPlanner] 从候选点无法直接到达目标，继续递归搜索...")
+            sub_waypoints = self._find_reachable_waypoints_recursive(
+                candidate, goal, scene_objects,
+                max_search_radius, radius_step,
+                current_radius + radius_step, visited_goals
+            )
+            
+            if sub_waypoints is not None:
+                # 找到完整路径
+                return [candidate] + sub_waypoints
         
-        print(f"[PathPlanner] 未找到可达的替代目标")
-        return None
+        # 当前半径范围内没有找到可达点，扩大半径继续搜索
+        print(f"[PathPlanner] 半径 {current_radius:.1f}m 范围内未找到可达点，扩大搜索半径...")
+        return self._find_reachable_waypoints_recursive(
+            start, goal, scene_objects,
+            max_search_radius, radius_step,
+            current_radius + radius_step, visited_goals
+        )
+    
+    def _generate_candidates_at_radius(
+        self,
+        start: List[float],
+        goal: List[float],
+        radius: float,
+        num_samples: int = 16
+    ) -> List[List[float]]:
+        """
+        在从起点到目标的方向上，在指定半径处生成候选点
+        
+        Args:
+            start: 起点
+            goal: 目标
+            radius: 搜索半径
+            num_samples: 采样点数
+        
+        Returns:
+            候选点列表
+        """
+        candidates = []
+        
+        # 计算从起点到目标的方向
+        dx = goal[0] - start[0]
+        dy = goal[1] - start[1]
+        dist_to_goal = math.sqrt(dx**2 + dy**2)
+        
+        if dist_to_goal > 0.01:
+            # 有明确方向，优先在该方向附近采样
+            base_angle = math.atan2(dy, dx)
+            
+            # 在目标方向周围采样（扇形区域）
+            angle_range = math.pi / 2  # 90度扇形
+            for i in range(num_samples):
+                angle_offset = (i / (num_samples - 1) - 0.5) * angle_range
+                angle = base_angle + angle_offset
+                
+                candidate_x = start[0] + radius * math.cos(angle)
+                candidate_y = start[1] + radius * math.sin(angle)
+                candidates.append([candidate_x, candidate_y])
+        else:
+            # 起点接近目标，全方向采样
+            for i in range(num_samples):
+                angle = 2 * math.pi * i / num_samples
+                candidate_x = start[0] + radius * math.cos(angle)
+                candidate_y = start[1] + radius * math.sin(angle)
+                candidates.append([candidate_x, candidate_y])
+        
+        return candidates
     
     def get_local_goal(self, current_pos: List[float], lookahead_distance: float = 1.0) -> List[float]:
         """获取局部目标点（前瞻）"""

@@ -94,8 +94,7 @@ class MobileManipulator:
         self,
         target_position: List[float],
         target_orientation: Optional[List[float]] = None,
-        scene_objects: Optional[Dict[str, Dict]] = None,
-        max_retries: int = 3
+        scene_objects: Optional[Dict[str, Dict]] = None
     ) -> Tuple[bool, str]:
         """
         导航到目标位置（使用 A* + DWA 路径规划）
@@ -104,7 +103,6 @@ class MobileManipulator:
             target_position: 目标位置 [x, y, z]
             target_orientation: 目标朝向（四元数，可选）
             scene_objects: 场景物体信息，用于避障
-            max_retries: 最大重试次数（当目标不可达时尝试替代目标）
         
         Returns:
             (是否成功, 消息)
@@ -130,7 +128,8 @@ class MobileManipulator:
             global_path = self.path_planner.plan_global_path(
                 start_pos, goal_pos, 
                 scene_objects=scene_objects or {},
-                max_retries=max_retries
+                max_search_radius=5.0,
+                radius_step=0.5
             )
             
             if global_path is None:

@@ -182,7 +182,8 @@ class MobileBase:
         global_path = self.path_planner.plan_global_path(
             start_pos, goal_pos,
             scene_objects=scene_objects,
-            max_retries=3
+            max_search_radius=5.0,
+            radius_step=0.5
         )
         
         if global_path is None:
