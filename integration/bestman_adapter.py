@@ -696,8 +696,11 @@ class BestManAdapter:
         try:
             import pybullet as p
             
+            print(f"[BestManAdapter] get_scene_graph: 注册物体数={len(self.scene_objects)}")
+            
             for obj_name, obj_info in self.scene_objects.items():
                 obj_id = obj_info.get('id')
+                print(f"[BestManAdapter] 处理物体: {obj_name}, ID={obj_id}")
                 if obj_id is not None:
                     try:
                         # 从 PyBullet 获取物体当前位置和朝向
@@ -722,8 +725,11 @@ class BestManAdapter:
                             'size': size,
                             'is_grasped': False  # TODO: 检查是否被抓取
                         }
+                        print(f"[BestManAdapter] 成功添加物体到场景图: {obj_name}")
                     except Exception as e:
                         print(f"[BestManAdapter] 获取物体 {obj_name} 状态失败: {e}")
+                        import traceback
+                        traceback.print_exc()
             
             # 添加其他机器人作为动态障碍物
             for rid, robot in self.robot_registry.items():

@@ -292,7 +292,8 @@ class DynaHMRCSystem:
                     
                     loaded_count = 0
                     for obj in scene_data:
-                        obj_name = obj.get("object_name", "object")
+                        # 支持多种字段名: object_name 或 obj_name
+                        obj_name = obj.get("object_name") or obj.get("obj_name", "object")
                         model_path = obj.get("model_path")
                         position = obj.get("object_position", [0, 0, 0])
                         orientation = obj.get("object_orientation", [0, 0, 0, 1])
@@ -399,9 +400,11 @@ class DynaHMRCSystem:
             return
         
         print(f"[DynaHMRCSystem] 正在注册 {len(self._scene_objects_cache)} 个场景物体到 BestManAdapter...")
+        print(f"[DynaHMRCSystem] 缓存内容: {[obj['name'] for obj in self._scene_objects_cache]}")
         registered_count = 0
         for obj_info in self._scene_objects_cache:
             try:
+                print(f"[DynaHMRCSystem] 注册物体: {obj_info['name']} (ID: {obj_info['id']}, Type: {obj_info.get('type', 'unknown')})")
                 self.bestman_adapter.register_scene_object(
                     obj_name=obj_info['name'],
                     obj_id=obj_info['id'],
