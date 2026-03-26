@@ -507,24 +507,37 @@ class BestManAdapter:
     def _handle_communicate(self, robot: Any, params: Dict, robot_id: str = None) -> tuple:
         """处理机器人间通信"""
         print(f"[_handle_communicate] 开始: robot_id={robot_id}, params={params}")
-        
 
-
-        
         # 支持多种参数格式
         # 格式1: params = {"to": "robot1", "message": "...", "broadcast": false}
         # 格式2: params = {"recipient": "robot1", "message": "..."}
         to_robot = params.get("to") or params.get("recipient")
         message = params.get("message", "")
         broadcast = params.get("broadcast", False)
-        
+
         if not message:
             print(f"[_handle_communicate] 错误: 消息为空")
             return False, "消息不能为空", {}
-        
+
         # 获取发送者名称
         sender_name = robot_id or "unknown"
-        
+
+        # 处理特殊目标名称
+        if to_robot and to_robot.lower() == "leader":
+            # 尝试找到 leader 机器人
+            leader_name = None
+            for rid, r in self.robot_registry.items():
+                if getattr(r, 'is_leader', False):
+                    leader_name = rid
+                    break
+            if leader_name:
+                print(f"[_handle_communicate] 将 'leader' 映射到实际机器人: {leader_name}")
+                to_robot = leader_name
+            else:
+                # 如果没有明确的 leader，广播给所有机器人
+                print(f"[_handle_communicate] 未找到 leader，转为广播")
+                broadcast = True
+
         if broadcast:
             # 广播给所有机器人
             print(f"[_handle_communicate] 广播消息: {sender_name} -> all: {message[:50]}...")
@@ -535,7 +548,7 @@ class BestManAdapter:
                     except Exception as e:
                         print(f"[_handle_communicate] 发送给 {rid} 失败: {e}")
             return True, f"广播消息: {message[:50]}...", {"broadcast": True}
-        
+
         elif to_robot:
             # 发送给特定机器人
             print(f"[_handle_communicate] 发送消息: {sender_name} -> {to_robot}: {message[:50]}...")
@@ -552,7 +565,7 @@ class BestManAdapter:
                     return False, f"机器人 {to_robot} 不支持接收消息", {}
             else:
                 return False, f"机器人 {to_robot} 未找到", {}
-        
+
         else:
             print(f"[_handle_communicate] 错误: 未指定接收者")
             return False, "必须指定接收者 (to) 或设置为广播 (broadcast)", {}

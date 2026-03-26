@@ -402,11 +402,28 @@ Vote: <Name of the robot you vote for>"""
             pos = info.get('position', [0, 0, 0])
             scene_str += f"  - {name}: at ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})\n"
         
+        # 获取机器人状态信息
+        robot_states = observation.get('robot_states', {})
+        teammates_str = ""
+        if robot_states:
+            teammates_str = "\nTeammates:\n"
+            for robot_name, state in robot_states.items():
+                if robot_name != self.name:
+                    pos = state.get('position', [0, 0, 0])
+                    teammates_str += f"  - {robot_name}: at ({pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f})\n"
+        
+        # Leader 信息
+        leader_info = ""
+        if self.leader_name:
+            leader_info = f"\nLeader: {self.leader_name}"
+            if self.is_leader:
+                leader_info += " (You are the leader)"
+        
         return f"""You are {self.name}, a {self.robot_type} robot.
 Your capabilities: {', '.join(self.capabilities)}
-Your available actions: {', '.join(self.available_actions)}
+Your available actions: {', '.join(self.available_actions)}{leader_info}
 
-{scene_str}
+{scene_str}{teammates_str}
 
 Leader's Plan: {json.dumps(leader_plan, indent=2)}
 
@@ -421,6 +438,9 @@ Consider:
 2. Current state of the environment
 3. Recent action history and feedback
 4. Messages from teammates
+
+IMPORTANT: You can ONLY use the following action types: {', '.join(self.available_actions)}
+DO NOT use any other action types. For example, if you are an arm robot without navigation capability, DO NOT try to use "navigate" action.
 
 ## Output Format
 ```json

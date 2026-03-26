@@ -149,6 +149,9 @@ class DynaHMRCSystem:
         self.execution_history: List[Dict] = []
         self.current_task_status: Dict[str, TaskStatus] = {}
         
+        # 场景物体缓存（在BestManAdapter初始化前加载）
+        self._scene_objects_cache: List[Dict] = []
+        
         # 统计信息
         self.start_time: Optional[float] = None
         self.replan_count = 0
@@ -201,6 +204,9 @@ class DynaHMRCSystem:
                 self.robot_factory.get_all_robots()
             )
             self.adapter = self.bestman_adapter  # 别名，方便协作框架使用
+            
+            # 4.1 注册场景物体到 BestManAdapter
+            self._register_scene_objects_to_adapter()
             
             # 5. 初始化 LLM 协调器
             self._init_coordinator()
@@ -321,7 +327,7 @@ class DynaHMRCSystem:
                                 print(f"[DynaHMRCSystem] 警告: 模型文件不存在: {abs_model_path}")
                                 continue
                             
-                            self.client.load_object(
+                            obj_id = self.client.load_object(
                                 obj_name=obj_name,
                                 model_path=abs_model_path,
                                 object_position=position,
@@ -330,6 +336,15 @@ class DynaHMRCSystem:
                                 fixed_base=fixed_base
                             )
                             loaded_count += 1
+                            
+                            # 缓存物体信息，稍后注册到 BestManAdapter
+                            self._scene_objects_cache.append({
+                                'name': obj_name,
+                                'id': obj_id,
+                                'type': obj.get('object_type', 'unknown'),
+                                'position': position,
+                                'orientation': orientation
+                            })
                     
                     print(f"[DynaHMRCSystem] 已从场景文件加载 {loaded_count} 个物体")
                     return
@@ -372,6 +387,33 @@ class DynaHMRCSystem:
                 )
         
         print(f"[DynaHMRCSystem] 已加载 {len(objects)} 个场景物体")
+    
+    def _register_scene_objects_to_adapter(self):
+        """将缓存的场景物体注册到 BestManAdapter"""
+        if not self.bestman_adapter:
+            print("[DynaHMRCSystem] 警告: BestManAdapter 未初始化，无法注册场景物体")
+            return
+        
+        if not self._scene_objects_cache:
+            print("[DynaHMRCSystem] 没有缓存的场景物体需要注册")
+            return
+        
+        print(f"[DynaHMRCSystem] 正在注册 {len(self._scene_objects_cache)} 个场景物体到 BestManAdapter...")
+        registered_count = 0
+        for obj_info in self._scene_objects_cache:
+            try:
+                self.bestman_adapter.register_scene_object(
+                    obj_name=obj_info['name'],
+                    obj_id=obj_info['id'],
+                    obj_type=obj_info.get('type', 'unknown')
+                )
+                registered_count += 1
+            except Exception as e:
+                print(f"[DynaHMRCSystem] 注册物体 {obj_info['name']} 失败: {e}")
+        
+        print(f"[DynaHMRCSystem] 成功注册 {registered_count} 个场景物体到 BestManAdapter")
+        # 清空缓存
+        self._scene_objects_cache.clear()
     
     def _init_robots(self):
         """初始化机器人"""
