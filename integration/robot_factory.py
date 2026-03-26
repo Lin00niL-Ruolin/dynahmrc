@@ -493,3 +493,71 @@ class MobileBaseAdapter:
     def sim_move_base_backward(self, distance, **kwargs):
         """向后移动"""
         self.sim_move_base_forward(-distance)
+    
+    def move_base_to(self, target_pose, **kwargs):
+        """
+        移动基座到目标位姿（支持3D位置，用于无人机）
+        
+        Args:
+            target_pose: Pose 对象，包含目标位置和朝向
+        """
+        import math
+        import pybullet as p
+        
+        try:
+            target_pos = target_pose.get_position()
+            target_orientation = target_pose.get_orientation()
+            
+            print(f"[MobileBaseAdapter] move_base_to: 目标位置 {target_pos}")
+            
+            # 直接设置位置和朝向
+            p.resetBasePositionAndOrientation(
+                self.base_id,
+                target_pos,
+                target_orientation,
+                physicsClientId=self.client_id
+            )
+            
+            # 运行仿真步让物理引擎更新
+            self.client.run(10)
+            
+            # 更新当前朝向
+            euler = p.getEulerFromQuaternion(target_orientation)
+            self.current_base_yaw = euler[2]
+            
+            print(f"[MobileBaseAdapter] move_base_to: 完成")
+            return True
+            
+        except Exception as e:
+            print(f"[MobileBaseAdapter] move_base_to 失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def set_base_pose(self, position, orientation):
+        """直接设置基座位姿"""
+        import pybullet as p
+        
+        try:
+            p.resetBasePositionAndOrientation(
+                self.base_id,
+                position,
+                orientation,
+                physicsClientId=self.client_id
+            )
+            self.client.run(5)
+            
+            # 更新当前朝向
+            euler = p.getEulerFromQuaternion(orientation)
+            self.current_base_yaw = euler[2]
+            
+        except Exception as e:
+            print(f"[MobileBaseAdapter] set_base_pose 失败: {e}")
+    
+    def get_base_pose(self):
+        """获取当前基座位姿"""
+        return self.sim_get_current_base_pose()
+    
+    def rotate_base_to_yaw(self, target_yaw):
+        """旋转基座到目标朝向"""
+        self.sim_rotate_base_to_target_yaw(target_yaw)
