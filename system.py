@@ -265,11 +265,12 @@ class DynaHMRCSystem:
     
     def _load_scene(self):
         """加载场景物体"""
-        # 优先检查是否有scene_path，如果有则使用BestMan的create_scene加载JSON场景
+        import json
+        
+        # 优先检查是否有scene_path，如果有则加载JSON场景文件
         scene_path = self.scene_config.get("scene_path")
         
         if scene_path:
-            # 使用BestMan的create_scene函数加载JSON场景文件
             root_dir = self._get_project_root()
             if not os.path.isabs(scene_path):
                 abs_scene_path = os.path.join(root_dir, scene_path)
@@ -277,9 +278,49 @@ class DynaHMRCSystem:
                 abs_scene_path = scene_path
             
             if os.path.exists(abs_scene_path):
-                self.client.create_scene(abs_scene_path)
-                print(f"[DynaHMRCSystem] 已从场景文件加载: {abs_scene_path}")
-                return
+                # 手动解析JSON并加载物体，避免Client.create_scene的路径问题
+                print(f"[DynaHMRCSystem] 正在加载场景文件: {abs_scene_path}")
+                try:
+                    with open(abs_scene_path, "r") as f:
+                        scene_data = json.load(f)
+                    
+                    loaded_count = 0
+                    for obj in scene_data:
+                        obj_name = obj.get("object_name", "object")
+                        model_path = obj.get("model_path")
+                        position = obj.get("object_position", [0, 0, 0])
+                        orientation = obj.get("object_orientation", [0, 0, 0, 1])
+                        scale = obj.get("scale", 1)
+                        fixed_base = obj.get("fixed_base", False)
+                        
+                        if model_path:
+                            # 将相对路径转换为绝对路径
+                            if not os.path.isabs(model_path):
+                                abs_model_path = os.path.join(root_dir, model_path)
+                            else:
+                                abs_model_path = model_path
+                            
+                            # 检查文件是否存在
+                            if not os.path.exists(abs_model_path):
+                                print(f"[DynaHMRCSystem] 警告: 模型文件不存在: {abs_model_path}")
+                                continue
+                            
+                            self.client.load_object(
+                                obj_name=obj_name,
+                                model_path=abs_model_path,
+                                object_position=position,
+                                object_orientation=orientation,
+                                scale=scale,
+                                fixed_base=fixed_base
+                            )
+                            loaded_count += 1
+                    
+                    print(f"[DynaHMRCSystem] 已从场景文件加载 {loaded_count} 个物体")
+                    return
+                except Exception as e:
+                    print(f"[DynaHMRCSystem] 加载场景文件失败: {e}")
+                    import traceback
+                    traceback.print_exc()
             else:
                 print(f"[DynaHMRCSystem] 警告: 场景文件不存在: {abs_scene_path}")
         
