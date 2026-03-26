@@ -489,10 +489,7 @@ class InflationRadiusVisualizer:
                     obstacle_positions.append(obj_info['position'])
                     obstacle_sizes.append(obj_info['radius'])
             
-            self.path_planner.update_obstacles_from_scene(
-                self.scene_objects,
-                robot_type='mobile_manipulator'
-            )
+            self.path_planner.update_obstacles_from_scene(self.scene_objects)
             
             print(f"   ✓ 已更新 {len(obstacle_positions)} 个障碍物到路径规划器")
             
