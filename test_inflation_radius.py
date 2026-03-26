@@ -192,8 +192,16 @@ class InflationRadiusVisualizer:
             with open(scene_path, 'r', encoding='utf-8') as f:
                 scene_data = json.load(f)
             
-            # 加载场景中的物体
-            objects = scene_data.get('objects', [])
+            # 处理不同的 JSON 结构
+            # 如果是字典，获取 objects 列表；如果是列表，直接使用
+            if isinstance(scene_data, dict):
+                objects = scene_data.get('objects', [])
+            elif isinstance(scene_data, list):
+                objects = scene_data
+            else:
+                print(f"   [警告] 未知的场景数据格式: {type(scene_data)}")
+                objects = []
+            
             print(f"   场景中有 {len(objects)} 个物体")
             
             for obj in objects:
