@@ -87,12 +87,13 @@ class AStarPlanner:
                 obj_radius = obstacle_sizes[i] if obstacle_sizes and i < len(obstacle_sizes) else 0.0
                 
                 # 添加障碍物及其周围区域（考虑机器人半径 + 障碍物尺寸）
-                total_radius = self.robot_radius + obj_radius + 0.05  # 额外 5cm 安全距离
+                # 减小膨胀半径，只使用机器人半径 + 一半物体半径 + 安全距离
+                total_radius = self.robot_radius + obj_radius * 0.5 + 0.05
                 radius_cells = int(total_radius / self.resolution) + 1
                 
-                if i < 3:  # 只打印前3个障碍物的详细信息
-                    print(f"[A*] 静态障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.2f}) -> 栅格 ({grid_x}, {grid_y}), "
-                          f"膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
+                if i < 5:  # 打印前5个障碍物的详细信息
+                    print(f"[A*] 静态障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.f}) -> 栅格 ({grid_x}, {grid_y}), "
+                          f"物体半径 {obj_radius:.2f}m, 膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
                 
                 for dx in range(-radius_cells, radius_cells + 1):
                     for dy in range(-radius_cells, radius_cells + 1):
@@ -103,7 +104,8 @@ class AStarPlanner:
                 continue
         
         self._merge_obstacles()
-        print(f"[A*] 静态障碍物地图更新完成: 共 {len(self.static_obstacles)} 个栅格")
+        print(f"[A*] 静态障碍物地图更新完成: 共 {len(self.static_obstacles)} 个栅格, "
+              f"分辨率 {self.resolution}m, 机器人半径 {self.robot_radius}m")
     
     def update_dynamic_obstacles(self, robot_positions: Dict[str, List[float]]):
         """
@@ -409,12 +411,12 @@ class AStarPlanner:
                     pos = (x + dx, y + dy)
                     if pos in self.obstacles:
                         self.obstacles.discard(pos)
+                        self.static_obstacles.discard(pos)  # 同时清除静态障碍物
                         cleared_count += 1
                         cleared_positions.append(pos)
         
         if cleared_count > 0:
             print(f"[A*] 清除障碍物: 位置 ({x}, {y}) 周围 {radius} 格，共清除 {cleared_count} 个障碍物")
-            print(f"[A*] 清除的障碍物位置: {cleared_positions}")
         else:
             print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
     
@@ -890,8 +892,22 @@ class PathPlanner:
         
         print(f"[PathPlanner] 递归搜索: 起点 {start}, 目标 {goal}, 半径 {current_radius:.1f}m, 深度 {current_depth}")
         
+        # 检查起点是否在障碍物中
+        start_grid_x = int(start[0] / self.astar.resolution)
+        start_grid_y = int(start[1] / self.astar.resolution)
+        if (start_grid_x, start_grid_y) in self.astar.obstacles:
+            print(f"[PathPlanner] 警告: 起点 ({start[0]:.2f}, {start[1]:.2f}) 在障碍物中！尝试清除附近障碍物...")
+            # 清除起点周围的障碍物
+            self.astar._clear_nearby_obstacles(start_grid_x, start_grid_y, radius=3)
+        
+        # 检查目标点是否在障碍物中
+        goal_grid_x = int(goal[0] / self.astar.resolution)
+        goal_grid_y = int(goal[1] / self.astar.resolution)
+        if (goal_grid_x, goal_grid_y) in self.astar.obstacles:
+            print(f"[PathPlanner] 警告: 目标点 ({goal[0]:.2f}, {goal[1]:.2f}) 在障碍物中！")
+        
         # 在当前半径范围内生成候选点
-        candidates = self._generate_candidates_at_radius(start, goal, current_radius, num_samples=8)
+        candidates = self._generate_candidates_at_radius(start, goal, current_radius, num_samples=16)
         
         # 快速筛选：排除在障碍物中的点，按距离目标远近排序
         valid_candidates = []
@@ -906,6 +922,7 @@ class PathPlanner:
         if not valid_candidates:
             # 当前半径没有有效候选点，扩大半径
             print(f"[PathPlanner] 半径 {current_radius:.1f}m 范围内无有效候选点，扩大搜索半径...")
+            print(f"[PathPlanner] 当前障碍物数量: {len(self.astar.obstacles)} 个栅格")
             return self._find_reachable_waypoints_recursive(
                 start, goal, scene_objects,
                 max_search_radius, radius_step,
