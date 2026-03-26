@@ -104,6 +104,11 @@ class RobotFactory:
             from ..robots.mobile_manipulator import MobileManipulator
             robot = MobileManipulator(robot_id, bestman_instance)
             
+        elif robot_type == "drone" or robot_type == "uav":
+            bestman_instance = self._create_drone(robot_model, config)
+            from ..robots.drone_robot import DroneRobot
+            robot = DroneRobot(robot_id, bestman_instance)
+            
         else:
             raise ValueError(f"不支持的机器人类型: {robot_type}")
         
@@ -202,6 +207,30 @@ class RobotFactory:
             return Bestman_sim_panda_with_gripper(self.client, self.visualizer, cfg)
         else:
             raise ValueError(f"不支持的移动操作型号: {model}")
+    
+    def _create_drone(self, model: str, config: Dict) -> Any:
+        """创建无人机 BestMan 实例"""
+        root_dir = self._get_project_root()
+        
+        # 使用 GitHub 上的无人机模型
+        drone_urdf_path = os.path.join(root_dir, "Asset/Robot/drone/urdf/drone.urdf")
+        
+        # 如果本地不存在，使用默认配置
+        if not os.path.exists(drone_urdf_path):
+            print(f"[RobotFactory] 警告: 无人机模型不存在于 {drone_urdf_path}")
+            print(f"[RobotFactory] 请从 https://github.com/harsh2507/drone_urdf2.git 下载模型")
+            print(f"[RobotFactory] 使用简化配置...")
+            drone_urdf_path = os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf")
+        
+        cfg = self._build_config(config, {
+            'base_urdf_path': drone_urdf_path,
+            'arm_num_dofs': 0,  # 无人机无机械臂
+            'flight_height': 1.5,
+            'max_payload': 0.5,
+        })
+        
+        # 使用移动基座适配器作为基础
+        return MobileBaseAdapter(self.client, self.visualizer, cfg)
     
     def _build_config(self, custom_config: Dict, defaults: Dict) -> Any:
         """构建配置对象"""

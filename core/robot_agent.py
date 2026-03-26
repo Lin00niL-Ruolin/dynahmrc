@@ -36,11 +36,78 @@ class RobotAgent:
     """
     
     # Action sets for different robot types (Table II in paper)
+    # 支持多种命名方式以兼容不同的 LLM 输出
     ACTION_SETS = {
+        # 移动操作复合机器人 (Mobile Manipulator / Ma-Mo)
         'MobileManipulation': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'MobileManipulator': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'mobile_manipulation': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'mobile_manipulator': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'ma-mo': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'ma_mo': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        'mamo': ['navigate', 'open', 'pick', 'place', 'move', 'communicate', 'wait'],
+        
+        # 固定机械臂 (Manipulator / Arm / Ma)
         'Manipulator': ['pick', 'place', 'communicate', 'wait'],  # No navigate
+        'manipulator': ['pick', 'place', 'communicate', 'wait'],
+        'Arm': ['pick', 'place', 'communicate', 'wait'],
+        'arm': ['pick', 'place', 'communicate', 'wait'],
+        'ma': ['pick', 'place', 'communicate', 'wait'],
+        'fixed_arm': ['pick', 'place', 'communicate', 'wait'],
+        'fixed manipulator': ['pick', 'place', 'communicate', 'wait'],
+        
+        # 移动基座 (Mobile / Mobile Base / Mo)
         'Mobile': ['navigate', 'communicate', 'wait'],  # No pick/place
-        'Drone': ['navigate', 'pick', 'place', 'communicate', 'wait']
+        'mobile': ['navigate', 'communicate', 'wait'],
+        'MobileBase': ['navigate', 'communicate', 'wait'],
+        'Mobile_Base': ['navigate', 'communicate', 'wait'],
+        'mobile_base': ['navigate', 'communicate', 'wait'],
+        'mobile base': ['navigate', 'communicate', 'wait'],
+        'mo': ['navigate', 'communicate', 'wait'],
+        'agv': ['navigate', 'communicate', 'wait'],
+        'AGV': ['navigate', 'communicate', 'wait'],
+        
+        # 无人机 (Drone / UAV)
+        'Drone': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'drone': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'UAV': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'uav': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'aerial': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'Aerial': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'quadrotor': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+        'Quadrotor': ['navigate', 'pick', 'place', 'communicate', 'wait'],
+    }
+    
+    # 机器人类型映射表 - 用于标准化 LLM 返回的类型名称
+    ROBOT_TYPE_MAPPING = {
+        # 移动操作复合机器人
+        'mobile_manipulation': 'MobileManipulation',
+        'mobile_manipulator': 'MobileManipulation',
+        'ma-mo': 'MobileManipulation',
+        'ma_mo': 'MobileManipulation',
+        'mamo': 'MobileManipulation',
+        'mobile manipulation': 'MobileManipulation',
+        
+        # 固定机械臂
+        'manipulator': 'Manipulator',
+        'arm': 'Manipulator',
+        'ma': 'Manipulator',
+        'fixed_arm': 'Manipulator',
+        'fixed arm': 'Manipulator',
+        'fixed manipulator': 'Manipulator',
+        
+        # 移动基座
+        'mobile': 'Mobile',
+        'mobile_base': 'Mobile',
+        'mobile base': 'Mobile',
+        'mo': 'Mobile',
+        'agv': 'Mobile',
+        
+        # 无人机
+        'drone': 'Drone',
+        'uav': 'Drone',
+        'aerial': 'Drone',
+        'quadrotor': 'Drone',
     }
     
     def __init__(
@@ -69,8 +136,14 @@ class RobotAgent:
         self.llm_client = llm_client
         self.avatar = avatar
         
-        # Action set based on robot type
-        self.available_actions = self.ACTION_SETS.get(robot_type, ['communicate', 'wait'])
+        # 标准化机器人类型名称
+        self.normalized_robot_type = self._normalize_robot_type(robot_type)
+        
+        # Action set based on robot type (使用标准化后的类型)
+        self.available_actions = self._get_available_actions(robot_type)
+        
+        print(f"[RobotAgent] {name} initialized as {robot_type} (normalized: {self.normalized_robot_type})")
+        print(f"[RobotAgent] {name} available actions: {self.available_actions}")
         
         # Collaboration state
         self.is_leader = False
@@ -87,6 +160,67 @@ class RobotAgent:
         
         # Communication callback
         self.send_message_callback = None
+    
+    def _normalize_robot_type(self, robot_type: str) -> str:
+        """
+        标准化机器人类型名称
+        将 LLM 可能返回的各种变体映射到标准类型
+        """
+        if not robot_type:
+            return 'MobileManipulation'  # 默认类型
+        
+        # 直接匹配
+        if robot_type in self.ACTION_SETS:
+            # 返回映射后的标准名称，如果没有映射则返回原值
+            return self.ROBOT_TYPE_MAPPING.get(robot_type.lower(), robot_type)
+        
+        # 尝试小写匹配
+        robot_type_lower = robot_type.lower()
+        if robot_type_lower in self.ROBOT_TYPE_MAPPING:
+            return self.ROBOT_TYPE_MAPPING[robot_type_lower]
+        
+        # 尝试模糊匹配
+        for key, standard_type in self.ROBOT_TYPE_MAPPING.items():
+            if key in robot_type_lower or robot_type_lower in key:
+                return standard_type
+        
+        # 如果包含特定关键词，推断类型
+        if any(kw in robot_type_lower for kw in ['drone', 'uav', 'aerial', 'quadrotor', '飞行', '无人机']):
+            return 'Drone'
+        elif any(kw in robot_type_lower for kw in ['mobile_manipulator', 'mobile manipulation', 'ma-mo', 'mamo']):
+            return 'MobileManipulation'
+        elif any(kw in robot_type_lower for kw in ['mobile_base', 'mobile base', 'agv', '移动基地']):
+            return 'Mobile'
+        elif any(kw in robot_type_lower for kw in ['manipulator', 'arm', 'ma', '机械臂']):
+            return 'Manipulator'
+        
+        # 无法识别，返回原值
+        print(f"[RobotAgent] Warning: Unknown robot type '{robot_type}', using as-is")
+        return robot_type
+    
+    def _get_available_actions(self, robot_type: str) -> List[str]:
+        """
+        获取机器人可用的动作集合
+        支持多种命名方式
+        """
+        # 首先尝试直接匹配
+        if robot_type in self.ACTION_SETS:
+            return self.ACTION_SETS[robot_type]
+        
+        # 尝试标准化后的类型
+        normalized = self._normalize_robot_type(robot_type)
+        if normalized in self.ACTION_SETS:
+            return self.ACTION_SETS[normalized]
+        
+        # 尝试小写匹配
+        robot_type_lower = robot_type.lower()
+        for key, actions in self.ACTION_SETS.items():
+            if key.lower() == robot_type_lower:
+                return actions
+        
+        # 默认返回最基本的动作
+        print(f"[RobotAgent] Warning: No action set found for type '{robot_type}', using default")
+        return ['communicate', 'wait']
         
     def set_message_callback(self, callback):
         """Set callback for sending messages"""
@@ -128,13 +262,13 @@ class RobotAgent:
                 print(f"[DEBUG] Invalid response, retrying...")
         
         # Fallback if all retries fail
-        fallback_desc = f"I am {self.name}, a {self.robot_type} robot with {', '.join(self.capabilities)} capabilities."
+        fallback_desc = f"I am {self.name}, a {self.normalized_robot_type} robot with {', '.join(self.capabilities)} capabilities."
         self.memory.store_self_description(fallback_desc)
         return "", fallback_desc
     
     def _build_self_description_prompt(self, task: str) -> str:
         """Build prompt for Self-Description stage"""
-        return f"""You are {self.name}, a {self.robot_type} robot with capabilities: {', '.join(self.capabilities)}.
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot with capabilities: {', '.join(self.capabilities)}.
 
 Task: {task}
 
@@ -213,7 +347,7 @@ Description: <Your introduction to teammates (2-3 sentences)>"""
         """Build prompt for Task Allocation stage"""
         teammates_str = "\n".join([f"- {name}: {desc}" for name, desc in teammates_descriptions.items()])
         
-        return f"""You are {self.name}, a {self.robot_type} robot with capabilities: {', '.join(self.capabilities)}.
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot with capabilities: {', '.join(self.capabilities)}.
 
 Task: {task}
 
@@ -328,7 +462,7 @@ Campaign Speech: <Your leadership campaign speech (2-3 sentences)>"""
         
         robot_list = ", ".join(proposals.keys())
         
-        return f"""You are {self.name}, a {self.robot_type} robot.
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 
 You need to vote for a leader among: {robot_list}
 
@@ -419,7 +553,7 @@ Vote: <Name of the robot you vote for>"""
             if self.is_leader:
                 leader_info += " (You are the leader)"
         
-        return f"""You are {self.name}, a {self.robot_type} robot.
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 Your capabilities: {', '.join(self.capabilities)}
 Your available actions: {', '.join(self.available_actions)}{leader_info}
 
@@ -544,7 +678,7 @@ Valid action types: {', '.join(self.available_actions)}"""
             for name, info in robot_states.items()
         ])
         
-        return f"""You are {self.name}, a {self.robot_type} robot.
+        return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 Your capabilities: {', '.join(self.capabilities)}
 
 Task: {task}
