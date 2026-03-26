@@ -131,8 +131,8 @@ class RobotFactory:
         if model == "panda":
             from Robotics_API.Bestman_sim_panda_with_gripper import Bestman_sim_panda_with_gripper
             
-            # 构建配置对象 - 固定机械臂也需要 base_urdf_path
-            # 使用一个简单的平面作为基座
+            # 构建配置对象 - 固定机械臂使用简化底座（固定平台）
+            # 创建一个固定的平台作为机械臂的基座
             cfg = self._build_config(config, {
                 'base_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf"),
                 'arm_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/arm/franka/urdf/panda.urdf"),
@@ -149,15 +149,44 @@ class RobotFactory:
                 'nearVal': 0.1,
                 'farVal': 10.0,
                 'head_tilt': 0.0,
+                # 固定机械臂特定配置
+                'is_fixed_base': True,  # 标记为固定基座
+                'base_fixed': True,
             })
             
-            return Bestman_sim_panda_with_gripper(self.client, self.visualizer, cfg)
+            # 创建机械臂实例
+            arm_instance = Bestman_sim_panda_with_gripper(self.client, self.visualizer, cfg)
+            
+            # 固定底座（禁止移动）
+            if hasattr(arm_instance, 'base_id') and arm_instance.base_id is not None:
+                p = self._get_pybullet()
+                if p:
+                    # 设置底座为静态（质量为0，不受重力影响）
+                    p.changeDynamics(
+                        arm_instance.base_id, 
+                        -1,  # 基座链接
+                        mass=0,  # 质量为0表示静态
+                        linearDamping=1.0,
+                        angularDamping=1.0,
+                        physicsClientId=self.client
+                    )
+                    print(f"[RobotFactory] 固定机械臂底座已锁定")
+            
+            return arm_instance
             
         elif model == "xarm6":
             # 可以添加 xarm6 支持
             raise NotImplementedError("xarm6 支持待实现")
         else:
             raise ValueError(f"不支持的机械臂型号: {model}")
+    
+    def _get_pybullet(self):
+        """获取 pybullet 模块"""
+        try:
+            import pybullet as p
+            return p
+        except ImportError:
+            return None
     
     def _create_mobile_base(self, model: str, config: Dict) -> Any:
         """创建移动基座 BestMan 实例"""

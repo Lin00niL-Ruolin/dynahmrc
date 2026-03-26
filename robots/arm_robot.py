@@ -41,6 +41,10 @@ class ArmRobot:
         self.bestman = bestman_instance
         self.capabilities = capabilities or ["manipulation", "perception"]
         
+        # 固定机械臂特性
+        self.is_fixed_base = True  # 标记为固定基座，不可移动
+        self.can_navigate = False  # 无导航能力
+        
         # 状态信息
         self.position = [0.0, 0.0, 0.0]
         self.orientation = [0.0, 0.0, 0.0, 1.0]
@@ -50,6 +54,8 @@ class ArmRobot:
         
         # 更新初始位置
         self._update_pose()
+        
+        print(f"[ArmRobot] 固定机械臂 {robot_id} 初始化完成 (不可移动)")
     
     def _update_pose(self):
         """从 BestMan 实例更新当前位姿"""
@@ -64,6 +70,8 @@ class ArmRobot:
         return {
             "robot_id": self.robot_id,
             "robot_type": self.robot_type,
+            "is_fixed_base": self.is_fixed_base,  # 固定基座标记
+            "can_navigate": self.can_navigate,    # 导航能力标记
             "position": self.position,
             "orientation": self.orientation,
             "is_busy": self.is_busy,
