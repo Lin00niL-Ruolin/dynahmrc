@@ -77,11 +77,12 @@ class InflationRadiusVisualizer:
             
             # 初始化路径规划器
             self.path_planner = PathPlanner(
-                resolution=0.1,
-                robot_radius=0.3,
                 client_id=self.client
             )
             print("   ✓ 路径规划器初始化成功")
+            
+            # 设置机器人半径
+            self.robot_radius = 0.3
             
         except Exception as e:
             print(f"   [ERROR] 初始化失败: {e}")
@@ -217,7 +218,7 @@ class InflationRadiusVisualizer:
     def calculate_inflation_radius(self, obj_radius, robot_radius=None):
         """计算膨胀半径"""
         if robot_radius is None:
-            robot_radius = getattr(self.path_planner, 'robot_radius', 0.3)
+            robot_radius = getattr(self, 'robot_radius', 0.3)
         
         # 与 path_planning.py 中相同的计算方式
         total_radius = robot_radius + obj_radius * 0.5 + 0.05
@@ -244,7 +245,7 @@ class InflationRadiusVisualizer:
             # 清除之前的可视化
             self.clear_visualization()
             
-            robot_radius = getattr(self.path_planner, 'robot_radius', 0.3)
+            robot_radius = getattr(self, 'robot_radius', 0.3)
             print(f"\n   机器人半径: {robot_radius}m")
             print(f"   膨胀半径计算公式: total_radius = robot_radius + obj_radius * 0.5 + 0.05")
             print()
