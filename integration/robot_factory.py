@@ -132,9 +132,16 @@ class RobotFactory:
             from Robotics_API.Bestman_sim_panda_with_gripper import Bestman_sim_panda_with_gripper
             
             # 构建配置对象 - 固定机械臂使用简化底座（固定平台）
-            # 创建一个固定的平台作为机械臂的基座
+            # 使用一个简单的平板作为机械臂的基座，而不是完整的移动底座
+            fixed_base_path = os.path.join(root_dir, "Asset/Robot/arm_base/urdf/fixed_base.urdf")
+            
+            # 如果简化底座不存在，使用 segbot 但会隐藏大部分视觉元素
+            if not os.path.exists(fixed_base_path):
+                print(f"[RobotFactory] 警告: 简化底座不存在，使用 segbot 作为回退")
+                fixed_base_path = os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf")
+            
             cfg = self._build_config(config, {
-                'base_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf"),
+                'base_urdf_path': fixed_base_path,
                 'arm_urdf_path': os.path.join(root_dir, "Asset/Robot/mobile_manipulator/arm/franka/urdf/panda.urdf"),
                 'arm_num_dofs': 7,
                 'eef_id': 7,
@@ -255,6 +262,7 @@ class RobotFactory:
         
         cfg = self._build_config(config, {
             'base_urdf_path': drone_urdf_path,
+            'base_init_pose': config.get('base_init_pose', [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),  # 默认在空中1米高
             'arm_num_dofs': 0,  # 无人机无机械臂
             'flight_height': 1.5,
             'max_payload': 0.5,
