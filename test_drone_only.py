@@ -214,17 +214,19 @@ class DroneTester:
             print("\n   [测试 5.1] 抓取箱子...")
             print(f"   箱子ID: {box_id}")
             
-            # 箱子位置
-            box_pos = [2.0, 0.0, 1.0]
+            # 获取箱子实际位置（物理仿真后的位置）
+            box_pose = self.client.get_object_pose(box_id)
+            box_pos = box_pose.get_position()
+            print(f"   箱子实际位置: {box_pos}")
             
-            # 先飞到箱子正上方
+            # 先飞到箱子正上方（高度1.5米）
             print("   先导航到箱子正上方...")
-            approach_pos = [2.0, 0.0, 1.5]
+            approach_pos = [box_pos[0], box_pos[1], 1.5]
             success_nav, msg_nav = self.drone.navigate_to(approach_pos)
             print(f"   导航结果: {success_nav}, {msg_nav}")
             time.sleep(0.5)
             
-            # 执行抓取（需要提供 object_position）
+            # 执行抓取（使用实际位置）
             pick_success, pick_msg = self.drone.pick(object_id=box_id, object_position=box_pos)
             print(f"   {'✓' if pick_success else '✗'} 抓取箱子: {'成功' if pick_success else '失败'} ({pick_msg})")
             
