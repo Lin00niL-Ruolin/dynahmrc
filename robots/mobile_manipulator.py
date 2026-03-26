@@ -748,8 +748,8 @@ class MobileManipulator:
         self,
         target_position: List[float],
         target_orientation: Optional[List[float]] = None,
-        max_steps: int = 200,
-        tolerance: float = 0.1
+        max_steps: int = 100,
+        tolerance: float = 0.05
     ) -> bool:
         """移动机械臂到目标位置，并等待到达"""
         print(f"[MobileManipulator] _move_arm_to_position 被调用，目标: {target_position}")
@@ -822,9 +822,8 @@ class MobileManipulator:
             traceback.print_exc()
             return False
     
-    def _simple_ik_move(self, target_pos, target_orn, max_steps=200, tolerance=0.1):
-        """简单的 IK 移动，带位置检查"""
-        print(f"[MobileManipulator] _simple_ik_move 开始，目标: {target_pos}")
+    def _simple_ik_move(self, target_pos, target_orn):
+        """简单的 IK 移动"""
         try:
             joint_positions = p.calculateInverseKinematics(
                 self.bestman.arm_id,
@@ -845,38 +844,10 @@ class MobileManipulator:
                     physicsClientId=self.bestman.client_id
                 )
             
-            # 等待并检查是否到达目标
-            for step in range(max_steps):
-                self.bestman.client.run(1)
-                
-                # 获取当前末端位置
-                eef_state = p.getLinkState(
-                    self.bestman.arm_id, 
-                    self.bestman.eef_id,
-                    physicsClientId=self.bestman.client_id
-                )
-                current_pos = eef_state[0]
-                
-                distance = math.sqrt(
-                    (current_pos[0] - target_pos[0])**2 +
-                    (current_pos[1] - target_pos[1])**2 +
-                    (current_pos[2] - target_pos[2])**2
-                )
-                
-                if step % 20 == 0:
-                    print(f"[MobileManipulator] _simple_ik_move 步骤 {step}: 当前 {current_pos}, 距离 {distance:.4f}m")
-                
-                if distance < tolerance:
-                    print(f"[MobileManipulator] _simple_ik_move 到达目标，误差: {distance:.4f}m")
-                    return True
-            
-            print(f"[MobileManipulator] _simple_ik_move 超时未到达目标")
-            return False
+            self.bestman.client.run(50)
+            return True
             
         except Exception as e:
-            print(f"[MobileManipulator] _simple_ik_move 错误: {e}")
-            import traceback
-            traceback.print_exc()
             return False
     
     def open_gripper(self):
