@@ -213,11 +213,15 @@ class MobileManipulator:
         
         # 提取障碍物位置用于调试
         obstacle_positions = []
+        obstacle_details = []
         for obj_name, obj_info in scene_objects.items():
-            if obj_info.get('type') != 'graspable':
+            obj_type = obj_info.get('type', 'unknown')
+            if obj_type != 'graspable':
                 pos = obj_info.get('position', [0, 0, 0])
                 obstacle_positions.append([pos[0], pos[1]])
-        print(f"[MobileManipulator] 障碍物数量: {len(obstacle_positions)}, 位置: {obstacle_positions}")
+                obstacle_details.append(f"{obj_name}({obj_type}):[{pos[0]:.2f},{pos[1]:.2f}]")
+        print(f"[MobileManipulator] 障碍物数量: {len(obstacle_positions)}")
+        print(f"[MobileManipulator] 障碍物详情: {obstacle_details}")
         
         # 记录是否卡住
         stuck_counter = 0
@@ -254,13 +258,16 @@ class MobileManipulator:
             
             # 检查是否碰撞障碍物
             collision = False
-            for obs_pos in obstacle_positions:
+            for obj_name, obj_info in scene_objects.items():
+                if obj_info.get('type') == 'graspable':
+                    continue
+                obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(
                     (obs_pos[0] - self.position[0]) ** 2 +
                     (obs_pos[1] - self.position[1]) ** 2
                 )
                 if dist_to_obs < 0.3:  # 机器人半径
-                    print(f"[MobileManipulator] ⚠️ 警告: 距离障碍物 {dist_to_obs:.3f}m，位置 {obs_pos}")
+                    print(f"[MobileManipulator] ⚠️ 警告: 距离障碍物 '{obj_name}' {dist_to_obs:.3f}m，位置 [{obs_pos[0]:.3f}, {obs_pos[1]:.3f}]")
                     collision = True
             
             # 使用 DWA 计算速度
@@ -274,7 +281,7 @@ class MobileManipulator:
             )
             
             # 应用速度
-            self._apply_velocity(v, yaw_rate, obstacle_positions)
+            self._apply_velocity(v, yaw_rate, scene_objects)
             
             current_v = v
             current_yaw_rate = yaw_rate
@@ -290,7 +297,7 @@ class MobileManipulator:
         print(f"[MobileManipulator] DWA 导航结束，最终位置: [{self.position[0]:.3f}, {self.position[1]:.3f}]")
         return False
     
-    def _apply_velocity(self, v: float, yaw_rate: float, obstacles: List[List[float]] = None):
+    def _apply_velocity(self, v: float, yaw_rate: float, scene_objects: Dict[str, Dict] = None):
         """应用速度指令，带障碍物检测，同时移动底座和机械臂"""
         # 计算新位置
         dt = 0.1
@@ -299,15 +306,18 @@ class MobileManipulator:
         new_y = self.position[1] + v * math.sin(new_yaw) * dt
         
         # 检查新位置是否会碰撞障碍物
-        if obstacles:
-            for obs_pos in obstacles:
+        if scene_objects:
+            for obj_name, obj_info in scene_objects.items():
+                if obj_info.get('type') == 'graspable':
+                    continue
+                obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(
                     (obs_pos[0] - new_x) ** 2 +
                     (obs_pos[1] - new_y) ** 2
                 )
                 if dist_to_obs < 0.35:  # 机器人半径 + 安全距离
                     # 会碰撞，停止移动
-                    print(f"[MobileManipulator] 🚫 碰撞检测: 新位置 [{new_x:.3f}, {new_y:.3f}] 距离障碍物 {dist_to_obs:.3f}m，停止移动")
+                    print(f"[MobileManipulator] 🚫 碰撞检测: 新位置 [{new_x:.3f}, {new_y:.3f}] 距离障碍物 '{obj_name}' {dist_to_obs:.3f}m，位置 [{obs_pos[0]:.3f}, {obs_pos[1]:.3f}]，停止移动")
                     return
         
         # 更新朝向
