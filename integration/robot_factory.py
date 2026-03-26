@@ -161,6 +161,8 @@ class RobotFactory:
             if hasattr(arm_instance, 'base_id') and arm_instance.base_id is not None:
                 p = self._get_pybullet()
                 if p:
+                    # 获取 client ID（Client 对象的 client_id 属性）
+                    client_id = getattr(self.client, 'client_id', self.client)
                     # 设置底座为静态（质量为0，不受重力影响）
                     p.changeDynamics(
                         arm_instance.base_id, 
@@ -168,7 +170,7 @@ class RobotFactory:
                         mass=0,  # 质量为0表示静态
                         linearDamping=1.0,
                         angularDamping=1.0,
-                        physicsClientId=self.client
+                        physicsClientId=client_id
                     )
                     print(f"[RobotFactory] 固定机械臂底座已锁定")
             
