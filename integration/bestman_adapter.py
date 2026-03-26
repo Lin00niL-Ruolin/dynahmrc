@@ -90,6 +90,7 @@ class BestManAdapter:
         self.robot_registry = robot_registry
         self.client = client
         self.scene_objects: Dict[str, Dict] = {}  # 存储场景物体信息
+        self.reachable_positions: Dict[str, List[float]] = {}  # 存储预计算的可到达位置 {position_name: [x, y, z]}
         self.action_handlers: Dict[ActionType, Callable] = {
             ActionType.NAVIGATE: self._handle_navigate,
             ActionType.PICK: self._handle_pick,
@@ -103,6 +104,26 @@ class BestManAdapter:
             ActionType.EMERGENCY_STOP: self._handle_emergency_stop,
             ActionType.COMMUNICATE: self._handle_communicate,
         }
+    
+    def set_reachable_positions(self, positions: Dict[str, List[float]]):
+        """
+        设置预计算的可到达位置
+        
+        Args:
+            positions: 位置字典 {position_name: [x, y, z], ...}
+        """
+        self.reachable_positions = positions
+        print(f"[BestManAdapter] 设置 {len(positions)} 个可到达位置")
+    
+    def update_reachable_position(self, name: str, position: List[float]):
+        """
+        更新或添加单个可到达位置
+        
+        Args:
+            name: 位置名称
+            position: 位置坐标 [x, y, z]
+        """
+        self.reachable_positions[name] = position
     
     def execute_action(
         self,
@@ -639,32 +660,61 @@ class BestManAdapter:
         解析目标名称到位置坐标
         
         Args:
-            target_name: 目标名称（如 "prep_station", "box" 等）
+            target_name: 目标名称（如 "prep_station", "box", "food_lemon_approach" 等）
         
         Returns:
             位置坐标 [x, y, z]，如果找不到返回 None
         """
-        # 1. 从场景物体中查找
+        # 1. 从预计算的可到达位置中查找（优先级最高）
+        if target_name in self.reachable_positions:
+            pos = self.reachable_positions[target_name]
+            print(f"[_resolve_target_position] 从预计算位置找到 '{target_name}': {pos}")
+            return pos
+        
+        # 2. 尝试模糊匹配预计算位置（忽略大小写）
+        for name, pos in self.reachable_positions.items():
+            if name.lower() == target_name.lower():
+                print(f"[_resolve_target_position] 模糊匹配预计算位置 '{target_name}' -> '{name}': {pos}")
+                return pos
+        
+        # 3. 从场景物体中查找
         if target_name in self.scene_objects:
             obj_info = self.scene_objects[target_name]
             pos = obj_info.get('position', [0, 0, 0])
             print(f"[_resolve_target_position] 从场景物体找到 '{target_name}': {pos}")
             return pos
         
-        # 2. 尝试模糊匹配（忽略大小写）
+        # 4. 尝试模糊匹配场景物体（忽略大小写）
         for name, info in self.scene_objects.items():
             if name.lower() == target_name.lower():
                 pos = info.get('position', [0, 0, 0])
-                print(f"[_resolve_target_position] 模糊匹配找到 '{target_name}' -> '{name}': {pos}")
+                print(f"[_resolve_target_position] 模糊匹配场景物体 '{target_name}' -> '{name}': {pos}")
                 return pos
         
-        # 3. 从机器人注册表中查找（其他机器人的位置）
+        # 5. 从机器人注册表中查找（其他机器人的位置）
         for rid, robot in self.robot_registry.items():
             if rid == target_name or rid.lower() == target_name.lower():
                 state = robot.get_state()
                 pos = state.get('position', [0, 0, 0])
                 print(f"[_resolve_target_position] 从机器人找到 '{target_name}': {pos}")
                 return pos
+        
+        # 6. 尝试解析为 "物体名_后缀" 格式（如 food_lemon_approach）
+        if '_' in target_name:
+            parts = target_name.rsplit('_', 1)  # 从右边分割，保留物体名中的下划线
+            if len(parts) == 2:
+                object_name, suffix = parts
+                # 尝试查找物体
+                if object_name in self.scene_objects:
+                    pos = self.scene_objects[object_name].get('position', [0, 0, 0])
+                    print(f"[_resolve_target_position] 从物体名+后缀解析 '{target_name}' -> 物体 '{object_name}': {pos}")
+                    return pos
+                # 尝试模糊匹配物体名
+                for name in self.scene_objects.keys():
+                    if name.lower() == object_name.lower():
+                        pos = self.scene_objects[name].get('position', [0, 0, 0])
+                        print(f"[_resolve_target_position] 模糊匹配物体名+后缀 '{target_name}' -> '{name}': {pos}")
+                        return pos
         
         print(f"[_resolve_target_position] 警告: 无法解析目标 '{target_name}'")
         return None
