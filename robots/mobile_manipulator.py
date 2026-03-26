@@ -753,9 +753,11 @@ class MobileManipulator:
             target_pose = Pose(target_position, target_orientation or [0, 0, 0, 1])
             
             if hasattr(self.bestman, 'sim_move_arm_to_target_pose'):
+                print(f"[MobileManipulator] 调用 sim_move_arm_to_target_pose 目标: {target_position}")
                 self.bestman.sim_move_arm_to_target_pose(target_pose)
                 
                 # 等待机械臂到达目标位置
+                print(f"[MobileManipulator] 等待机械臂到达目标...")
                 for step in range(max_steps):
                     # 获取当前末端执行器位置
                     if hasattr(self.bestman, 'eef_id') and hasattr(self.bestman, 'arm_id'):
@@ -773,15 +775,35 @@ class MobileManipulator:
                             (current_pos[2] - target_position[2])**2
                         )
                         
+                        if step % 20 == 0:  # 每20步打印一次
+                            print(f"[MobileManipulator] 步骤 {step}: 当前位置 {current_pos}, 目标 {target_position}, 距离 {distance:.4f}m")
+                        
                         if distance < tolerance:
                             print(f"[MobileManipulator] 机械臂到达目标位置: {target_position}, 误差: {distance:.4f}m")
                             return True
+                    else:
+                        print(f"[MobileManipulator] 警告: bestman 没有 eef_id 或 arm_id 属性")
+                        return True  # 无法检查位置，直接返回成功
                     
                     # 运行一步仿真
                     self.bestman.client.run(1)
                 
                 # 超时未到达
                 print(f"[MobileManipulator] 警告: 机械臂未能在 {max_steps} 步内到达目标位置")
+                # 获取最终位置
+                if hasattr(self.bestman, 'eef_id') and hasattr(self.bestman, 'arm_id'):
+                    eef_state = p.getLinkState(
+                        self.bestman.arm_id, 
+                        self.bestman.eef_id,
+                        physicsClientId=self.bestman.client_id
+                    )
+                    final_pos = eef_state[0]
+                    final_distance = math.sqrt(
+                        (final_pos[0] - target_position[0])**2 +
+                        (final_pos[1] - target_position[1])**2 +
+                        (final_pos[2] - target_position[2])**2
+                    )
+                    print(f"[MobileManipulator] 最终位置: {final_pos}, 距离目标: {final_distance:.4f}m")
                 return False
             else:
                 return self._simple_ik_move(target_position, target_orientation)

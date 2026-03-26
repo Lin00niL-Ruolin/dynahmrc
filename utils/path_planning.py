@@ -92,7 +92,7 @@ class AStarPlanner:
                 radius_cells = int(total_radius / self.resolution) + 1
                 
                 if i < 5:  # 打印前5个障碍物的详细信息
-                    print(f"[A*] 静态障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.f}) -> 栅格 ({grid_x}, {grid_y}), "
+                    print(f"[A*] 静态障碍物 {i}: 位置 ({pos[0]:.2f}, {pos[1]:.2f}) -> 栅格 ({grid_x}, {grid_y}), "
                           f"物体半径 {obj_radius:.2f}m, 膨胀半径 {total_radius:.2f}m ({radius_cells} 格)")
                 
                 for dx in range(-radius_cells, radius_cells + 1):
