@@ -250,19 +250,31 @@ class RobotFactory:
         """创建无人机 BestMan 实例"""
         root_dir = self._get_project_root()
         
-        # 使用 GitHub 上的无人机模型
-        drone_urdf_path = os.path.join(root_dir, "Asset/Robot/drone/urdf/drone.urdf")
+        # 使用 GitHub 上的无人机模型 - 使用绝对路径
+        drone_urdf_path = os.path.abspath(os.path.join(root_dir, "Asset/Robot/drone/urdf/drone.urdf"))
+        
+        print(f"[RobotFactory] 无人机模型路径: {drone_urdf_path}")
+        print(f"[RobotFactory] 文件存在: {os.path.exists(drone_urdf_path)}")
+        
+        # 检查 meshes 目录
+        meshes_dir = os.path.abspath(os.path.join(root_dir, "Asset/Robot/drone/meshes"))
+        print(f"[RobotFactory] Meshes 目录: {meshes_dir}")
+        print(f"[RobotFactory] Meshes 存在: {os.path.exists(meshes_dir)}")
+        if os.path.exists(meshes_dir):
+            stl_files = [f for f in os.listdir(meshes_dir) if f.endswith('.STL')]
+            print(f"[RobotFactory] STL 文件数量: {len(stl_files)}")
         
         # 如果本地不存在，使用默认配置
         if not os.path.exists(drone_urdf_path):
             print(f"[RobotFactory] 警告: 无人机模型不存在于 {drone_urdf_path}")
             print(f"[RobotFactory] 请从 https://github.com/harsh2507/drone_urdf2.git 下载模型")
             print(f"[RobotFactory] 使用简化配置...")
-            drone_urdf_path = os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf")
+            drone_urdf_path = os.path.abspath(os.path.join(root_dir, "Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf"))
         
         cfg = self._build_config(config, {
             'base_urdf_path': drone_urdf_path,
             'base_init_pose': config.get('base_init_pose', [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),  # 默认在空中1米高
+            'fixed_base': True,  # 无人机使用固定基座
             'arm_num_dofs': 0,  # 无人机无机械臂
             'flight_height': 1.5,
             'max_payload': 0.5,
@@ -370,13 +382,24 @@ class MobileBaseAdapter:
             self.robot_cfg.base_init_pose[3:]
         )
         
-        self.base_id = self.client.load_object(
-            obj_name="mobile_base",
-            model_path=self.robot_cfg.base_urdf_path,
-            object_position=self.base_init_pose.get_position(),
-            object_orientation=self.base_init_pose.get_orientation(),
-            fixed_base=False
-        )
+        # 检查是否需要固定基座（无人机等）
+        fixed_base = getattr(self.robot_cfg, 'fixed_base', False)
+        
+        print(f"[MobileBaseAdapter] 加载模型: {self.robot_cfg.base_urdf_path}")
+        print(f"[MobileBaseAdapter] 固定基座: {fixed_base}")
+        
+        try:
+            self.base_id = self.client.load_object(
+                obj_name="mobile_base",
+                model_path=self.robot_cfg.base_urdf_path,
+                object_position=self.base_init_pose.get_position(),
+                object_orientation=self.base_init_pose.get_orientation(),
+                fixed_base=fixed_base
+            )
+            print(f"[MobileBaseAdapter] 模型加载成功, base_id: {self.base_id}")
+        except Exception as e:
+            print(f"[MobileBaseAdapter] 模型加载失败: {e}")
+            raise
         
         # 初始化控制器
         from Controller import PIDController
