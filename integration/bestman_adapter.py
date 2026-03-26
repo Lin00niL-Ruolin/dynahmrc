@@ -244,21 +244,34 @@ class BestManAdapter:
         """处理导航动作"""
         print(f"[_handle_navigate] 开始: robot_id={robot_id}, params={params}")
         
-        target = params.get("target")
-        if not target:
-            print(f"[_handle_navigate] 错误: 缺少目标位置参数")
-            return False, "缺少目标位置参数", {}
+        position = None
+        orientation = None
         
-        # 支持多种位置格式
-        if isinstance(target, dict):
-            position = [target.get("x", 0), target.get("y", 0), target.get("z", 0)]
-            orientation = target.get("orientation")
-        elif isinstance(target, list):
-            position = target[:3]
-            orientation = target[3:] if len(target) > 3 else None
-        else:
-            print(f"[_handle_navigate] 错误: 不支持的目标格式 {type(target)}")
-            return False, f"不支持的目标格式: {type(target)}", {}
+        # 支持多种参数格式
+        # 格式1: params = {"target": [x, y, z]} 或 {"target": {"x": x, "y": y, "z": z}}
+        if "target" in params:
+            target = params["target"]
+            if isinstance(target, dict):
+                position = [target.get("x", 0), target.get("y", 0), target.get("z", 0)]
+                orientation = target.get("orientation")
+            elif isinstance(target, list):
+                position = target[:3]
+                orientation = target[3:] if len(target) > 3 else None
+            elif isinstance(target, str):
+                # target 是字符串（如物体名称），需要解析为位置
+                print(f"[_handle_navigate] target 是字符串: {target}，尝试解析为位置...")
+                position = self._resolve_target_position(target)
+                if position is None:
+                    return False, f"无法解析目标位置: {target}", {}
+        
+        # 格式2: params = {"x": x, "y": y, "z": z}
+        elif "x" in params and "y" in params:
+            position = [params.get("x", 0), params.get("y", 0), params.get("z", 0)]
+            orientation = params.get("orientation")
+        
+        if position is None:
+            print(f"[_handle_navigate] 错误: 无法解析目标位置参数")
+            return False, "缺少或无法解析目标位置参数", {}
         
         print(f"[_handle_navigate] 目标位置: {position}, 朝向: {orientation}")
         
@@ -547,6 +560,41 @@ class BestManAdapter:
         
         print(f"[BestManAdapter] 警告: 找不到物体 '{object_name}'")
         return -1
+    
+    def _resolve_target_position(self, target_name: str) -> Optional[List[float]]:
+        """
+        解析目标名称到位置坐标
+        
+        Args:
+            target_name: 目标名称（如 "prep_station", "box" 等）
+        
+        Returns:
+            位置坐标 [x, y, z]，如果找不到返回 None
+        """
+        # 1. 从场景物体中查找
+        if target_name in self.scene_objects:
+            obj_info = self.scene_objects[target_name]
+            pos = obj_info.get('position', [0, 0, 0])
+            print(f"[_resolve_target_position] 从场景物体找到 '{target_name}': {pos}")
+            return pos
+        
+        # 2. 尝试模糊匹配（忽略大小写）
+        for name, info in self.scene_objects.items():
+            if name.lower() == target_name.lower():
+                pos = info.get('position', [0, 0, 0])
+                print(f"[_resolve_target_position] 模糊匹配找到 '{target_name}' -> '{name}': {pos}")
+                return pos
+        
+        # 3. 从机器人注册表中查找（其他机器人的位置）
+        for rid, robot in self.robot_registry.items():
+            if rid == target_name or rid.lower() == target_name.lower():
+                state = robot.get_state()
+                pos = state.get('position', [0, 0, 0])
+                print(f"[_resolve_target_position] 从机器人找到 '{target_name}': {pos}")
+                return pos
+        
+        print(f"[_resolve_target_position] 警告: 无法解析目标 '{target_name}'")
+        return None
     
     def get_robot_states(self) -> Dict[str, Dict]:
         """获取所有机器人状态"""
