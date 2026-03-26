@@ -629,3 +629,101 @@ class MobileBaseAdapter:
     def rotate_base_to_yaw(self, target_yaw):
         """旋转基座到目标朝向"""
         self.sim_rotate_base_to_target_yaw(target_yaw)
+    
+    def grasp(self, object_id: int) -> bool:
+        """
+        抓取物体
+        
+        Args:
+            object_id: 物体ID
+        
+        Returns:
+            是否抓取成功
+        """
+        import pybullet as p
+        
+        try:
+            print(f"[MobileBaseAdapter] 尝试抓取物体 {object_id}")
+            
+            # 获取无人机当前位置
+            drone_pose = self.sim_get_current_base_pose()
+            drone_pos = drone_pose.get_position()
+            
+            # 获取物体当前位置
+            obj_pose = self.client.get_object_pose(object_id)
+            obj_pos = obj_pose.get_position()
+            
+            # 检查距离
+            import math
+            distance = math.sqrt(
+                (drone_pos[0] - obj_pos[0])**2 +
+                (drone_pos[1] - obj_pos[1])**2 +
+                (drone_pos[2] - obj_pos[2])**2
+            )
+            
+            print(f"[MobileBaseAdapter] 无人机位置: {drone_pos}")
+            print(f"[MobileBaseAdapter] 物体位置: {obj_pos}")
+            print(f"[MobileBaseAdapter] 距离: {distance:.3f}m")
+            
+            if distance > 0.5:  # 距离太远
+                print(f"[MobileBaseAdapter] 距离太远，无法抓取")
+                return False
+            
+            # 创建约束将物体连接到无人机
+            # 使用固定约束
+            constraint_id = p.createConstraint(
+                parentBodyUniqueId=self.base_id,
+                parentLinkIndex=-1,  # 基座
+                childBodyUniqueId=object_id,
+                childLinkIndex=-1,  # 基座
+                jointType=p.JOINT_FIXED,
+                jointAxis=[0, 0, 0],
+                parentFramePosition=[0, 0, -0.1],  # 在无人机下方
+                childFramePosition=[0, 0, 0],
+                physicsClientId=self.client_id
+            )
+            
+            print(f"[MobileBaseAdapter] 创建约束 ID: {constraint_id}")
+            
+            # 保存约束ID用于后续释放
+            self._grasp_constraint_id = constraint_id
+            self._grasped_object_id = object_id
+            
+            # 运行几步仿真让约束生效
+            self.client.run(10)
+            
+            print(f"[MobileBaseAdapter] 抓取成功")
+            return True
+            
+        except Exception as e:
+            print(f"[MobileBaseAdapter] 抓取失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def release(self) -> bool:
+        """
+        释放抓取的物体
+        
+        Returns:
+            是否释放成功
+        """
+        import pybullet as p
+        
+        try:
+            if hasattr(self, '_grasp_constraint_id') and self._grasp_constraint_id is not None:
+                p.removeConstraint(self._grasp_constraint_id, physicsClientId=self.client_id)
+                print(f"[MobileBaseAdapter] 释放物体，移除约束 {self._grasp_constraint_id}")
+                self._grasp_constraint_id = None
+                self._grasped_object_id = None
+                self.client.run(5)
+                return True
+            else:
+                print(f"[MobileBaseAdapter] 没有抓取的物体")
+                return False
+                
+        except Exception as e:
+            print(f"[MobileBaseAdapter] 释放失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False

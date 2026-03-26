@@ -258,8 +258,9 @@ class DroneRobot:
             if self.is_holding_object:
                 return False, "已经持有物体"
             
-            # 导航到物体上方
-            approach_pos = [object_position[0], object_position[1], object_position[2] + 0.3]
+            # 导航到物体上方（更近的距离以便抓取）
+            approach_pos = [object_position[0], object_position[1], object_position[2] + 0.15]
+            print(f"[DroneRobot] 导航到接近位置: {approach_pos}")
             success, msg = self.navigate_to(approach_pos)
             
             if not success:
