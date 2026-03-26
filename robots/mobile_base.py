@@ -432,3 +432,15 @@ class MobileBase:
         dx = position[0] - self.position[0]
         dy = position[1] - self.position[1]
         return math.sqrt(dx**2 + dy**2)
+    
+    def receive_message(self, sender: str, message: str):
+        """
+        接收来自其他机器人的消息
+        
+        Args:
+            sender: 发送者名称
+            message: 消息内容
+        """
+        print(f"[{self.robot_id}] 收到来自 {sender} 的消息: {message[:50]}...")
+        # 可以在这里添加消息处理逻辑
+        # 例如：存储消息、触发动作等

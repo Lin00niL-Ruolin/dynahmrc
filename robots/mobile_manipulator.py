@@ -747,3 +747,15 @@ class MobileManipulator:
                 force=100,
                 physicsClientId=self.bestman.client_id
             )
+    
+    def receive_message(self, sender: str, message: str):
+        """
+        接收来自其他机器人的消息
+        
+        Args:
+            sender: 发送者名称
+            message: 消息内容
+        """
+        print(f"[{self.robot_id}] 收到来自 {sender} 的消息: {message[:50]}...")
+        # 可以在这里添加消息处理逻辑
+        # 例如：存储消息、触发动作等

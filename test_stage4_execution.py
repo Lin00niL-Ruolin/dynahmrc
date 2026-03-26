@@ -379,14 +379,22 @@ class Stage4Tester:
             # 创建机器人代理
             robot_agents = []
             for robot_id, robot in robots.items():
+                # 映射 robot_type 到 RobotAgent 支持的类型
+                type_mapping = {
+                    'mobile_manipulator': 'MobileManipulation',
+                    'mobile_base': 'Mobile',
+                    'arm': 'Manipulator'
+                }
+                agent_robot_type = type_mapping.get(robot.robot_type, robot.robot_type)
+                
                 agent = RobotAgent(
                     name=robot_id,
-                    robot_type=robot.robot_type,
+                    robot_type=agent_robot_type,
                     capabilities=robot.capabilities,
                     llm_client=mock_llm
                 )
                 robot_agents.append(agent)
-                print(f"   ✓ 创建机器人代理: {robot_id}")
+                print(f"   ✓ 创建机器人代理: {robot_id} (类型: {agent_robot_type})")
             
             # 创建协作系统，传入机器人列表
             self.collaboration = FourStageCollaboration(
