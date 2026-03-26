@@ -463,6 +463,9 @@ class Stage4Tester:
             if len(self.collaboration.execution_history) > 10:
                 print(f"     ... 还有 {len(self.collaboration.execution_history) - 10} 步")
             
+            # 统计执行结果
+            self._print_execution_statistics()
+            
             return success
             
         except Exception as e:
@@ -470,6 +473,88 @@ class Stage4Tester:
             import traceback
             traceback.print_exc()
             return False
+    
+    def _print_execution_statistics(self):
+        """打印执行统计报告"""
+        print("\n" + "="*60)
+        print("执行统计报告")
+        print("="*60)
+        
+        if not self.collaboration.execution_history:
+            print("   没有执行记录")
+            return
+        
+        # 统计总体数据
+        total_actions = len(self.collaboration.execution_history)
+        success_count = sum(1 for r in self.collaboration.execution_history 
+                          if r.get('feedback', {}).get('success', False))
+        failed_count = total_actions - success_count
+        
+        print(f"\n   总体统计:")
+        print(f"      总动作数: {total_actions}")
+        print(f"      成功: {success_count} ({success_count/total_actions*100:.1f}%)")
+        print(f"      失败: {failed_count} ({failed_count/total_actions*100:.1f}%)")
+        
+        # 按机器人统计
+        print(f"\n   按机器人统计:")
+        robot_stats = {}
+        for record in self.collaboration.execution_history:
+            robot = record.get('robot', 'unknown')
+            success = record.get('feedback', {}).get('success', False)
+            
+            if robot not in robot_stats:
+                robot_stats[robot] = {'total': 0, 'success': 0, 'failed': 0}
+            
+            robot_stats[robot]['total'] += 1
+            if success:
+                robot_stats[robot]['success'] += 1
+            else:
+                robot_stats[robot]['failed'] += 1
+        
+        for robot, stats in sorted(robot_stats.items()):
+            success_rate = stats['success'] / stats['total'] * 100 if stats['total'] > 0 else 0
+            print(f"      {robot}: 总计={stats['total']}, 成功={stats['success']}, 失败={stats['failed']}, 成功率={success_rate:.1f}%")
+        
+        # 按动作类型统计
+        print(f"\n   按动作类型统计:")
+        action_stats = {}
+        for record in self.collaboration.execution_history:
+            action = record.get('action', {})
+            action_type = action.get('action', 'unknown')
+            success = record.get('feedback', {}).get('success', False)
+            
+            if action_type not in action_stats:
+                action_stats[action_type] = {'total': 0, 'success': 0, 'failed': 0}
+            
+            action_stats[action_type]['total'] += 1
+            if success:
+                action_stats[action_type]['success'] += 1
+            else:
+                action_stats[action_type]['failed'] += 1
+        
+        for action_type, stats in sorted(action_stats.items()):
+            success_rate = stats['success'] / stats['total'] * 100 if stats['total'] > 0 else 0
+            status = "✓" if stats['failed'] == 0 else "✗" if stats['success'] == 0 else "~"
+            print(f"      {status} {action_type}: 总计={stats['total']}, 成功={stats['success']}, 失败={stats['failed']}, 成功率={success_rate:.1f}%")
+        
+        # 列出所有失败的动作
+        print(f"\n   失败动作详情:")
+        failed_actions = [(i+1, r) for i, r in enumerate(self.collaboration.execution_history) 
+                         if not r.get('feedback', {}).get('success', False)]
+        
+        if failed_actions:
+            for step_num, record in failed_actions:
+                robot = record.get('robot', 'unknown')
+                action = record.get('action', {})
+                feedback = record.get('feedback', {})
+                action_type = action.get('action', 'unknown')
+                message = feedback.get('message', '未知错误')
+                print(f"      Step {step_num}: {robot} -> {action_type}")
+                print(f"         错误: {message[:80]}...")
+        else:
+            print("      无")
+        
+        print("\n" + "="*60)
     
     def run(self):
         """运行完整测试"""
