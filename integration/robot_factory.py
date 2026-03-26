@@ -274,7 +274,7 @@ class RobotFactory:
         cfg = self._build_config(config, {
             'base_urdf_path': drone_urdf_path,
             'base_init_pose': config.get('base_init_pose', [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),  # 默认在空中1米高
-            'fixed_base': True,  # 无人机使用固定基座
+            'fixed_base': False,  # 无人机需要移动，不使用固定基座
             'arm_num_dofs': 0,  # 无人机无机械臂
             'flight_height': 1.5,
             'max_payload': 0.5,

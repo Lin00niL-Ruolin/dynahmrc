@@ -171,22 +171,22 @@ class DroneTester:
             # 测试点1: 飞到桌子上方
             print("\n   [测试 4.1] 导航到桌子上方...")
             target1 = [2.0, 0.0, 2.0]  # 桌子上方2米高
-            success1 = self.drone.navigate_to(target1)
-            print(f"   {'✓' if success1 else '✗'} 导航到 {target1}: {'成功' if success1 else '失败'}")
+            success1, msg1 = self.drone.navigate_to(target1)
+            print(f"   {'✓' if success1 else '✗'} 导航到 {target1}: {'成功' if success1 else '失败'} ({msg1})")
             time.sleep(1)
             
             # 测试点2: 飞到目标区域上方
             print("\n   [测试 4.2] 导航到目标区域上方...")
             target2 = [-2.0, 0.0, 2.0]  # 目标区域上方2米高
-            success2 = self.drone.navigate_to(target2)
-            print(f"   {'✓' if success2 else '✗'} 导航到 {target2}: {'成功' if success2 else '失败'}")
+            success2, msg2 = self.drone.navigate_to(target2)
+            print(f"   {'✓' if success2 else '✗'} 导航到 {target2}: {'成功' if success2 else '失败'} ({msg2})")
             time.sleep(1)
             
             # 测试点3: 飞到箱子附近（准备抓取）
             print("\n   [测试 4.3] 导航到箱子附近...")
             target3 = [2.0, 0.0, 1.2]  # 箱子附近，高度1.2米
-            success3 = self.drone.navigate_to(target3)
-            print(f"   {'✓' if success3 else '✗'} 导航到 {target3}: {'成功' if success3 else '失败'}")
+            success3, msg3 = self.drone.navigate_to(target3)
+            print(f"   {'✓' if success3 else '✗'} 导航到 {target3}: {'成功' if success3 else '失败'} ({msg3})")
             time.sleep(1)
             
             return success1 and success2 and success3
@@ -214,15 +214,19 @@ class DroneTester:
             print("\n   [测试 5.1] 抓取箱子...")
             print(f"   箱子ID: {box_id}")
             
+            # 箱子位置
+            box_pos = [2.0, 0.0, 1.0]
+            
             # 先飞到箱子正上方
             print("   先导航到箱子正上方...")
-            box_pos = [2.0, 0.0, 1.2]
-            self.drone.navigate_to(box_pos)
+            approach_pos = [2.0, 0.0, 1.5]
+            success_nav, msg_nav = self.drone.navigate_to(approach_pos)
+            print(f"   导航结果: {success_nav}, {msg_nav}")
             time.sleep(0.5)
             
-            # 执行抓取
-            pick_success = self.drone.pick(object_id=box_id)
-            print(f"   {'✓' if pick_success else '✗'} 抓取箱子: {'成功' if pick_success else '失败'}")
+            # 执行抓取（需要提供 object_position）
+            pick_success, pick_msg = self.drone.pick(object_id=box_id, object_position=box_pos)
+            print(f"   {'✓' if pick_success else '✗'} 抓取箱子: {'成功' if pick_success else '失败'} ({pick_msg})")
             
             if not pick_success:
                 print("   [警告] 抓取失败，跳过后续放置测试")
@@ -236,13 +240,14 @@ class DroneTester:
             # 先飞到目标区域上方
             target_pos = [-2.0, 0.0, 2.0]
             print(f"   先导航到目标区域上方 {target_pos}...")
-            self.drone.navigate_to(target_pos)
+            nav_success, nav_msg = self.drone.navigate_to(target_pos)
+            print(f"   导航结果: {nav_success}, {nav_msg}")
             time.sleep(0.5)
             
             # 执行放置
             place_location = [-2.0, 0.0, 1.0]  # 目标区域，高度1米
-            place_success = self.drone.place(location=place_location)
-            print(f"   {'✓' if place_success else '✗'} 放置箱子到 {place_location}: {'成功' if place_success else '失败'}")
+            place_success, place_msg = self.drone.place(target_position=place_location)
+            print(f"   {'✓' if place_success else '✗'} 放置箱子到 {place_location}: {'成功' if place_success else '失败'} ({place_msg})")
             
             return pick_success and place_success
             

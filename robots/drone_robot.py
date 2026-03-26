@@ -182,21 +182,30 @@ class DroneRobot:
     def _fly_to(self, target_pos: List[float]):
         """飞行到指定位置（3D）"""
         try:
+            print(f"[DroneRobot] _fly_to: 从 {self.position} 飞到 {target_pos}")
+            
             # 使用 BestMan 的移动功能
             if hasattr(self.bestman, 'move_base_to'):
+                print(f"[DroneRobot] 使用 move_base_to")
                 from Robotics_API.Pose import Pose
                 target_pose = Pose(target_pos, self.orientation)
-                self.bestman.move_base_to(target_pose)
+                result = self.bestman.move_base_to(target_pose)
+                print(f"[DroneRobot] move_base_to 返回: {result}")
             elif hasattr(self.bestman, 'set_base_pose'):
+                print(f"[DroneRobot] 使用 set_base_pose")
                 self.bestman.set_base_pose(target_pos, self.orientation)
             else:
                 # 备用：直接设置位置
+                print(f"[DroneRobot] 使用直接设置位置")
                 self._set_position_directly(target_pos)
             
             self._update_pose()
+            print(f"[DroneRobot] 飞行后位置: {self.position}")
             
         except Exception as e:
             print(f"[DroneRobot] 飞行失败: {e}")
+            import traceback
+            traceback.print_exc()
             raise
     
     def _set_position_directly(self, target_pos: List[float]):
