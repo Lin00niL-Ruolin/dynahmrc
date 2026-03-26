@@ -219,7 +219,8 @@ class MobileManipulator:
             # 排除可抓取物体和机器人自己
             if obj_type == 'graspable':
                 continue
-            if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
+            # 排除自己（匹配 robot_id 或 robot_{robot_id}）
+            if obj_name == self.robot_id or obj_name == f"robot_{self.robot_id}":
                 print(f"[MobileManipulator] 排除自己 '{obj_name}' 不作为障碍物")
                 continue
             pos = obj_info.get('position', [0, 0, 0])
@@ -266,8 +267,8 @@ class MobileManipulator:
             for obj_name, obj_info in scene_objects.items():
                 if obj_info.get('type') == 'graspable':
                     continue
-                # 排除自己
-                if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
+                # 排除自己（匹配 robot_id 或 robot_{robot_id}）
+                if obj_name == self.robot_id or obj_name == f"robot_{self.robot_id}":
                     continue
                 obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(
@@ -318,8 +319,8 @@ class MobileManipulator:
             for obj_name, obj_info in scene_objects.items():
                 if obj_info.get('type') == 'graspable':
                     continue
-                # 排除自己
-                if obj_name == self.robot_id or obj_name.startswith(f"robot_{self.robot_id}"):
+                # 排除自己（匹配 robot_id 或 robot_{robot_id}）
+                if obj_name == self.robot_id or obj_name == f"robot_{self.robot_id}":
                     continue
                 obs_pos = obj_info.get('position', [0, 0, 0])
                 dist_to_obs = math.sqrt(

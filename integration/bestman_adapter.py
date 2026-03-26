@@ -814,7 +814,9 @@ class BestManAdapter:
                     # 机器人尺寸（近似为圆柱体）
                     robot_size = [0.6, 0.6, 1.0]  # 默认机器人尺寸
                     
-                    scene_graph[f"robot_{rid}"] = {
+                    # 确保机器人键名不重复添加前缀
+                    robot_key = rid if rid.startswith('robot_') else f"robot_{rid}"
+                    scene_graph[robot_key] = {
                         'id': -1,  # 机器人没有PyBullet ID
                         'position': pos,
                         'orientation': orn,
@@ -823,7 +825,7 @@ class BestManAdapter:
                         'robot_id': rid,
                         'is_grasped': False
                     }
-                    print(f"[BestManAdapter] 添加机器人障碍物: {rid} 位置 {pos[:2]}")
+                    print(f"[BestManAdapter] 添加机器人障碍物: {rid} (键名: {robot_key}) 位置 {pos[:2]}")
                 except Exception as e:
                     print(f"[BestManAdapter] 获取机器人 {rid} 状态失败: {e}")
                     
