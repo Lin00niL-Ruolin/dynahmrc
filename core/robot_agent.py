@@ -158,8 +158,16 @@ class RobotAgent:
         # Modules
         self.memory = MemoryModule(max_history=max_history)
         
+        # Path planner for reachability calculation
+        self.path_planner = None
+        
         # Communication callback
         self.send_message_callback = None
+    
+    def set_path_planner(self, path_planner):
+        """设置路径规划器"""
+        self.path_planner = path_planner
+        print(f"[RobotAgent] {self.name} path planner set")
     
     def _normalize_robot_type(self, robot_type: str) -> str:
         """
@@ -600,6 +608,100 @@ You specialize in aerial operations and accessing elevated areas."""
         }
         return responsibilities.get(self.normalized_robot_type, "Unknown robot type")
     
+    def _calculate_reachable_positions(self, scene_graph: Dict, robot_states: Dict, 
+                                        path_planner=None) -> Dict[str, List[float]]:
+        """
+        计算机器人可以到达的位置，使用A*算法验证路径可达性
+        
+        Args:
+            scene_graph: 场景图
+            robot_states: 机器人状态
+            path_planner: 路径规划器（可选），用于A*验证
+        
+        Returns:
+            Dict[str, List[float]]: 可到达位置字典 {位置名称: [x, y, z]}
+        """
+        reachable_positions = {}
+        
+        # 获取当前机器人位置
+        my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
+        
+        # 根据机器人类型计算候选位置，并使用A*验证
+        if self.normalized_robot_type == 'Manipulator':
+            # 固定机械臂：只能在当前位置操作
+            arm_reach = 0.8
+            for name, info in scene_graph.items():
+                pos = info.get('position', [0, 0, 0])
+                distance = ((pos[0] - my_position[0])**2 + 
+                           (pos[1] - my_position[1])**2 + 
+                           (pos[2] - my_position[2])**2) ** 0.5
+                if distance <= arm_reach:
+                    reachable_positions[f"{name}_approach"] = pos
+        
+        elif self.normalized_robot_type == 'Mobile':
+            # 移动基座：使用A*验证地面路径
+            for name, info in scene_graph.items():
+                pos = info.get('position', [0, 0, 0])
+                target_pos = [pos[0], pos[1], 0.0]
+                
+                # 使用A*验证路径
+                if path_planner:
+                    path = path_planner.plan(
+                        my_position[:2], 
+                        target_pos[:2],
+                        robot_id=self.name,
+                        use_cache=True
+                    )
+                    if path is not None:
+                        reachable_positions[f"{name}_approach"] = target_pos
+                else:
+                    # 无路径规划器时，直接添加
+                    reachable_positions[f"{name}_approach"] = target_pos
+        
+        elif self.normalized_robot_type == 'Drone':
+            # 无人机：A*验证空中路径（无人机可以飞直线）
+            for name, info in scene_graph.items():
+                pos = info.get('position', [0, 0, 0])
+                
+                # 上方位置
+                above_pos = [pos[0], pos[1], pos[2] + 1.5]
+                # 低空位置
+                nearby_pos = [pos[0], pos[1], pos[2] + 0.3]
+                
+                # 无人机路径相对简单，主要检查距离
+                distance_above = ((above_pos[0] - my_position[0])**2 + 
+                                 (above_pos[1] - my_position[1])**2 + 
+                                 (above_pos[2] - my_position[2])**2) ** 0.5
+                
+                if distance_above < 10.0:  # 最大飞行距离
+                    reachable_positions[f"{name}_above"] = above_pos
+                    reachable_positions[f"{name}_nearby"] = nearby_pos
+        
+        else:  # MobileManipulation
+            # 移动操作机器人：使用A*验证路径
+            for name, info in scene_graph.items():
+                pos = info.get('position', [0, 0, 0])
+                
+                # 物体前方位置
+                approach_pos = [pos[0] + 0.3, pos[1], 0.0]
+                
+                # 使用A*验证路径
+                if path_planner:
+                    path = path_planner.plan(
+                        my_position[:2],
+                        approach_pos[:2],
+                        robot_id=self.name,
+                        use_cache=True
+                    )
+                    if path is not None:
+                        reachable_positions[f"{name}_approach"] = approach_pos
+                        reachable_positions[f"{name}_position"] = pos
+                else:
+                    reachable_positions[f"{name}_approach"] = approach_pos
+                    reachable_positions[f"{name}_position"] = pos
+        
+        return reachable_positions
+    
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
         """Build prompt for Execution stage"""
         history_str = self.memory.format_history_for_prompt(k=5)
@@ -631,6 +733,17 @@ You specialize in aerial operations and accessing elevated areas."""
         # 获取职责说明
         responsibilities = self._get_robot_responsibilities()
         
+        # 计算可到达位置（使用A*验证）
+        reachable_positions = self._calculate_reachable_positions(
+            scene_graph, robot_states, self.path_planner
+        )
+        
+        if reachable_positions:
+            reachable_str = "\n".join([f"  - {name}: [{pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}]" 
+                                       for name, pos in reachable_positions.items()])
+        else:
+            reachable_str = "  (No reachable positions calculated - planner not available or paths blocked)"
+        
         return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 
 === YOUR RESPONSIBILITIES ===
@@ -642,6 +755,13 @@ Your capabilities list: {', '.join(self.capabilities)}{leader_info}
 
 === CURRENT SITUATION ===
 {scene_str}{teammates_str}
+
+=== REACHABLE POSITIONS FOR YOU ===
+Based on your robot type and current position, you can reach these locations:
+{reachable_str}
+
+IMPORTANT: When planning navigation, use these pre-calculated reachable positions as targets.
+Do not generate arbitrary positions that may be unreachable or in obstacles.
 
 Leader's Plan: {json.dumps(leader_plan, indent=2)}
 
