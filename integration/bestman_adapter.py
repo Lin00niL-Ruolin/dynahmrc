@@ -276,6 +276,14 @@ class BestManAdapter:
         print(f"[_handle_navigate] 目标位置: {position}, 朝向: {orientation}")
         
         try:
+            # 根据机器人类型决定调用方式
+            robot_type = getattr(robot, 'robot_type', None)
+            
+            if robot_type == 'arm':
+                # ArmRobot 不支持导航
+                print(f"[_handle_navigate] 错误: ArmRobot 不支持导航")
+                return False, "ArmRobot 不支持导航", {}
+            
             # 获取场景物体信息用于避障（排除当前机器人自身）
             scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
             print(f"[_handle_navigate] 获取场景物体: {len(scene_objects)} 个")
@@ -322,10 +330,20 @@ class BestManAdapter:
             object_id = self._resolve_object_id(object_id)
         
         try:
-            # 获取场景物体信息用于导航避障（排除当前机器人自身）
-            scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
+            # 根据机器人类型决定调用方式
+            robot_type = getattr(robot, 'robot_type', None)
             
-            success = robot.pick(object_id, scene_objects=scene_objects)
+            if robot_type == 'arm':
+                # ArmRobot 不支持 scene_objects 参数
+                success = robot.pick(object_id)
+            elif robot_type in ['mobile_manipulator', 'mobile_base']:
+                # MobileManipulator 支持 scene_objects
+                scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
+                success = robot.pick(object_id, scene_objects=scene_objects)
+            else:
+                # 默认尝试带 scene_objects
+                scene_objects = self.get_scene_graph(exclude_robot_id=robot_id)
+                success = robot.pick(object_id, scene_objects=scene_objects)
             
             state = robot.get_state()
             
@@ -359,10 +377,20 @@ class BestManAdapter:
             return False, f"不支持的目标格式: {type(target)}", {}
         
         try:
-            # 获取场景物体信息用于导航避障
-            scene_objects = self.get_scene_graph()
+            # 根据机器人类型决定调用方式
+            robot_type = getattr(robot, 'robot_type', None)
             
-            success = robot.place(position, scene_objects=scene_objects)
+            if robot_type == 'arm':
+                # ArmRobot 不支持 scene_objects 参数
+                success = robot.place(position)
+            elif robot_type in ['mobile_manipulator', 'mobile_base']:
+                # MobileManipulator 支持 scene_objects
+                scene_objects = self.get_scene_graph()
+                success = robot.place(position, scene_objects=scene_objects)
+            else:
+                # 默认尝试带 scene_objects
+                scene_objects = self.get_scene_graph()
+                success = robot.place(position, scene_objects=scene_objects)
             
             state = robot.get_state()
             
