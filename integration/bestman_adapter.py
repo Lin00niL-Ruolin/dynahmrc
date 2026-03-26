@@ -264,6 +264,17 @@ class BestManAdapter:
                 if position is None:
                     return False, f"无法解析目标位置: {target}", {}
         
+        # 格式1b: params = {"target_position": [x, y, z]} (LLM 常用格式)
+        elif "target_position" in params:
+            target = params["target_position"]
+            if isinstance(target, list):
+                position = target[:3]
+                orientation = target[3:] if len(target) > 3 else None
+                print(f"[_handle_navigate] 使用 target_position 格式: {position}")
+            elif isinstance(target, dict):
+                position = [target.get("x", 0), target.get("y", 0), target.get("z", 0)]
+                orientation = target.get("orientation")
+        
         # 格式2: params = {"x": x, "y": y, "z": z}
         elif "x" in params and "y" in params:
             position = [params.get("x", 0), params.get("y", 0), params.get("z", 0)]
