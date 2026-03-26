@@ -249,93 +249,86 @@ class Stage4Tester:
                     return self._generate_self_description_response(prompt)
             
             def _generate_execution_response(self, prompt):
-                """生成执行阶段响应 - 返回具体动作"""
+                """生成执行阶段响应 - 根据机器人类型返回正确的动作"""
                 import random
+                import json
                 
-                # 根据机器人名称决定动作
+                # 从 prompt 中提取机器人类型和可用动作
+                robot_type = None
+                available_actions = []
+                robot_name = None
+                
+                # 提取机器人名称
                 if "helper_mobile_manipulator" in prompt:
-                    # helper 机器人执行导航到准备区域
-                    actions = [
-                        {
-                            "action": "navigate",
-                            "params": {"target": [0.0, 1.5, 0.0]},
-                            "reasoning": "Moving to prep station to assist with preparation"
-                        },
-                        {
-                            "action": "navigate", 
-                            "params": {"x": 0.5, "y": 0.5, "z": 0.0},
-                            "reasoning": "Moving closer to work area"
-                        },
-                        {
-                            "action": "wait",
-                            "params": {"duration": 1.0},
-                            "reasoning": "Waiting for other robots to complete their tasks"
-                        }
-                    ]
+                    robot_name = "helper_mobile_manipulator"
+                    robot_type = "mobile_manipulator"
+                    available_actions = ['navigate', 'pick', 'place', 'communicate', 'wait']
                 elif "logistics_mobile_base" in prompt:
-                    # logistics 机器人执行运输任务
-                    actions = [
-                        {
-                            "action": "navigate",
-                            "params": {"target": [1.5, 0.0, 0.0]},
-                            "reasoning": "Transporting items to target zone"
-                        },
-                        {
-                            "action": "navigate",
-                            "params": {"x": -0.5, "y": 1.0, "z": 0.0},
-                            "reasoning": "Moving to pickup location"
-                        }
-                    ]
+                    robot_name = "logistics_mobile_base"
+                    robot_type = "mobile_base"
+                    available_actions = ['navigate', 'communicate', 'wait']
                 elif "precision_arm_1" in prompt:
-                    # precision_arm_1 执行抓取
-                    actions = [
-                        {
-                            "action": "pick",
-                            "params": {"object_id": "box", "object_name": "box"},
-                            "reasoning": "Picking up the box for processing"
-                        },
-                        {
-                            "action": "communicate",
-                            "params": {
-                                "to": "helper_mobile_manipulator",
-                                "message": "precision_arm_1 ready. Awaiting confirmation.",
-                                "broadcast": False
-                            },
-                            "reasoning": "Communicating with helper robot"
-                        }
-                    ]
+                    robot_name = "precision_arm_1"
+                    robot_type = "arm"
+                    available_actions = ['pick', 'place', 'communicate', 'wait']
                 elif "precision_arm_2" in prompt:
-                    # precision_arm_2 执行放置
-                    actions = [
-                        {
-                            "action": "place",
-                            "params": {"location": [2.0, 0.0, 0.5]},
-                            "reasoning": "Placing item at target zone"
-                        },
-                        {
-                            "action": "communicate",
-                            "params": {
-                                "to": "precision_arm_1",
-                                "message": "precision_arm_2 ready for coordination.",
-                                "broadcast": False
-                            },
-                            "reasoning": "Coordinating with precision_arm_1"
-                        }
-                    ]
+                    robot_name = "precision_arm_2"
+                    robot_type = "arm"
+                    available_actions = ['pick', 'place', 'communicate', 'wait']
                 else:
-                    actions = [
-                        {
-                            "action": "wait",
-                            "params": {"duration": 1.0},
-                            "reasoning": "Default wait action"
-                        }
-                    ]
+                    robot_name = "unknown"
+                    robot_type = "unknown"
+                    available_actions = ['wait']
+                
+                # 根据可用动作生成合适的动作
+                possible_actions = []
+                
+                if 'navigate' in available_actions:
+                    possible_actions.append({
+                        "action": "navigate",
+                        "params": {"target": [0.5, 0.5, 0.0]},
+                        "reasoning": f"Moving to target position"
+                    })
+                
+                if 'pick' in available_actions:
+                    possible_actions.append({
+                        "action": "pick",
+                        "params": {"object_id": "box", "object_name": "box"},
+                        "reasoning": "Picking up the box for processing"
+                    })
+                
+                if 'place' in available_actions:
+                    possible_actions.append({
+                        "action": "place",
+                        "params": {"location": [2.0, 0.0, 0.5]},
+                        "reasoning": "Placing item at target zone"
+                    })
+                
+                if 'communicate' in available_actions:
+                    possible_actions.append({
+                        "action": "communicate",
+                        "params": {
+                            "to": "helper_mobile_manipulator",
+                            "message": f"{robot_name} ready for coordination.",
+                            "broadcast": False
+                        },
+                        "reasoning": "Communicating with team"
+                    })
+                
+                # 总是可以等待
+                possible_actions.append({
+                    "action": "wait",
+                    "params": {"duration": 1.0},
+                    "reasoning": "Waiting for other robots"
+                })
                 
                 # 随机选择一个动作
-                action = random.choice(actions)
+                action = random.choice(possible_actions)
+                
+                print(f"[MockLLM] {robot_name} ({robot_type}) 选择动作: {action['action']}")
                 
                 return f"""```json
-{str(action).replace("'", '"')}
+{json.dumps(action, ensure_ascii=False)}
 ```"""
             
             def _generate_allocation_response(self, prompt):
