@@ -662,14 +662,18 @@ class MobileManipulator:
             place_pos = target_position
             
             # 1. 移动到预放置位置
-            print(f"[MobileManipulator] 移动到预放置位置: {pre_place_pos}")
-            if not self._move_arm_to_position(pre_place_pos):
+            print(f"[MobileManipulator] === 开始移动到预放置位置: {pre_place_pos} ===")
+            result = self._move_arm_to_position(pre_place_pos)
+            print(f"[MobileManipulator] 移动到预放置位置结果: {result}")
+            if not result:
                 self.error_status = "place_failed: 移动到预放置位置失败"
                 return False
             
             # 2. 下降到放置位置
-            print(f"[MobileManipulator] 下降到放置位置: {place_pos}")
-            if not self._move_arm_to_position(place_pos):
+            print(f"[MobileManipulator] === 开始下降到放置位置: {place_pos} ===")
+            result = self._move_arm_to_position(place_pos)
+            print(f"[MobileManipulator] 下降到放置位置结果: {result}")
+            if not result:
                 self.error_status = "place_failed: 下降到放置位置失败"
                 return False
             
@@ -748,11 +752,15 @@ class MobileManipulator:
         tolerance: float = 0.05
     ) -> bool:
         """移动机械臂到目标位置，并等待到达"""
+        print(f"[MobileManipulator] _move_arm_to_position 被调用，目标: {target_position}")
         try:
             from Robotics_API.Pose import Pose
             target_pose = Pose(target_position, target_orientation or [0, 0, 0, 1])
             
-            if hasattr(self.bestman, 'sim_move_arm_to_target_pose'):
+            has_sim_move = hasattr(self.bestman, 'sim_move_arm_to_target_pose')
+            print(f"[MobileManipulator] bestman 有 sim_move_arm_to_target_pose: {has_sim_move}")
+            
+            if has_sim_move:
                 print(f"[MobileManipulator] 调用 sim_move_arm_to_target_pose 目标: {target_position}")
                 self.bestman.sim_move_arm_to_target_pose(target_pose)
                 
