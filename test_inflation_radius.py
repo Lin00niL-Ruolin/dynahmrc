@@ -543,38 +543,85 @@ class InflationRadiusVisualizer:
 
 def main():
     """主函数"""
-    # 场景配置 - 使用 JSON 场景文件
+    # 场景配置 - 使用内置场景
     scene_config = {
-        "config_path": "Config/default.yaml",
-        "gui": True,
-        "scene_path": "Asset/Scene/Scene/all_scene_test.json"  # JSON场景文件路径
+        'ground': {
+            'model_path': 'Asset/Scene/Object/URDF_models/clear_box/model.urdf',
+            'position': [0, 0, 0],
+            'orientation': [0, 0, 0, 1],
+            'scale': 5.0
+        },
+        'furniture': {
+            'table': {
+                'model_path': 'Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf',
+                'position': [0, 0, 0],
+                'orientation': [0, 0, 0, 1],
+                'scale': 1.0,
+                'fixed_base': True,
+                'radius': 0.5  # 桌子半径
+            }
+        },
+        'objects': {
+            'box': {
+                'model_path': 'Asset/Scene/Object/URDF_models/cracker_box/model.urdf',
+                'position': [0.5, 0, 0.5],
+                'orientation': [0, 0, 0, 1],
+                'scale': 1.0,
+                'radius': 0.15  # 箱子半径
+            },
+            'target_zone': {
+                'model_path': 'Asset/Scene/Object/URDF_models/clear_box/model.urdf',
+                'position': [2.0, 0, 0.1],
+                'orientation': [0, 0, 0, 1],
+                'scale': 1.0,
+                'radius': 0.3  # 目标区域半径
+            },
+            'prep_station': {
+                'model_path': 'Asset/Scene/Object/URDF_models/clear_box/model.urdf',
+                'position': [0.0, 2.0, 0.1],
+                'orientation': [0, 0, 0, 1],
+                'scale': 1.0,
+                'radius': 0.3  # 准备区域半径
+            }
+        }
     }
 
     # 机器人配置
     robot_configs = [
         {
-            "robot_id": "alice",
-            "robot_type": "arm",
-            "robot_model": "panda",
-            "init_position": [0.2, 1.6, 0.1],
-            "init_orientation": [0, 0, 0, 1],
-            "capabilities": ["manipulation", "perception"]
+            'robot_id': 'helper_mobile_manipulator',
+            'robot_type': 'mobile_manipulator',
+            'robot_model': 'panda_on_segbot',
+            'init_position': [-1.0, 0, 0],
+            'init_orientation': [0, 0, 0, 1]
         },
         {
-            "robot_id": "bob",
-            "robot_type": "mobile_manipulator",
-            "robot_model": "panda_on_segbot",
-            "init_position": [1.2, 2.9, 0],
-            "init_orientation": [0, 0, -1, 0],  # 朝向装配区
-            "capabilities": ["navigation", "manipulation", "transport", "perception"]
+            'robot_id': 'logistics_mobile_base',
+            'robot_type': 'mobile_base',
+            'robot_model': 'segbot',
+            'init_position': [-1.0, 1.0, 0],
+            'init_orientation': [0, 0, 0, 1]
         },
         {
-            "robot_id": "david",
-            "robot_type": "drone",
-            "robot_model": "drone",
-            "init_position": [-0.5, 0.5, 1.1],
-            "init_orientation": [0, 0, 1, 0],  # 朝向另一侧
-            "capabilities": ["manipulation", "transport", "perception"]
+            'robot_id': 'precision_arm_1',
+            'robot_type': 'arm',
+            'robot_model': 'panda',
+            'init_position': [1.0, -1.0, 0],
+            'init_orientation': [0, 0, 0, 1]
+        },
+        {
+            'robot_id': 'precision_arm_2',
+            'robot_type': 'arm',
+            'robot_model': 'panda',
+            'init_position': [2.0, -1.0, 0],
+            'init_orientation': [0, 0, 0, 1]
+        },
+        {
+            'robot_id': 'aerial_drone',
+            'robot_type': 'drone',
+            'robot_model': 'drone',
+            'init_position': [0.0, 0.0, 1.5],  # 空中初始位置
+            'init_orientation': [0, 0, 0, 1]
         }
     ]
     
