@@ -464,7 +464,18 @@ class FourStageCollaboration:
             
             # Get current observation (would come from simulation in real implementation)
             observation = self._get_observation()
-            print(f"[Execution] 获取观察: {len(observation.get('scene_graph', {}))} 个场景物体")
+            scene_graph = observation.get('scene_graph', {})
+            print(f"[Execution] 获取观察: {len(scene_graph)} 个场景物体")
+            
+            # 打印场景物体详情
+            if scene_graph:
+                print(f"[Execution] 场景物体详情:")
+                for obj_name, obj_info in list(scene_graph.items())[:10]:  # 只显示前10个
+                    obj_type = obj_info.get('type', 'unknown')
+                    obj_pos = obj_info.get('position', [0, 0, 0])
+                    print(f"      - {obj_name} ({obj_type}): 位置={obj_pos}")
+                if len(scene_graph) > 10:
+                    print(f"      ... 还有 {len(scene_graph) - 10} 个物体")
             
             # Execute robot steps in parallel
             active_robots = [
