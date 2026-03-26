@@ -179,7 +179,11 @@ class MobileBase:
         goal_pos = [target_position[0], target_position[1]]
         
         print(f"[MobileBase] 规划全局路径: {start_pos} -> {goal_pos}")
-        global_path = self.path_planner.plan_global_path(start_pos, goal_pos)
+        global_path = self.path_planner.plan_global_path(
+            start_pos, goal_pos,
+            scene_objects=scene_objects,
+            max_retries=3
+        )
         
         if global_path is None:
             print("[MobileBase] 全局路径规划失败，使用简单导航")
