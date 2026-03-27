@@ -767,10 +767,15 @@ class AStarPlanner:
         Returns:
             (线速度, 角速度)
         """
-        # 构建障碍物列表
+        # 构建障碍物列表（排除机器人和可抓取物体）
         obstacles = []
         for obj_name, obj_info in scene_objects.items():
-            if obj_info.get('type') == 'graspable':
+            obj_type = obj_info.get('type', '')
+            # 跳过可抓取物体和机器人
+            if obj_type in ['graspable', 'robot']:
+                continue
+            # 跳过以 robot_ 开头的物体
+            if obj_name.startswith('robot_'):
                 continue
             obj_pos = obj_info.get('position', [0, 0, 0])
             obstacles.append([obj_pos[0], obj_pos[1]])
