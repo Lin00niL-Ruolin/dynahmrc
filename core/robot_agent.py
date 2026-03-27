@@ -634,21 +634,37 @@ You specialize in aerial operations and accessing elevated areas."""
             except Exception as e:
                 print(f"[_calculate_reachable_positions] 更新障碍物地图失败: {e}")
         
+        # 过滤场景图中的物体（排除机器人和地面）
+        scene_items = {k: v for k, v in scene_graph.items() 
+                      if not k.startswith('robot_') and k != 'ground'}
+        total_items = len(scene_items)
+        
         # 根据机器人类型计算候选位置，并使用A*验证
         if self.normalized_robot_type == 'Manipulator':
             # 固定机械臂：只能在当前位置操作
             arm_reach = 0.8
-            for name, info in scene_graph.items():
+            print(f"\n[{self.name}] 计算可达位置 (机械臂模式): 0/{total_items} [{' ' * 20}] 0%", end='', flush=True)
+            for idx, (name, info) in enumerate(scene_items.items()):
                 pos = info.get('position', [0, 0, 0])
                 distance = ((pos[0] - my_position[0])**2 + 
                            (pos[1] - my_position[1])**2 + 
                            (pos[2] - my_position[2])**2) ** 0.5
                 if distance <= arm_reach:
                     reachable_positions[f"{name}_approach"] = pos
+                
+                # 更新进度条
+                progress = (idx + 1) / total_items
+                bar_length = 20
+                filled = int(bar_length * progress)
+                bar = '█' * filled + '░' * (bar_length - filled)
+                percent = int(progress * 100)
+                print(f"\r[{self.name}] 计算可达位置 (机械臂模式): {idx+1}/{total_items} [{bar}] {percent}%", end='', flush=True)
+            print()  # 换行
         
         elif self.normalized_robot_type == 'Mobile':
             # 移动基座：使用A*验证地面路径
-            for name, info in scene_graph.items():
+            print(f"\n[{self.name}] 计算可达位置 (移动基座模式): 0/{total_items} [{' ' * 20}] 0%", end='', flush=True)
+            for idx, (name, info) in enumerate(scene_items.items()):
                 pos = info.get('position', [0, 0, 0])
                 target_pos = [pos[0], pos[1], 0.0]
                 
@@ -672,16 +688,24 @@ You specialize in aerial operations and accessing elevated areas."""
                         )
                     if path is not None:
                         reachable_positions[f"{name}_approach"] = target_pos
-                        print(f"[_calculate_reachable_positions] {self.name} -> {name}_approach 可达")
-                    else:
-                        print(f"[_calculate_reachable_positions] {self.name} -> {name}_approach 不可达")
                 else:
                     # 无路径规划器时，直接添加
                     reachable_positions[f"{name}_approach"] = target_pos
+                
+                # 更新进度条
+                progress = (idx + 1) / total_items
+                bar_length = 20
+                filled = int(bar_length * progress)
+                bar = '█' * filled + '░' * (bar_length - filled)
+                percent = int(progress * 100)
+                status = "✓" if f"{name}_approach" in reachable_positions else "✗"
+                print(f"\r[{self.name}] 计算可达位置 (移动基座模式): {idx+1}/{total_items} [{bar}] {percent}% {status}", end='', flush=True)
+            print()  # 换行
         
         elif self.normalized_robot_type == 'Drone':
             # 无人机：A*验证空中路径（无人机可以飞直线）
-            for name, info in scene_graph.items():
+            print(f"\n[{self.name}] 计算可达位置 (无人机模式): 0/{total_items} [{' ' * 20}] 0%", end='', flush=True)
+            for idx, (name, info) in enumerate(scene_items.items()):
                 pos = info.get('position', [0, 0, 0])
                 
                 # 上方位置
@@ -697,10 +721,20 @@ You specialize in aerial operations and accessing elevated areas."""
                 if distance_above < 10.0:  # 最大飞行距离
                     reachable_positions[f"{name}_above"] = above_pos
                     reachable_positions[f"{name}_nearby"] = nearby_pos
+                
+                # 更新进度条
+                progress = (idx + 1) / total_items
+                bar_length = 20
+                filled = int(bar_length * progress)
+                bar = '█' * filled + '░' * (bar_length - filled)
+                percent = int(progress * 100)
+                print(f"\r[{self.name}] 计算可达位置 (无人机模式): {idx+1}/{total_items} [{bar}] {percent}%", end='', flush=True)
+            print()  # 换行
         
         else:  # MobileManipulation
             # 移动操作机器人：使用A*验证路径
-            for name, info in scene_graph.items():
+            print(f"\n[{self.name}] 计算可达位置 (移动操作模式): 0/{total_items} [{' ' * 20}] 0%", end='', flush=True)
+            for idx, (name, info) in enumerate(scene_items.items()):
                 pos = info.get('position', [0, 0, 0])
                 
                 # 物体前方位置
@@ -727,14 +761,21 @@ You specialize in aerial operations and accessing elevated areas."""
                     if path is not None:
                         reachable_positions[f"{name}_approach"] = approach_pos
                         reachable_positions[f"{name}_position"] = pos
-                        print(f"[_calculate_reachable_positions] {self.name} -> {name} 可达")
-                    else:
-                        print(f"[_calculate_reachable_positions] {self.name} -> {name} 不可达")
                 else:
                     reachable_positions[f"{name}_approach"] = approach_pos
                     reachable_positions[f"{name}_position"] = pos
+                
+                # 更新进度条
+                progress = (idx + 1) / total_items
+                bar_length = 20
+                filled = int(bar_length * progress)
+                bar = '█' * filled + '░' * (bar_length - filled)
+                percent = int(progress * 100)
+                status = "✓" if f"{name}_approach" in reachable_positions else "✗"
+                print(f"\r[{self.name}] 计算可达位置 (移动操作模式): {idx+1}/{total_items} [{bar}] {percent}% {status}", end='', flush=True)
+            print()  # 换行
         
-        print(f"[_calculate_reachable_positions] {self.name} 共找到 {len(reachable_positions)} 个可达位置")
+        print(f"[{self.name}] 共找到 {len(reachable_positions)} 个可达位置")
         return reachable_positions
     
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
