@@ -620,9 +620,6 @@ class DWAPlanner:
         # 计算动态窗口
         dw = self._calc_dynamic_window(current_v, current_yaw_rate)
         
-        print(f"[DWA] 动态窗口: v=[{dw[0]:.3f}, {dw[1]:.3f}], yaw_rate=[{dw[2]:.3f}, {dw[3]:.3f}]")
-        print(f"[DWA] 当前位置: {current_pos}, 目标: {goal}, 障碍物数: {len(obstacles)}")
-        
         best_v = 0.0
         best_yaw_rate = 0.0
         min_cost = float('inf')
@@ -631,14 +628,8 @@ class DWAPlanner:
         v_samples = max(3, int((dw[1] - dw[0]) / self.v_resolution) + 1)
         yaw_rate_samples = max(3, int((dw[3] - dw[2]) / self.yaw_rate_resolution) + 1)
         
-        print(f"[DWA] 采样点数: v_samples={v_samples}, yaw_rate_samples={yaw_rate_samples}")
-        
-        sample_count = 0
-        valid_samples = 0
         for v in np.linspace(dw[0], dw[1], v_samples):
             for yaw_rate in np.linspace(dw[2], dw[3], yaw_rate_samples):
-                sample_count += 1
-                
                 # 预测轨迹
                 trajectory = self._predict_trajectory(
                     current_pos, current_yaw, v, yaw_rate
@@ -649,9 +640,6 @@ class DWAPlanner:
                 speed_cost = self._calc_speed_cost(v)
                 obstacle_cost = self._calc_obstacle_cost(trajectory, obstacles)
                 
-                if obstacle_cost < float('inf'):
-                    valid_samples += 1
-                
                 total_cost = (self.weight_goal * goal_cost +
                              self.weight_speed * speed_cost +
                              self.weight_obstacle * obstacle_cost)
@@ -660,8 +648,6 @@ class DWAPlanner:
                     min_cost = total_cost
                     best_v = v
                     best_yaw_rate = yaw_rate
-        
-        print(f"[DWA] 采样完成: {sample_count} 个样本, 有效样本: {valid_samples}, 最优速度: v={best_v:.3f}, yaw_rate={best_yaw_rate:.3f}, 最小代价: {min_cost:.3f}")
         
         return best_v, best_yaw_rate
     

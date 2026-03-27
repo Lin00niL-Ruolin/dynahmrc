@@ -341,9 +341,6 @@ class MobileManipulator:
                 scene_objects
             )
             
-            if step % 20 == 0:
-                print(f"[MobileManipulator] DWA 计算速度: v={v:.3f}m/s, yaw_rate={yaw_rate:.3f}rad/s")
-            
             # 应用速度
             self._apply_velocity(v, yaw_rate, scene_objects)
             
@@ -403,10 +400,6 @@ class MobileManipulator:
         dx = new_x - self.position[0]
         dy = new_y - self.position[1]
         dyaw = new_yaw - self.yaw
-        
-        # 打印移动信息
-        if abs(dx) > 0.001 or abs(dy) > 0.001:
-            print(f"[MobileManipulator] 应用速度: 从 [{self.position[0]:.3f}, {self.position[1]:.3f}] 移动到 [{new_x:.3f}, {new_y:.3f}], 位移 [{dx:.3f}, {dy:.3f}]")
         
         # 设置新位置到底座
         p.resetBasePositionAndOrientation(
@@ -491,6 +484,12 @@ class MobileManipulator:
                     new_gripper_orn,
                     physicsClientId=self.bestman.client_id
                 )
+        
+        # 更新自身位置状态
+        self.position[0] = new_x
+        self.position[1] = new_y
+        self.yaw = new_yaw
+        self.orientation = orientation
     
     def _simple_navigation(self, target_pos: List[float]):
         """简单导航实现（备用）"""
