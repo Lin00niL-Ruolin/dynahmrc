@@ -242,8 +242,8 @@ class BestManAdapter:
         """检查机器人是否有能力执行动作"""
         capability_map = {
             ActionType.NAVIGATE: ["navigation"],
-            ActionType.PICK: ["manipulation"],
-            ActionType.PLACE: ["manipulation"],
+            ActionType.PICK: ["manipulation", "pick"],  # 支持 manipulation 或 pick 能力
+            ActionType.PLACE: ["manipulation", "place"],  # 支持 manipulation 或 place 能力
             ActionType.TRANSPORT: ["transport", "navigation"],
             ActionType.ROTATE: ["navigation"],
             ActionType.MOVE_FORWARD: ["navigation"],
@@ -300,6 +300,17 @@ class BestManAdapter:
         elif "x" in params and "y" in params:
             position = [params.get("x", 0), params.get("y", 0), params.get("z", 0)]
             orientation = params.get("orientation")
+        
+        # 格式3: params = {"position": [x, y, z]} (LLM 常用格式)
+        elif "position" in params:
+            target = params["position"]
+            if isinstance(target, list):
+                position = target[:3]
+                orientation = target[3:] if len(target) > 3 else None
+                print(f"[_handle_navigate] 使用 position 格式: {position}")
+            elif isinstance(target, dict):
+                position = [target.get("x", 0), target.get("y", 0), target.get("z", 0)]
+                orientation = target.get("orientation")
         
         if position is None:
             print(f"[_handle_navigate] 错误: 无法解析目标位置参数")
@@ -552,9 +563,36 @@ class BestManAdapter:
         # 支持多种参数格式
         # 格式1: params = {"to": "robot1", "message": "...", "broadcast": false}
         # 格式2: params = {"recipient": "robot1", "message": "..."}
+        # 格式3: params = {"recipients": ["robot1", "robot2"], "message": "..."} (LLM常用格式)
         to_robot = params.get("to") or params.get("recipient")
+        recipients = params.get("recipients", [])  # 支持多个接收者
         message = params.get("message", "")
         broadcast = params.get("broadcast", False)
+        
+        # 如果提供了 recipients 列表，处理多个接收者
+        if recipients and not to_robot and not broadcast:
+            if len(recipients) == 1:
+                # 只有一个接收者，直接发送
+                to_robot = recipients[0]
+            else:
+                # 多个接收者，逐个发送
+                print(f"[_handle_communicate] 发送给多个接收者: {recipients}")
+                success_count = 0
+                sender_name = robot_id or "unknown"
+                
+                for recipient in recipients:
+                    if recipient in self.robot_registry:
+                        target_robot = self.robot_registry[recipient]
+                        if hasattr(target_robot, 'receive_message'):
+                            try:
+                                target_robot.receive_message(sender_name, message)
+                                success_count += 1
+                            except Exception as e:
+                                print(f"[_handle_communicate] 发送给 {recipient} 失败: {e}")
+                    else:
+                        print(f"[_handle_communicate] 接收者 {recipient} 未找到")
+                
+                return True, f"发送消息给 {success_count}/{len(recipients)} 个接收者", {"recipients": recipients, "success_count": success_count}
 
         if not message:
             print(f"[_handle_communicate] 错误: 消息为空")
@@ -608,8 +646,15 @@ class BestManAdapter:
                 return False, f"机器人 {to_robot} 未找到", {}
 
         else:
-            print(f"[_handle_communicate] 错误: 未指定接收者")
-            return False, "必须指定接收者 (to) 或设置为广播 (broadcast)", {}
+            # 未指定接收者，默认为广播给所有机器人
+            print(f"[_handle_communicate] 未指定接收者，默认广播消息: {sender_name} -> all: {message[:50]}...")
+            for rid, other_robot in self.robot_registry.items():
+                if rid != robot_id and hasattr(other_robot, 'receive_message'):
+                    try:
+                        other_robot.receive_message(sender_name, message)
+                    except Exception as e:
+                        print(f"[_handle_communicate] 发送给 {rid} 失败: {e}")
+            return True, f"广播消息: {message[:50]}...", {"broadcast": True}
     
     def _get_sensor_data(self, robot: Any) -> Dict[str, Any]:
         """获取机器人传感器数据"""

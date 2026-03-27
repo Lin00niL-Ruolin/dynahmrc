@@ -157,8 +157,44 @@ class MobileManipulator:
             )
             
             if global_path is None:
-                print("[MobileManipulator] 全局路径规划失败，无法找到可达路径")
-                return False, f"目标 {goal_pos} 不可达，且无法找到替代目标"
+                print("[MobileManipulator] 全局路径规划失败，尝试直接朝目标方向移动...")
+                # 尝试直接朝目标方向移动一段距离
+                import math
+                dx = goal_pos[0] - start_pos[0]
+                dy = goal_pos[1] - start_pos[1]
+                dist = math.sqrt(dx*dx + dy*dy)
+                
+                if dist > 0.1:
+                    # 尝试向目标方向移动最大2米或到障碍物前
+                    move_dist = min(2.0, dist * 0.8)
+                    intermediate_goal = [
+                        start_pos[0] + (dx / dist) * move_dist,
+                        start_pos[1] + (dy / dist) * move_dist
+                    ]
+                    
+                    print(f"[MobileManipulator] 尝试移动到中间点: {intermediate_goal}")
+                    global_path = planner.plan_global_path(
+                        start_pos, intermediate_goal,
+                        scene_objects=scene_objects or {},
+                        max_search_radius=3.0,
+                        radius_step=0.3
+                    )
+                
+                if global_path is None:
+                    print("[MobileManipulator] 仍然无法规划路径，尝试短距离探索...")
+                    # 最后尝试：向任意可行方向移动一小段
+                    for angle in [0, math.pi/4, -math.pi/4, math.pi/2, -math.pi/2, math.pi, 3*math.pi/4, -3*math.pi/4]:
+                        test_goal = [
+                            start_pos[0] + 0.5 * math.cos(angle),
+                            start_pos[1] + 0.5 * math.sin(angle)
+                        ]
+                        global_path = planner.plan(start_pos, test_goal)
+                        if global_path:
+                            print(f"[MobileManipulator] 找到可行方向，角度: {angle}")
+                            break
+                
+                if global_path is None:
+                    return False, f"目标 {goal_pos} 不可达，且无法找到替代目标"
             
             print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
             

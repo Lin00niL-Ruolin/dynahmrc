@@ -522,6 +522,8 @@ class AStarPlanner:
         
         # 如果直接规划失败，尝试在目标周围搜索
         import math
+        
+        # 策略1: 在目标周围环形搜索
         for radius in np.arange(radius_step, max_search_radius + radius_step, radius_step):
             for angle in np.arange(0, 2 * math.pi, math.pi / 4):
                 new_goal = [
@@ -531,6 +533,37 @@ class AStarPlanner:
                 path = self.plan(start, new_goal, robot_id=robot_id, silent=silent)
                 if path:
                     # 在路径末尾添加原始目标点
+                    path.append(goal)
+                    return path
+        
+        # 策略2: 尝试向目标方向移动一段距离（部分路径）
+        # 计算从起点到目标的方向
+        dx = goal[0] - start[0]
+        dy = goal[1] - start[1]
+        dist_to_goal = math.sqrt(dx * dx + dy * dy)
+        
+        if dist_to_goal > 0.5:  # 如果距离足够远
+            # 尝试走到距离起点一定比例的点上
+            for ratio in [0.7, 0.5, 0.3]:  # 尝试走到70%、50%、30%的位置
+                partial_goal = [
+                    start[0] + dx * ratio,
+                    start[1] + dy * ratio
+                ]
+                path = self.plan(start, partial_goal, robot_id=robot_id, silent=silent)
+                if path:
+                    # 添加原始目标作为最终点（机器人会尽可能接近）
+                    path.append(goal)
+                    return path
+        
+        # 策略3: 尝试短距离移动（可能目标就在附近但被小障碍物阻挡）
+        for dist in [0.5, 1.0, 1.5]:
+            for angle in np.arange(0, 2 * math.pi, math.pi / 6):  # 更细的角度步长
+                test_goal = [
+                    start[0] + dist * math.cos(angle),
+                    start[1] + dist * math.sin(angle)
+                ]
+                path = self.plan(start, test_goal, robot_id=robot_id, silent=silent)
+                if path:
                     path.append(goal)
                     return path
         
