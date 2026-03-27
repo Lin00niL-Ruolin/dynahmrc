@@ -1179,8 +1179,11 @@ class DynaHMRCSystem:
             robot_type_map = {
                 'mobile_manipulator': 'MobileManipulation',
                 'manipulator': 'Manipulator',
+                'arm': 'Manipulator',
                 'mobile_base': 'Mobile',
-                'drone': 'Drone'
+                'mobile': 'Mobile',
+                'drone': 'Drone',
+                'uav': 'Drone'
             }
             
             agent_type = robot_type_map.get(robot.robot_type, 'MobileManipulation')
