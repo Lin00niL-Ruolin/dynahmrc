@@ -211,8 +211,13 @@ class DynaHMRCSystem:
             # 4.1 注册场景物体到 BestManAdapter
             self._register_scene_objects_to_adapter()
             
-            # 4.2 预计算可达位置（如果配置了缓存目录）
-            self._precompute_reachable_positions()
+            # 4.2 预计算可达位置（后台线程，不阻塞）
+            # 使用定时器延迟启动，确保主程序先完成初始化
+            import threading
+            timer = threading.Timer(0.5, self._precompute_reachable_positions)
+            timer.daemon = True
+            timer.start()
+            print("[DynaHMRCSystem] 预计算将在0.5秒后后台启动")
             
             # 5. 初始化 LLM 协调器
             self._init_coordinator()
@@ -498,8 +503,10 @@ class DynaHMRCSystem:
         print(f"[DynaHMRCSystem] 所有预计算线程已启动，程序继续执行\n")
     
     def _precompute_for_robot(self, robot_id, robot, scene_graph, robot_states, cache_dir, scene_name):
-        """为单个机器人预计算可达位置（在后台线程中运行）"""
+        """为单个机器人预计算可达位置（在后台线程中运行，分批计算避免阻塞）"""
         try:
+            import time
+            
             # 创建路径规划器（每个线程独立的规划器）
             path_planner = AStarPlanner(resolution=0.1, robot_radius=0.3)
             
@@ -518,10 +525,20 @@ class DynaHMRCSystem:
                 llm_client=temp_llm
             )
             
-            # 设置缓存文件
+            # 设置缓存文件（不加载，避免阻塞）
             cache_file = os.path.join(cache_dir, f"{scene_name}_{robot_id}_reachable_cache.json")
-            agent.set_cache_file(cache_file)
+            agent._cache_file = cache_file
             agent.set_path_planner(path_planner)
+            
+            # 异步加载缓存
+            try:
+                if os.path.exists(cache_file):
+                    with open(cache_file, 'r') as f:
+                        data = json.load(f)
+                        agent._reachable_positions_cache = data.get('reachable_positions', {})
+                        agent._calculation_progress = data.get('progress', {})
+            except Exception:
+                pass
             
             # 检查是否已有完整缓存
             cache_key = agent._get_cache_key(scene_graph, robot_states[robot_id]['position'])
@@ -530,23 +547,159 @@ class DynaHMRCSystem:
             total_items = len([k for k in scene_graph.keys() if not k.startswith('robot_') and k != 'ground'])
             
             if cache_key in agent._reachable_positions_cache and len(completed_items) >= total_items:
-                print(f"[{robot_id}] 已有完整缓存，跳过计算")
                 self._precompute_status['completed'][robot_id] = True
                 return
             
-            # 预计算可达位置（使用断点续算）
-            print(f"[{robot_id}] 后台计算开始...")
-            reachable = agent._calculate_reachable_positions(
-                scene_graph, robot_states, path_planner,
-                max_workers=2, use_cache=True, silent=True  # 静默模式，减少输出
-            )
+            # 分批计算，避免长时间阻塞
+            self._batch_calculate_for_robot(agent, scene_graph, robot_states, path_planner)
             
-            print(f"[{robot_id}] 后台计算完成: {len(reachable)} 个可达位置")
             self._precompute_status['completed'][robot_id] = True
             
         except Exception as e:
-            print(f"[{robot_id}] 后台计算出错: {e}")
             self._precompute_status['completed'][robot_id] = False
+    
+    def _batch_calculate_for_robot(self, agent, scene_graph, robot_states, path_planner):
+        """分批计算可达位置，每批计算后保存并休息"""
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Lock
+        
+        my_position = robot_states.get(agent.name, {}).get('position', [0, 0, 0])
+        
+        # 更新障碍物地图
+        if path_planner and hasattr(path_planner, 'update_obstacles_from_scene'):
+            try:
+                path_planner.update_obstacles_from_scene(scene_graph)
+            except Exception:
+                pass
+        
+        # 过滤场景图中的物体
+        scene_items = {k: v for k, v in scene_graph.items() 
+                      if not k.startswith('robot_') and k != 'ground'}
+        
+        if not scene_items:
+            return
+        
+        # 生成候选点
+        candidates = []
+        for name, info in scene_items.items():
+            pos = info.get('position', [0, 0, 0])
+            target_pos = [pos[0] + 0.3, pos[1], 0.0] if agent.normalized_robot_type == 'MobileManipulation' else [pos[0], pos[1], 0.0]
+            distance = ((target_pos[0] - my_position[0])**2 + 
+                       (target_pos[1] - my_position[1])**2) ** 0.5
+            if distance <= 8.0:
+                candidates.append((name, info, target_pos, distance))
+        
+        if not candidates:
+            return
+        
+        candidates.sort(key=lambda x: x[3])
+        
+        # 检查进度
+        cache_key = agent._get_cache_key(scene_graph, my_position)
+        progress_key = f"{agent.name}_{cache_key}"
+        completed_items = set(agent._calculation_progress.get(progress_key, []))
+        
+        # 过滤已计算的
+        remaining = [c for c in candidates if c[0] not in completed_items]
+        
+        if not remaining:
+            return
+        
+        # 分批计算：每批5个点，计算后保存，休息0.5秒
+        batch_size = 5
+        reachable_positions = agent._reachable_positions_cache.get(cache_key, {}).copy()
+        reachable_lock = Lock()
+        
+        for i in range(0, len(remaining), batch_size):
+            batch = remaining[i:i+batch_size]
+            
+            def verify(candidate):
+                name, info, target_pos, _ = candidate
+                try:
+                    path = path_planner.plan(
+                        my_position[:2], target_pos[:2],
+                        robot_id=agent.name, use_cache=True, silent=True
+                    )
+                    if path is not None:
+                        with reachable_lock:
+                            if agent.normalized_robot_type == 'MobileManipulation':
+                                reachable_positions[f"{name}_approach"] = target_pos
+                                reachable_positions[f"{name}_position"] = info.get('position', [0, 0, 0])
+                            else:
+                                reachable_positions[f"{name}_approach"] = target_pos
+                        return True
+                except Exception:
+                    pass
+                return False
+            
+            # 计算这一批
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                list(executor.map(verify, batch))
+            
+            # 更新进度
+            for name, _, _, _ in batch:
+                completed_items.add(name)
+            
+            agent._calculation_progress[progress_key] = list(completed_items)
+            agent._reachable_positions_cache[cache_key] = reachable_positions
+            agent._cache_dirty = True
+            agent._save_cache()
+            
+            # 休息，让出CPU时间
+            time.sleep(0.5)
+    
+    def get_reachable_positions(self, robot_id: str = None) -> Dict[str, List[float]]:
+        """
+        获取已计算的可达位置（非阻塞，返回当前已计算的结果）
+        
+        Args:
+            robot_id: 机器人ID，如果为None则返回所有机器人的位置
+            
+        Returns:
+            Dict[str, List[float]]: 可达位置字典
+        """
+        all_positions = {}
+        
+        # 从缓存文件加载
+        cache_dir = os.path.join(os.path.dirname(__file__), '..', 'cache', 'reachable_positions')
+        cache_dir = os.path.abspath(cache_dir)
+        
+        scene_path = self.scene_config.get('scene_path', '')
+        scene_name = os.path.splitext(os.path.basename(scene_path))[0] if scene_path else "default_scene"
+        
+        if robot_id:
+            # 获取特定机器人的位置
+            cache_file = os.path.join(cache_dir, f"{scene_name}_{robot_id}_reachable_cache.json")
+            try:
+                if os.path.exists(cache_file):
+                    with open(cache_file, 'r') as f:
+                        data = json.load(f)
+                        positions = data.get('reachable_positions', {})
+                        # 获取最新的缓存键
+                        if positions:
+                            latest_key = list(positions.keys())[-1] if positions else None
+                            if latest_key:
+                                all_positions.update(positions[latest_key])
+            except Exception:
+                pass
+        else:
+            # 获取所有机器人的位置
+            for rid in self.robot_factory.get_all_robots().keys():
+                cache_file = os.path.join(cache_dir, f"{scene_name}_{rid}_reachable_cache.json")
+                try:
+                    if os.path.exists(cache_file):
+                        with open(cache_file, 'r') as f:
+                            data = json.load(f)
+                            positions = data.get('reachable_positions', {})
+                            if positions:
+                                latest_key = list(positions.keys())[-1] if positions else None
+                                if latest_key:
+                                    all_positions.update(positions[latest_key])
+                except Exception:
+                    pass
+        
+        return all_positions
     
     def _get_scene_graph_for_precompute(self) -> Dict[str, Any]:
         """获取场景图用于预计算（从场景配置中提取）"""
@@ -1084,6 +1237,12 @@ class DynaHMRCSystem:
             if hasattr(self, 'adapter') and self.adapter:
                 collaboration.set_adapter(self.adapter)
                 print(f"[DynaHMRCSystem] BestManAdapter 已设置到协作框架")
+                
+                # 设置已计算的可达位置（不阻塞，有就有，没有就没有）
+                reachable_positions = self.get_reachable_positions()
+                if reachable_positions:
+                    self.adapter.set_reachable_positions(reachable_positions)
+                    print(f"[DynaHMRCSystem] 已设置 {len(reachable_positions)} 个预计算位置到 Adapter")
             
             # 更新机器人位置用于可视化
             self._update_robot_positions_for_visualization(collaboration)
