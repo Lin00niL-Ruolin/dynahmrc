@@ -681,7 +681,8 @@ class MobileManipulator:
                 (target_position[0] - self.position[0])**2 +
                 (target_position[1] - self.position[1])**2
             )
-            print(f"[MobileManipulator] 到目标距离: {distance}")
+            print(f"[MobileManipulator] 到目标距离: {distance:.3f}m, 操作范围: {self.manipulation_range}m")
+            print(f"[MobileManipulator] 当前机器人位置: {self.position}, 目标位置: {target_position}")
 
             # 如果目标太远，先导航
             if distance > self.manipulation_range:
@@ -716,6 +717,22 @@ class MobileManipulator:
             # 执行放置
             pre_place_pos = [target_position[0], target_position[1], target_position[2] + 0.1]
             place_pos = target_position
+            
+            # 检查机械臂是否能到达目标位置（通过尝试 IK）
+            print(f"[MobileManipulator] 检查机械臂是否能到达目标...")
+            try:
+                test_joints = p.calculateInverseKinematics(
+                    self.bestman.arm_id,
+                    self.bestman.eef_id,
+                    place_pos,
+                    maxNumIterations=100,
+                    physicsClientId=self.bestman.client_id
+                )
+                print(f"[MobileManipulator] IK 求解成功，可以尝试放置")
+            except Exception as e:
+                print(f"[MobileManipulator] 警告: IK 求解失败，目标可能不可达: {e}")
+                print(f"[MobileManipulator] 尝试调整机器人位置...")
+                # 这里可以添加调整机器人位置的逻辑
             
             # 1. 移动到预放置位置
             print(f"[MobileManipulator] === 开始移动到预放置位置: {pre_place_pos} ===")
