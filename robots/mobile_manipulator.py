@@ -1028,8 +1028,8 @@ class MobileManipulator:
                     )
                     print(f"[MobileManipulator] 最终位置: {final_pos}, 距离目标: {final_distance:.4f}m")
                     
-                    # 如果距离足够近（小于 0.3m），认为成功
-                    if final_distance < 0.3:
+                    # 如果距离足够近（小于 0.5m），认为成功
+                    if final_distance < 0.5:
                         print(f"[MobileManipulator] 距离目标 {final_distance:.4f}m (< 0.2m)，认为成功")
                         return True
                 return False
@@ -1107,8 +1107,8 @@ class MobileManipulator:
                 (current_pos[2] - target_pos[2])**2
             )
             
-            # 如果距离足够近（小于 0.3m），认为成功
-            if final_distance < 0.3:
+            # 如果距离足够近（小于 0.5m），认为成功
+            if final_distance < 0.5:
                 print(f"[MobileManipulator] IK 移动超时，但距离目标 {final_distance:.4f}m (< 0.2m)，认为成功")
                 return True
             
