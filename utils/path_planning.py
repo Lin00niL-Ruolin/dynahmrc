@@ -94,8 +94,22 @@ class DWAPlanner:
         best_u = [0.0, 0.0]
         min_cost = float('inf')
         
-        for v in np.arange(dw[0], dw[1], self.v_resolution):
-            for w in np.arange(dw[2], dw[3], self.yaw_rate_resolution):
+        # 确保采样范围足够大
+        v_min = max(dw[0], self.min_speed)
+        v_max = min(dw[1], self.max_speed)
+        w_min = max(dw[2], -self.max_yaw_rate)
+        w_max = min(dw[3], self.max_yaw_rate)
+        
+        # 如果速度范围太小，强制扩展
+        if v_max - v_min < self.v_resolution:
+            v_min = -0.1
+            v_max = 0.5
+        if w_max - w_min < self.yaw_rate_resolution:
+            w_min = -0.5
+            w_max = 0.5
+        
+        for v in np.arange(v_min, v_max + self.v_resolution/2, self.v_resolution):
+            for w in np.arange(w_min, w_max + self.yaw_rate_resolution/2, self.yaw_rate_resolution):
                 trajectory = self._predict_trajectory(state, v, w)
                 cost = self._calc_cost(trajectory, goal, obstacles, v)
                 
@@ -103,10 +117,10 @@ class DWAPlanner:
                     min_cost = cost
                     best_u = [v, w]
         
-        # 如果所有轨迹都不可行，尝试后退或旋转
+        # 如果所有轨迹都不可行，尝试旋转寻找可行方向
         if min_cost == float('inf'):
-            # 尝试后退
-            best_u = [-0.1, 0.0]  # 后退
+            # 尝试原地旋转
+            best_u = [0.0, 0.3]  # 原地旋转
         
         return best_u[0], best_u[1]
     
@@ -158,15 +172,19 @@ class DWAPlanner:
         
         # 障碍物代价
         obstacle_cost = 0.0
+        collision = False
         for point in trajectory:
             for obs in obstacles:
                 dist = math.sqrt((point[0] - obs[0])**2 + (point[1] - obs[1])**2)
-                if dist < self.robot_radius:
+                if dist < self.robot_radius * 0.8:  # 稍微缩小碰撞检测范围
                     # 碰撞，返回无穷大代价
-                    return float('inf')
-                elif dist < self.robot_radius * 3:  # 在3倍半径范围内
+                    collision = True
+                    break
+                elif dist < self.robot_radius * 2.5:  # 在2.5倍半径范围内
                     # 距离越近代价越高，但避免除零
-                    obstacle_cost += 1.0 / max(dist - self.robot_radius, 0.1)
+                    obstacle_cost += 0.5 / max(dist - self.robot_radius * 0.5, 0.05)
+            if collision:
+                return float('inf')
         
         return (self.goal_cost_gain * goal_cost + 
                 self.speed_cost_gain * speed_cost + 
