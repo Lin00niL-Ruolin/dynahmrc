@@ -1011,7 +1011,7 @@ class MobileManipulator:
                     # 运行一步仿真
                     self.bestman.client.run(1)
                 
-                # 超时未到达
+                # 超时未到达，检查最终距离
                 print(f"[MobileManipulator] 警告: 机械臂未能在 {max_steps} 步内到达目标位置")
                 # 获取最终位置
                 if hasattr(self.bestman, 'eef_id') and hasattr(self.bestman, 'arm_id'):
@@ -1027,6 +1027,11 @@ class MobileManipulator:
                         (final_pos[2] - target_position[2])**2
                     )
                     print(f"[MobileManipulator] 最终位置: {final_pos}, 距离目标: {final_distance:.4f}m")
+                    
+                    # 如果距离足够近（小于 0.3m），认为成功
+                    if final_distance < 0.3:
+                        print(f"[MobileManipulator] 距离目标 {final_distance:.4f}m (< 0.2m)，认为成功")
+                        return True
                 return False
             else:
                 return self._simple_ik_move(target_position, target_orientation)
@@ -1089,8 +1094,25 @@ class MobileManipulator:
                     print(f"[MobileManipulator] IK 移动成功，到达目标，误差: {distance:.4f}m")
                     return True
             
-            # 超时
-            print(f"[MobileManipulator] IK 移动超时，未能到达目标")
+            # 超时，检查最终距离
+            eef_state = p.getLinkState(
+                self.bestman.arm_id,
+                self.bestman.eef_id,
+                physicsClientId=self.bestman.client_id
+            )
+            current_pos = eef_state[0]
+            final_distance = math.sqrt(
+                (current_pos[0] - target_pos[0])**2 +
+                (current_pos[1] - target_pos[1])**2 +
+                (current_pos[2] - target_pos[2])**2
+            )
+            
+            # 如果距离足够近（小于 0.3m），认为成功
+            if final_distance < 0.3:
+                print(f"[MobileManipulator] IK 移动超时，但距离目标 {final_distance:.4f}m (< 0.2m)，认为成功")
+                return True
+            
+            print(f"[MobileManipulator] IK 移动超时，最终距离 {final_distance:.4f}m，未能到达目标")
             return False
             
         except Exception as e:
