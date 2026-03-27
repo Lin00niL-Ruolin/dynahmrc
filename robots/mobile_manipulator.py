@@ -341,6 +341,9 @@ class MobileManipulator:
                 scene_objects
             )
             
+            if step % 20 == 0:
+                print(f"[MobileManipulator] DWA 计算速度: v={v:.3f}m/s, yaw_rate={yaw_rate:.3f}rad/s")
+            
             # 应用速度
             self._apply_velocity(v, yaw_rate, scene_objects)
             
@@ -371,6 +374,7 @@ class MobileManipulator:
         new_y = self.position[1] + v * math.sin(new_yaw) * dt
         
         # 检查新位置是否会碰撞障碍物（排除自己）
+        collision_detected = False
         if scene_objects:
             for obj_name, obj_info in scene_objects.items():
                 if obj_info.get('type') == 'graspable':
@@ -385,8 +389,12 @@ class MobileManipulator:
                 )
                 if dist_to_obs < 0.35:  # 机器人半径 + 安全距离
                     # 会碰撞，停止移动
-                    print(f"[MobileManipulator] 🚫 碰撞检测: 新位置 [{new_x:.3f}, {new_y:.3f}] 距离障碍物 '{obj_name}' {dist_to_obs:.3f}m，位置 [{obs_pos[0]:.3f}, {obs_pos[1]:.3f}]，停止移动")
-                    return
+                    print(f"[MobileManipulator] 🚫 碰撞检测: 新位置 [{new_x:.3f}, {new_y:.3f}] 距离障碍物 '{obj_name}' {dist_to_obs:.3f}m，停止移动")
+                    collision_detected = True
+                    break
+        
+        if collision_detected:
+            return
         
         # 更新朝向
         orientation = [0, 0, math.sin(new_yaw / 2.0), math.cos(new_yaw / 2.0)]
@@ -395,6 +403,10 @@ class MobileManipulator:
         dx = new_x - self.position[0]
         dy = new_y - self.position[1]
         dyaw = new_yaw - self.yaw
+        
+        # 打印移动信息
+        if abs(dx) > 0.001 or abs(dy) > 0.001:
+            print(f"[MobileManipulator] 应用速度: 从 [{self.position[0]:.3f}, {self.position[1]:.3f}] 移动到 [{new_x:.3f}, {new_y:.3f}], 位移 [{dx:.3f}, {dy:.3f}]")
         
         # 设置新位置到底座
         p.resetBasePositionAndOrientation(
