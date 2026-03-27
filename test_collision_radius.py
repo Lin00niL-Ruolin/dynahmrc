@@ -515,11 +515,11 @@ class CollisionRadiusVisualizer:
         """创建物体的实际碰撞形状可视化"""
         try:
             # 获取物体的碰撞数据
-            collision_data = p.getCollisionShapeData(obj_id, -1, physicsClientId=self.client.id)
+            collision_data = p.getCollisionShapeData(obj_id, -1, physicsClientId=self.client.client_id)
             
             if not collision_data:
                 # 如果没有碰撞数据，使用默认球体
-                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.client_id)
                 return self._create_sphere_visual([pos[0], pos[1], pos[2]], 0.1, color)
             
             # 为每个碰撞形状创建可视化
@@ -531,7 +531,7 @@ class CollisionRadiusVisualizer:
                 local_orn = collision[5]
                 
                 # 获取物体世界位置
-                world_pos, world_orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                world_pos, world_orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.client_id)
                 
                 # 根据几何类型创建可视化
                 if geom_type == p.GEOM_BOX:
@@ -602,7 +602,7 @@ class CollisionRadiusVisualizer:
             print(f"   [警告] 获取物体 {obj_name} 碰撞形状失败: {e}")
             # 失败时使用默认球体
             try:
-                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.client_id)
                 return self._create_sphere_visual([pos[0], pos[1], pos[2]], 0.1, color)
             except:
                 return None
