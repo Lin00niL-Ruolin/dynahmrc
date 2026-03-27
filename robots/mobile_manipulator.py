@@ -341,7 +341,7 @@ class MobileManipulator:
                 (self.position[0] - last_position[0]) ** 2 +
                 (self.position[1] - last_position[1]) ** 2
             )
-            if moved_distance < 0.01:  # 移动距离小于1cm
+            if moved_distance < 0.005:  # 移动距离小于5mm才认为是卡住
                 stuck_counter += 1
                 if stuck_counter > stuck_threshold:
                     print(f"[MobileManipulator] 检测到卡住，已停止移动 {stuck_counter} 步")
@@ -349,12 +349,17 @@ class MobileManipulator:
                     if self._recover_from_stuck(scene_objects):
                         print(f"[MobileManipulator] 恢复成功，继续导航")
                         stuck_counter = 0
+                        # 恢复后给机器人更多时间，重置 last_position 为当前位置
+                        self._update_pose()
                         last_position = [self.position[0], self.position[1]]
+                        # 清空当前速度，让 DWA 重新规划
+                        current_v = 0.0
+                        current_yaw_rate = 0.0
                     else:
                         print(f"[MobileManipulator] 恢复失败，结束导航")
                         return False
             else:
-                stuck_counter = 0
+                stuck_counter = max(0, stuck_counter - 2)  # 移动时减少计数器
                 last_position = [self.position[0], self.position[1]]
             
             # 检查是否碰撞障碍物（排除自己）
@@ -587,21 +592,31 @@ class MobileManipulator:
             self.rotate_to_yaw(escape_yaw)
             
             # 尝试移动几步
-            for i in range(10):
-                self.move_forward(0.05)
-                self.bestman.client.run(5)
+            total_moved = 0.0
+            for i in range(20):  # 增加步数
+                prev_pos = [self.position[0], self.position[1]]
+                self.move_forward(0.1)  # 增加步长
+                self.bestman.client.run(10)  # 增加仿真步数
+                self._update_pose()  # 更新位置
+                
+                # 计算实际移动距离
+                step_moved = math.sqrt(
+                    (self.position[0] - prev_pos[0]) ** 2 +
+                    (self.position[1] - prev_pos[1]) ** 2
+                )
+                total_moved += step_moved
                 
                 # 检查是否远离了障碍物
                 new_dist = math.sqrt(
                     (nearest_pos[0] - self.position[0]) ** 2 +
                     (nearest_pos[1] - self.position[1]) ** 2
                 )
-                if new_dist > nearest_dist + 0.1:
-                    print(f"[MobileManipulator] 成功远离障碍物，新距离: {new_dist:.3f}m")
+                if new_dist > nearest_dist + 0.2:  # 增加阈值
+                    print(f"[MobileManipulator] 成功远离障碍物，新距离: {new_dist:.3f}m，移动了 {total_moved:.3f}m")
                     return True
             
-            print(f"[MobileManipulator] 恢复移动完成")
-            return True
+            print(f"[MobileManipulator] 恢复移动完成，共移动 {total_moved:.3f}m")
+            return total_moved > 0.05  # 至少移动了5cm才算成功
             
         except Exception as e:
             print(f"[MobileManipulator] 恢复失败: {e}")
