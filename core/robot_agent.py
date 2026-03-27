@@ -163,11 +163,66 @@ class RobotAgent:
         
         # Communication callback
         self.send_message_callback = None
+        
+        # 可达位置缓存系统
+        self._reachable_positions_cache = {}  # 缓存计算结果
+        self._cache_file = None  # 缓存文件路径
+        self._cache_dirty = False  # 缓存是否被修改
+        self._calculation_progress = {}  # 计算进度记录
     
     def set_path_planner(self, path_planner):
         """设置路径规划器"""
         self.path_planner = path_planner
         print(f"[RobotAgent] {self.name} path planner set")
+    
+    def set_cache_file(self, cache_file: str):
+        """设置缓存文件路径"""
+        self._cache_file = cache_file
+        # 尝试加载已有缓存
+        self._load_cache()
+    
+    def _load_cache(self):
+        """从文件加载缓存"""
+        if not self._cache_file:
+            return
+        
+        import os
+        if os.path.exists(self._cache_file):
+            try:
+                with open(self._cache_file, 'r') as f:
+                    data = json.load(f)
+                    self._reachable_positions_cache = data.get('reachable_positions', {})
+                    self._calculation_progress = data.get('progress', {})
+                print(f"[{self.name}] 已加载缓存: {len(self._reachable_positions_cache)} 个可达位置")
+            except Exception as e:
+                print(f"[{self.name}] 加载缓存失败: {e}")
+    
+    def _save_cache(self):
+        """保存缓存到文件"""
+        if not self._cache_file or not self._cache_dirty:
+            return
+        
+        try:
+            import os
+            os.makedirs(os.path.dirname(self._cache_file), exist_ok=True)
+            with open(self._cache_file, 'w') as f:
+                json.dump({
+                    'reachable_positions': self._reachable_positions_cache,
+                    'progress': self._calculation_progress,
+                    'timestamp': time.time()
+                }, f)
+            self._cache_dirty = False
+            print(f"[{self.name}] 缓存已保存到: {self._cache_file}")
+        except Exception as e:
+            print(f"[{self.name}] 保存缓存失败: {e}")
+    
+    def _get_cache_key(self, scene_graph: Dict, robot_position: List[float]) -> str:
+        """生成缓存键"""
+        # 基于场景物体和机器人位置生成唯一键
+        import hashlib
+        scene_str = json.dumps(sorted(scene_graph.keys()))
+        pos_str = f"{robot_position[0]:.2f},{robot_position[1]:.2f}"
+        return hashlib.md5(f"{scene_str}:{pos_str}".encode()).hexdigest()[:16]
     
     def _normalize_robot_type(self, robot_type: str) -> str:
         """
@@ -609,15 +664,18 @@ You specialize in aerial operations and accessing elevated areas."""
         return responsibilities.get(self.normalized_robot_type, "Unknown robot type")
     
     def _calculate_reachable_positions(self, scene_graph: Dict, robot_states: Dict, 
-                                        path_planner=None, max_workers: int = 7) -> Dict[str, List[float]]:
+                                        path_planner=None, max_workers: int = 4,
+                                        use_cache: bool = True, silent: bool = False) -> Dict[str, List[float]]:
         """
-        计算机器人可以到达的位置（多线程优化版本）
+        计算机器人可以到达的位置（带缓存的多线程优化版本）
         
         Args:
             scene_graph: 场景图
             robot_states: 机器人状态
             path_planner: 路径规划器（可选），用于A*验证
-            max_workers: 最大线程数，默认7
+            max_workers: 最大线程数，默认4（适合4核CPU）
+            use_cache: 是否使用缓存
+            silent: 是否静默模式（不打印进度）
         
         Returns:
             Dict[str, List[float]]: 可到达位置字典 {位置名称: [x, y, z]}
@@ -628,10 +686,17 @@ You specialize in aerial operations and accessing elevated areas."""
         
         start_time = time.time()
         reachable_positions = {}
-        reachable_lock = Lock()
         
         # 获取当前机器人位置
         my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
+        
+        # 检查缓存
+        if use_cache and self._cache_file:
+            cache_key = self._get_cache_key(scene_graph, my_position)
+            if cache_key in self._reachable_positions_cache:
+                if not silent:
+                    print(f"[{self.name}] 使用缓存的可达位置: {len(self._reachable_positions_cache[cache_key])} 个")
+                return self._reachable_positions_cache[cache_key]
         
         # 更新障碍物地图（静默）
         if path_planner and hasattr(path_planner, 'update_obstacles_from_scene'):
@@ -692,13 +757,28 @@ You specialize in aerial operations and accessing elevated areas."""
             candidates.sort(key=lambda x: x[3])
             total_candidates = len(candidates)
             
-            verified_count = 0
-            processed_count = 0
+            # 检查是否有进度记录（断点续算）
+            progress_key = f"{self.name}_{self._get_cache_key(scene_graph, my_position)}"
+            completed_items = set(self._calculation_progress.get(progress_key, []))
+            
+            # 过滤掉已计算的
+            remaining_candidates = [c for c in candidates if c[0] not in completed_items]
+            
+            if remaining_candidates and not silent:
+                print(f"[{self.name}] 计算可达位置: {len(remaining_candidates)}/{total_candidates} 个候选点")
+            
+            verified_count = len(completed_items)
+            processed_count = len(completed_items)
             progress_lock = Lock()
+            reachable_lock = Lock()
             
             def verify_candidate(candidate_data):
                 """验证单个候选点的可达性"""
                 name, info, target_pos, distance = candidate_data
+                
+                # 检查是否已计算过
+                if name in completed_items:
+                    return None  # 已计算过
                 
                 try:
                     if hasattr(path_planner, 'plan_global_path'):
@@ -714,7 +794,8 @@ You specialize in aerial operations and accessing elevated areas."""
                             my_position[:2], 
                             target_pos[:2],
                             robot_id=self.name,
-                            use_cache=True
+                            use_cache=True,
+                            silent=True
                         )
                     
                     if path is not None:
@@ -729,16 +810,19 @@ You specialize in aerial operations and accessing elevated areas."""
                     pass
                 return False
             
-            # 使用线程池并行验证，只显示一个进度条
-            print(f"[{self.name}] 计算可达位置: 0/{total_candidates} [{' ' * 20}] 0%", end='', flush=True)
+            # 使用线程池并行验证
+            if remaining_candidates and not silent:
+                print(f"[{self.name}] [{' ' * 20}] 0%", end='', flush=True)
             
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 future_to_candidate = {
                     executor.submit(verify_candidate, candidate): candidate 
-                    for candidate in candidates
+                    for candidate in remaining_candidates
                 }
                 
                 for future in as_completed(future_to_candidate):
+                    candidate = future_to_candidate[future]
+                    name = candidate[0]
                     is_reachable = future.result()
                     
                     with progress_lock:
@@ -746,16 +830,30 @@ You specialize in aerial operations and accessing elevated areas."""
                         if is_reachable:
                             verified_count += 1
                         
+                        # 记录进度
+                        if name not in completed_items:
+                            completed_items.add(name)
+                            self._calculation_progress[progress_key] = list(completed_items)
+                            self._cache_dirty = True
+                        
                         # 更新进度条
-                        progress = processed_count / total_candidates
-                        bar_length = 20
-                        filled = int(bar_length * progress)
-                        bar = '█' * filled + '░' * (bar_length - filled)
-                        percent = int(progress * 100)
-                        print(f"\r[{self.name}] 计算可达位置: {processed_count}/{total_candidates} [{bar}] {percent}%", 
-                              end='', flush=True)
+                        if not silent:
+                            progress = processed_count / total_candidates
+                            bar_length = 20
+                            filled = int(bar_length * progress)
+                            bar = '█' * filled + '░' * (bar_length - filled)
+                            percent = int(progress * 100)
+                            print(f"\r[{self.name}] [{bar}] {percent}%", end='', flush=True)
             
-            print()  # 换行
+            if remaining_candidates and not silent:
+                print()  # 换行
+            
+            # 保存缓存
+            if use_cache:
+                cache_key = self._get_cache_key(scene_graph, my_position)
+                self._reachable_positions_cache[cache_key] = reachable_positions.copy()
+                self._cache_dirty = True
+                self._save_cache()
             
         elif need_astar and not path_planner:
             for name, info, target_pos, distance in candidates:
@@ -766,7 +864,9 @@ You specialize in aerial operations and accessing elevated areas."""
                     reachable_positions[f"{name}_approach"] = target_pos
         
         elapsed_time = time.time() - start_time
-        print(f"[{self.name}] 找到 {len(reachable_positions)} 个可达位置，耗时 {elapsed_time:.2f}s")
+        if not silent:
+            print(f"[{self.name}] 找到 {len(reachable_positions)} 个可达位置，耗时 {elapsed_time:.2f}s")
+        
         return reachable_positions
     
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
@@ -800,16 +900,54 @@ You specialize in aerial operations and accessing elevated areas."""
         # 获取职责说明
         responsibilities = self._get_robot_responsibilities()
         
-        # 计算可到达位置（使用A*验证）
+        # 计算可到达位置（使用A*验证，静默模式）
         reachable_positions = self._calculate_reachable_positions(
-            scene_graph, robot_states, self.path_planner
+            scene_graph, robot_states, self.path_planner,
+            use_cache=True, silent=True
         )
         
-        if reachable_positions:
+        # 检查是否计算完成（断点续算进度）
+        my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
+        cache_key = self._get_cache_key(scene_graph, my_position)
+        progress_key = f"{self.name}_{cache_key}"
+        completed_items = set(self._calculation_progress.get(progress_key, []))
+        total_items = len([k for k in scene_graph.keys() if not k.startswith('robot_') and k != 'ground'])
+        
+        # 如果计算未完成（第四阶段还没算完），提供物品原始位置
+        calculation_complete = len(completed_items) >= total_items or total_items == 0
+        
+        if reachable_positions and calculation_complete:
             reachable_str = "\n".join([f"  - {name}: [{pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}]" 
                                        for name, pos in reachable_positions.items()])
+            position_note = "Note: These positions are ONLY for navigation actions. For pick/place/manipulate actions, use object names directly."
+        elif reachable_positions and not calculation_complete:
+            # 计算未完成，提供部分可达位置 + 所有物品原始位置
+            partial_str = "\n".join([f"  - {name}: [{pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}]" 
+                                     for name, pos in list(reachable_positions.items())[:10]])
+            
+            # 提供所有物品的原始位置作为备用
+            object_positions_str = "\n".join([
+                f"  - {name}: [{info.get('position', [0,0,0])[0]:.2f}, {info.get('position', [0,0,0])[1]:.2f}, {info.get('position', [0,0,0])[2]:.2f}]"
+                for name, info in scene_graph.items()
+                if not name.startswith('robot_') and name != 'ground'
+            ])
+            
+            reachable_str = f"""[PARTIAL - Calculating {len(completed_items)}/{total_items}]
+{partial_str}
+
+=== ALL OBJECT POSITIONS (Use if no reachable position available) ===
+{object_positions_str}"""
+            position_note = "WARNING: Reachable position calculation is incomplete. Use object positions above for navigation, or wait for calculation to complete."
         else:
-            reachable_str = "  (No reachable positions calculated - planner not available or paths blocked)"
+            # 没有可达位置，提供物品原始位置
+            object_positions_str = "\n".join([
+                f"  - {name}: [{info.get('position', [0,0,0])[0]:.2f}, {info.get('position', [0,0,0])[1]:.2f}, {info.get('position', [0,0,0])[2]:.2f}]"
+                for name, info in scene_graph.items()
+                if not name.startswith('robot_') and name != 'ground'
+            ])
+            reachable_str = f"""[CALCULATION PENDING - Using raw object positions]
+{object_positions_str}"""
+            position_note = "WARNING: Using raw object positions. These may not be reachable - navigation may fail. Consider waiting for path calculation to complete."
         
         return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 
@@ -827,7 +965,7 @@ Your capabilities list: {', '.join(self.capabilities)}{leader_info}
 When you need to navigate, use these pre-calculated reachable positions as targets:
 {reachable_str}
 
-Note: These positions are ONLY for navigation actions. For pick/place/manipulate actions, use object names directly.
+{position_note}
 
 Leader's Plan: {json.dumps(leader_plan, indent=2)}
 

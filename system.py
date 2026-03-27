@@ -211,6 +211,9 @@ class DynaHMRCSystem:
             # 4.1 注册场景物体到 BestManAdapter
             self._register_scene_objects_to_adapter()
             
+            # 4.2 预计算可达位置（如果配置了缓存目录）
+            self._precompute_reachable_positions()
+            
             # 5. 初始化 LLM 协调器
             self._init_coordinator()
             
@@ -441,6 +444,83 @@ class DynaHMRCSystem:
             )
         
         print(f"[DynaHMRCSystem] 已创建 {len(self.robot_configs)} 个机器人")
+    
+    def _precompute_reachable_positions(self):
+        """预计算所有机器人的可达位置（场景加载后立即执行）"""
+        import os
+        
+        # 获取场景文件名作为缓存标识
+        scene_path = self.scene_config.get('scene_path', '')
+        if scene_path:
+            scene_name = os.path.splitext(os.path.basename(scene_path))[0]
+        else:
+            scene_name = "default_scene"
+        
+        # 创建缓存目录
+        cache_dir = os.path.join(os.path.dirname(__file__), '..', 'cache', 'reachable_positions')
+        cache_dir = os.path.abspath(cache_dir)
+        os.makedirs(cache_dir, exist_ok=True)
+        
+        # 获取场景图
+        scene_graph = self._get_scene_graph()
+        
+        # 获取机器人状态
+        robot_states = {}
+        for robot_id, robot in self.robot_factory.get_all_robots().items():
+            state = robot.get_state()
+            robot_states[robot_id] = {
+                'position': state.get('position', [0, 0, 0]),
+                'orientation': state.get('orientation', [0, 0, 0, 1])
+            }
+        
+        # 创建路径规划器
+        path_planner = PathPlanner(resolution=0.1, robot_radius=0.3)
+        
+        # 为每个机器人预计算可达位置
+        print(f"\n[DynaHMRCSystem] 开始预计算可达位置...")
+        print(f"[DynaHMRCSystem] 缓存目录: {cache_dir}")
+        
+        for robot_id, robot in self.robot_factory.get_all_robots().items():
+            # 创建机器人代理
+            robot_type = robot.robot_type
+            capabilities = robot.capabilities
+            
+            # 创建临时 LLM 客户端（仅用于初始化）
+            from Dyna_hmrc_web.dynahmrc_web.dynahmrc.utils.llm_api import create_llm_client
+            temp_llm = create_llm_client(client_type='mock')
+            
+            agent = RobotAgent(
+                name=robot_id,
+                robot_type=robot_type,
+                capabilities=capabilities,
+                llm_client=temp_llm
+            )
+            
+            # 设置缓存文件
+            cache_file = os.path.join(cache_dir, f"{scene_name}_{robot_id}_reachable_cache.json")
+            agent.set_cache_file(cache_file)
+            agent.set_path_planner(path_planner)
+            
+            # 检查是否已有完整缓存
+            cache_key = agent._get_cache_key(scene_graph, robot_states[robot_id]['position'])
+            progress_key = f"{robot_id}_{cache_key}"
+            completed_items = set(agent._calculation_progress.get(progress_key, []))
+            total_items = len([k for k in scene_graph.keys() if not k.startswith('robot_') and k != 'ground'])
+            
+            if cache_key in agent._reachable_positions_cache and len(completed_items) >= total_items:
+                print(f"[{robot_id}] 已有完整缓存，跳过计算")
+                continue
+            
+            # 预计算可达位置（使用断点续算）
+            print(f"\n[{robot_id}] 预计算可达位置...")
+            reachable = agent._calculate_reachable_positions(
+                scene_graph, robot_states, path_planner,
+                max_workers=4, use_cache=True, silent=False
+            )
+            
+            print(f"[{robot_id}] 预计算完成: {len(reachable)} 个可达位置")
+        
+        print(f"\n[DynaHMRCSystem] 预计算完成\n")
     
     def _init_coordinator(self):
         """初始化 LLM 协调器"""

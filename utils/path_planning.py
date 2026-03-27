@@ -149,7 +149,8 @@ class AStarPlanner:
     def plan(self, start: List[float], goal: List[float], 
              robot_id: str = None,
              use_cache: bool = True,
-             max_retries: int = 3) -> Optional[List[List[float]]]:
+             max_retries: int = 3,
+             silent: bool = False) -> Optional[List[List[float]]]:
         """
         规划路径 - 支持动态障碍物、缓存和智能点转换
         
@@ -159,6 +160,7 @@ class AStarPlanner:
             robot_id: 机器人ID（用于动态障碍物排除和缓存）
             use_cache: 是否使用缓存
             max_retries: 最大重试次数
+            silent: 是否静默模式（不打印日志）
         
         Returns:
             路径点列表 [[x, y], ...]，如果无法到达返回 None
@@ -177,7 +179,8 @@ class AStarPlanner:
                 cache_age = time.time() - self.cache_timestamp.get(cache_key, 0)
                 if cache_age < self.cache_validity:
                     self.stats['cache_hits'] += 1
-                    print(f"[A*] 使用缓存路径 (年龄: {cache_age:.1f}s)")
+                    if not silent:
+                        print(f"[A*] 使用缓存路径 (年龄: {cache_age:.1f}s)")
                     return self.path_cache[cache_key].copy()
                 else:
                     # 缓存过期
@@ -195,25 +198,29 @@ class AStarPlanner:
         goal_converted = False
         
         if (start_node.x, start_node.y) in self.obstacles:
-            print(f"[A*] 起点在障碍物中: ({start_node.x}, {start_node.y})，尝试转换...")
+            if not silent:
+                print(f"[A*] 起点在障碍物中: ({start_node.x}, {start_node.y})，尝试转换...")
             converted = self._convert_invalid_point(start_node.x, start_node.y, 'start')
             if converted:
                 start_node.x, start_node.y = converted
                 start_converted = True
                 self.stats['point_conversions'] += 1
-                print(f"[A*] 起点已转换到: ({start_node.x}, {start_node.y})")
+                if not silent:
+                    print(f"[A*] 起点已转换到: ({start_node.x}, {start_node.y})")
             else:
                 # 无法转换，清除附近障碍物
                 self._clear_nearby_obstacles(start_node.x, start_node.y, radius=2)
         
         if (goal_node.x, goal_node.y) in self.obstacles:
-            print(f"[A*] 终点在障碍物中: ({goal_node.x}, {goal_node.y})，尝试转换...")
+            if not silent:
+                print(f"[A*] 终点在障碍物中: ({goal_node.x}, {goal_node.y})，尝试转换...")
             converted = self._convert_invalid_point(goal_node.x, goal_node.y, 'goal')
             if converted:
                 goal_node.x, goal_node.y = converted
                 goal_converted = True
                 self.stats['point_conversions'] += 1
-                print(f"[A*] 终点已转换到: ({goal_node.x}, {goal_node.y})")
+                if not silent:
+                    print(f"[A*] 终点已转换到: ({goal_node.x}, {goal_node.y})")
             else:
                 # 无法转换，清除附近障碍物
                 self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=2)
@@ -224,12 +231,13 @@ class AStarPlanner:
         closed_set: Set[Tuple[int, int]] = set()
         open_set_dict: Dict[Tuple[int, int], Node] = {(start_node.x, start_node.y): start_node}
         
-        print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
-        print(f"[A*] 距离: {math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2):.1f} 格")
-        print(f"[A*] 障碍物数量: {len(self.obstacles)} 个栅格")
+        if not silent:
+            print(f"[A*] 开始规划: 起点 ({start_node.x}, {start_node.y}) -> 终点 ({goal_node.x}, {goal_node.y})")
+            print(f"[A*] 距离: {math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2):.1f} 格")
+            print(f"[A*] 障碍物数量: {len(self.obstacles)} 个栅格")
         
         # 打印障碍物边界框
-        if self.obstacles:
+        if self.obstacles and not silent:
             min_x = min(x for x, y in self.obstacles)
             max_x = max(x for x, y in self.obstacles)
             min_y = min(y for x, y in self.obstacles)
@@ -251,10 +259,11 @@ class AStarPlanner:
                         count += 1
             return count, total
         
-        start_obs, start_total = count_obstacles_around(start_node.x, start_node.y)
-        goal_obs, goal_total = count_obstacles_around(goal_node.x, goal_node.y)
-        print(f"[A*] 起点周围障碍物: {start_obs}/{start_total} ({start_obs/start_total*100:.1f}%)")
-        print(f"[A*] 终点周围障碍物: {goal_obs}/{goal_total} ({goal_obs/goal_total*100:.1f}%)")
+        if not silent:
+            start_obs, start_total = count_obstacles_around(start_node.x, start_node.y)
+            goal_obs, goal_total = count_obstacles_around(goal_node.x, goal_node.y)
+            print(f"[A*] 起点周围障碍物: {start_obs}/{start_total} ({start_obs/start_total*100:.1f}%)")
+            print(f"[A*] 终点周围障碍物: {goal_obs}/{goal_total} ({goal_obs/goal_total*100:.1f}%)")
         
         iteration = 0
         max_iterations = 9000  # 最大迭代次数限制
@@ -262,6 +271,8 @@ class AStarPlanner:
         
         # 预估进度（基于迭代次数）
         def print_progress_bar(current_iter, max_iter, open_set_size, closed_set_size):
+            if silent:
+                return
             progress = min(current_iter / max_iter, 1.0)
             bar_length = 30
             filled = int(bar_length * progress)
@@ -269,7 +280,8 @@ class AStarPlanner:
             percent = int(progress * 100)
             print(f"\r[A*] 规划中 [{bar}] {percent}% | 迭代: {current_iter}/{max_iter} | 开放集: {open_set_size} | 已探索: {closed_set_size}", end='', flush=True)
         
-        print(f"[A*] 开始规划...")
+        if not silent:
+            print(f"[A*] 开始规划...")
         
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
@@ -288,12 +300,13 @@ class AStarPlanner:
                 path = self._reconstruct_path(current, cache_key)
                 self.stats['planning_success'] += 1
                 elapsed_time = time.time() - start_time
-                print()  # 换行，结束进度条
-                print(f"[A*] ✓ 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
-                if len(path) > 5:
-                    print(f"[A*] 路径: {path[:3]} ... {path[-3:]}")
-                else:
-                    print(f"[A*] 路径: {path}")
+                if not silent:
+                    print()  # 换行，结束进度条
+                    print(f"[A*] ✓ 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
+                    if len(path) > 5:
+                        print(f"[A*] 路径: {path[:3]} ... {path[-3:]}")
+                    else:
+                        print(f"[A*] 路径: {path}")
                 return path
             
             closed_set.add((current.x, current.y))
@@ -328,26 +341,30 @@ class AStarPlanner:
                 heapq.heappush(open_set, neighbor)
                 open_set_dict[neighbor_key] = neighbor
         
-        print()  # 换行，结束进度条
-        if iteration >= max_iterations:
-            print(f"[A*] ✗ 规划超时! 达到最大迭代次数 {max_iterations}")
-        else:
-            print(f"[A*] ✗ 无法找到路径! 迭代 {iteration} 次, 开放集为空")
-        print(f"[A*] 已探索节点数: {len(closed_set)}")
+        if not silent:
+            print()  # 换行，结束进度条
+            if iteration >= max_iterations:
+                print(f"[A*] ✗ 规划超时! 达到最大迭代次数 {max_iterations}")
+            else:
+                print(f"[A*] ✗ 无法找到路径! 迭代 {iteration} 次, 开放集为空")
+            print(f"[A*] 已探索节点数: {len(closed_set)}")
         
         # 更新统计
         self.stats['planning_failures'] += 1
         elapsed_time = time.time() - start_time
-        print(f"[A*] 规划失败，耗时 {elapsed_time:.3f}s")
+        if not silent:
+            print(f"[A*] 规划失败，耗时 {elapsed_time:.3f}s")
         
         # 尝试扩大搜索范围：清除起点和终点周围的障碍物后重试
-        print(f"[A*] 尝试扩大搜索范围，清除起点和终点周围障碍物...")
+        if not silent:
+            print(f"[A*] 尝试扩大搜索范围，清除起点和终点周围障碍物...")
         self._clear_nearby_obstacles(start_node.x, start_node.y, radius=3)
         self._clear_nearby_obstacles(goal_node.x, goal_node.y, radius=3)
         
         # 重新规划
-        print(f"[A*] 重新规划路径...")
-        return self._plan_with_current_obstacles(start_node, goal_node, cache_key)
+        if not silent:
+            print(f"[A*] 重新规划路径...")
+        return self._plan_with_current_obstacles(start_node, goal_node, cache_key, silent=silent)
     
     def _convert_invalid_point(self, x: int, y: int, point_type: str = 'point') -> Optional[Tuple[int, int]]:
         """
@@ -437,7 +454,8 @@ class AStarPlanner:
         else:
             print(f"[A*] 位置 ({x}, {y}) 周围没有需要清除的障碍物")
     
-    def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node, cache_key: str = None) -> Optional[List[List[float]]]:
+    def _plan_with_current_obstacles(self, start_node: Node, goal_node: Node, 
+                                       cache_key: str = None, silent: bool = False) -> Optional[List[List[float]]]:
         """使用当前的障碍物地图重新规划路径（使用更宽容的启发式，允许绕路）"""
         import time
         retry_start_time = time.time()
@@ -457,11 +475,14 @@ class AStarPlanner:
         # 动态调整启发式权重：距离越远，权重越低（更愿意绕路）
         heuristic_weight = max(0.01, min(1.0, 3.0 / direct_distance)) if direct_distance > 0 else 0.5
         
-        print(f"[A*] 使用宽容启发式，权重={heuristic_weight:.2f}，允许绕路探索")
-        print(f"[A*] 重新规划中...")
+        if not silent:
+            print(f"[A*] 使用宽容启发式，权重={heuristic_weight:.2f}，允许绕路探索")
+            print(f"[A*] 重新规划中...")
         
         # 进度条函数
         def print_progress_bar(current_iter, max_iter, open_set_size, closed_set_size):
+            if silent:
+                return
             progress = min(current_iter / max_iter, 1.0)
             bar_length = 30
             filled = int(bar_length * progress)
@@ -484,8 +505,9 @@ class AStarPlanner:
                 path = self._reconstruct_path(current, cache_key)
                 self.stats['planning_success'] += 1
                 elapsed_time = time.time() - retry_start_time
-                print()  # 换行
-                print(f"[A*] ✓ 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
+                if not silent:
+                    print()  # 换行
+                    print(f"[A*] ✓ 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
                 return path
             
             closed_set.add((current.x, current.y))
@@ -519,11 +541,12 @@ class AStarPlanner:
                     heapq.heappush(open_set, neighbor)
                     open_set_dict[neighbor_key] = neighbor
         
-        print()  # 换行
-        if iteration >= max_iterations:
-            print(f"[A*] ✗ 重新规划超时! 已探索 {len(closed_set)} 个节点")
-        else:
-            print(f"[A*] ✗ 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
+        if not silent:
+            print()  # 换行
+            if iteration >= max_iterations:
+                print(f"[A*] ✗ 重新规划超时! 已探索 {len(closed_set)} 个节点")
+            else:
+                print(f"[A*] ✗ 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
         
         self.stats['planning_failures'] += 1
         return None
