@@ -30,6 +30,142 @@ class Node:
         return hash((self.x, self.y))
 
 
+class DWAPlanner:
+    """DWA (Dynamic Window Approach) 局部路径规划器"""
+    
+    def __init__(self, dt: float = 0.1, predict_time: float = 3.0,
+                 max_speed: float = 0.5, min_speed: float = 0.0,
+                 max_yaw_rate: float = 1.0, max_accel: float = 0.5,
+                 max_dyaw_rate: float = 1.0, v_resolution: float = 0.05,
+                 yaw_rate_resolution: float = 0.1, robot_radius: float = 0.3,
+                 goal_cost_gain: float = 1.0, speed_cost_gain: float = 1.0,
+                 obstacle_cost_gain: float = 2.0):
+        """
+        初始化 DWA 规划器
+        
+        Args:
+            dt: 时间步长
+            predict_time: 预测时间
+            max_speed: 最大线速度
+            min_speed: 最小线速度
+            max_yaw_rate: 最大角速度
+            max_accel: 最大加速度
+            max_dyaw_rate: 最大角加速度
+            v_resolution: 速度分辨率
+            yaw_rate_resolution: 角速度分辨率
+            robot_radius: 机器人半径
+            goal_cost_gain: 目标代价权重
+            speed_cost_gain: 速度代价权重
+            obstacle_cost_gain: 障碍物代价权重
+        """
+        self.dt = dt
+        self.predict_time = predict_time
+        self.max_speed = max_speed
+        self.min_speed = min_speed
+        self.max_yaw_rate = max_yaw_rate
+        self.max_accel = max_accel
+        self.max_dyaw_rate = max_dyaw_rate
+        self.v_resolution = v_resolution
+        self.yaw_rate_resolution = yaw_rate_resolution
+        self.robot_radius = robot_radius
+        self.goal_cost_gain = goal_cost_gain
+        self.speed_cost_gain = speed_cost_gain
+        self.obstacle_cost_gain = obstacle_cost_gain
+    
+    def plan(self, state: List[float], goal: List[float], 
+             obstacles: List[List[float]], 
+             silent: bool = True) -> Tuple[float, float]:
+        """
+        规划下一步动作
+        
+        Args:
+            state: 当前状态 [x, y, yaw, v, w]
+            goal: 目标位置 [x, y]
+            obstacles: 障碍物位置列表 [[x, y], ...]
+            silent: 是否静默模式
+        
+        Returns:
+            (线速度, 角速度)
+        """
+        # 计算动态窗口
+        dw = self._calc_dynamic_window(state)
+        
+        # 评估所有可能的轨迹
+        best_u = [0.0, 0.0]
+        min_cost = float('inf')
+        
+        for v in np.arange(dw[0], dw[1], self.v_resolution):
+            for w in np.arange(dw[2], dw[3], self.yaw_rate_resolution):
+                trajectory = self._predict_trajectory(state, v, w)
+                cost = self._calc_cost(trajectory, goal, obstacles)
+                
+                if cost < min_cost:
+                    min_cost = cost
+                    best_u = [v, w]
+        
+        return best_u[0], best_u[1]
+    
+    def _calc_dynamic_window(self, state: List[float]) -> List[float]:
+        """计算动态窗口"""
+        v, w = state[3], state[4]
+        
+        # 速度限制
+        vs = [self.min_speed, self.max_speed, -self.max_yaw_rate, self.max_yaw_rate]
+        
+        # 加速度限制
+        vd = [
+            v - self.max_accel * self.dt,
+            v + self.max_accel * self.dt,
+            w - self.max_dyaw_rate * self.dt,
+            w + self.max_dyaw_rate * self.dt
+        ]
+        
+        # 动态窗口是两者的交集
+        return [
+            max(vs[0], vd[0]),  # min_v
+            min(vs[1], vd[1]),  # max_v
+            max(vs[2], vd[2]),  # min_w
+            min(vs[3], vd[3])   # max_w
+        ]
+    
+    def _predict_trajectory(self, state: List[float], v: float, w: float) -> List[List[float]]:
+        """预测轨迹"""
+        trajectory = [state[:2]]  # 只记录位置
+        x, y, yaw = state[0], state[1], state[2]
+        
+        for _ in range(int(self.predict_time / self.dt)):
+            x += v * math.cos(yaw) * self.dt
+            y += v * math.sin(yaw) * self.dt
+            yaw += w * self.dt
+            trajectory.append([x, y])
+        
+        return trajectory
+    
+    def _calc_cost(self, trajectory: List[List[float]], goal: List[float], 
+                   obstacles: List[List[float]]) -> float:
+        """计算轨迹代价"""
+        # 目标代价（距离目标的距离）
+        goal_cost = math.sqrt((trajectory[-1][0] - goal[0])**2 + 
+                             (trajectory[-1][1] - goal[1])**2)
+        
+        # 速度代价（鼓励高速）
+        speed_cost = self.max_speed - trajectory[-1][0]
+        
+        # 障碍物代价
+        obstacle_cost = 0.0
+        for point in trajectory:
+            for obs in obstacles:
+                dist = math.sqrt((point[0] - obs[0])**2 + (point[1] - obs[1])**2)
+                if dist < self.robot_radius:
+                    obstacle_cost += float('inf')
+                else:
+                    obstacle_cost += 1.0 / dist
+        
+        return (self.goal_cost_gain * goal_cost + 
+                self.speed_cost_gain * speed_cost + 
+                self.obstacle_cost_gain * obstacle_cost)
+
+
 class AStarPlanner:
     """A* 全局路径规划器 - 支持动态障碍物和智能点转换"""
     
@@ -63,6 +199,23 @@ class AStarPlanner:
             'cache_hits': 0,
             'cache_misses': 0
         }
+        
+        # 初始化 DWA 规划器
+        self.dwa_planner = DWAPlanner(
+            dt=0.1,
+            predict_time=3.0,
+            max_speed=0.5,
+            min_speed=0.0,
+            max_yaw_rate=1.0,
+            max_accel=0.5,
+            max_dyaw_rate=1.0,
+            v_resolution=0.05,
+            yaw_rate_resolution=0.1,
+            robot_radius=robot_radius,
+            goal_cost_gain=1.0,
+            speed_cost_gain=1.0,
+            obstacle_cost_gain=2.0
+        )
     
     def update_static_obstacles(self, obstacle_positions: List[List[float]], 
                                  obstacle_sizes: Optional[List[float]] = None, 
@@ -573,9 +726,10 @@ class AStarPlanner:
     
     def compute_velocity(self, position: List[float], yaw: float, 
                         current_v: float, current_w: float,
-                        scene_objects: Dict[str, Dict]) -> Tuple[float, float]:
+                        scene_objects: Dict[str, Dict],
+                        goal: List[float] = None) -> Tuple[float, float]:
         """
-        计算速度指令（简化版，用于兼容 DWA 导航）
+        计算速度指令（使用完整的 DWA 规划器）
         
         Args:
             position: 当前位置 [x, y]
@@ -583,174 +737,44 @@ class AStarPlanner:
             current_v: 当前线速度
             current_w: 当前角速度
             scene_objects: 场景物体信息
+            goal: 目标位置 [x, y]（可选，不提供则使用简单避障）
         
         Returns:
             (线速度, 角速度)
         """
-        # 使用简单的导航策略：朝向目标点移动
-        # 这里简化处理，实际应该使用 DWA 规划器
-        
-        # 默认速度
-        v = 0.3  # 默认前进速度
-        w = 0.0  # 默认不旋转
-        
-        # 检查前方是否有障碍物
-        check_distance = 0.5  # 检查前方0.5米
-        front_x = position[0] + check_distance * math.cos(yaw)
-        front_y = position[1] + check_distance * math.sin(yaw)
-        
-        obstacle_detected = False
+        # 构建障碍物列表
+        obstacles = []
         for obj_name, obj_info in scene_objects.items():
             if obj_info.get('type') == 'graspable':
                 continue
             obj_pos = obj_info.get('position', [0, 0, 0])
-            dist = math.sqrt((front_x - obj_pos[0])**2 + (front_y - obj_pos[1])**2)
-            if dist < self.robot_radius + 0.2:  # 障碍物在路径上
-                obstacle_detected = True
-                break
+            obstacles.append([obj_pos[0], obj_pos[1]])
         
-        if obstacle_detected:
-            # 有障碍物，减速并尝试转向
-            v = 0.1
-            w = 0.5  # 左转
+        # 构建当前状态 [x, y, yaw, v, w]
+        state = [position[0], position[1], yaw, current_v, current_w]
         
-        return v, w
-
-
-class DWAPlanner:
-    """DWA (Dynamic Window Approach) 局部路径规划器"""
-    
-    def __init__(self, dt: float = 0.1, predict_time: float = 3.0,
-                 max_speed: float = 0.5, min_speed: float = 0.0,
-                 max_yaw_rate: float = 1.0, max_accel: float = 0.5,
-                 max_dyaw_rate: float = 1.0, v_resolution: float = 0.05,
-                 yaw_rate_resolution: float = 0.1, robot_radius: float = 0.3,
-                 goal_cost_gain: float = 1.0, speed_cost_gain: float = 1.0,
-                 obstacle_cost_gain: float = 2.0):
-        """
-        初始化 DWA 规划器
-        
-        Args:
-            dt: 时间步长
-            predict_time: 预测时间
-            max_speed: 最大线速度
-            min_speed: 最小线速度
-            max_yaw_rate: 最大角速度
-            max_accel: 最大加速度
-            max_dyaw_rate: 最大角加速度
-            v_resolution: 速度分辨率
-            yaw_rate_resolution: 角速度分辨率
-            robot_radius: 机器人半径
-            goal_cost_gain: 目标代价权重
-            speed_cost_gain: 速度代价权重
-            obstacle_cost_gain: 障碍物代价权重
-        """
-        self.dt = dt
-        self.predict_time = predict_time
-        self.max_speed = max_speed
-        self.min_speed = min_speed
-        self.max_yaw_rate = max_yaw_rate
-        self.max_accel = max_accel
-        self.max_dyaw_rate = max_dyaw_rate
-        self.v_resolution = v_resolution
-        self.yaw_rate_resolution = yaw_rate_resolution
-        self.robot_radius = robot_radius
-        self.goal_cost_gain = goal_cost_gain
-        self.speed_cost_gain = speed_cost_gain
-        self.obstacle_cost_gain = obstacle_cost_gain
-    
-    def plan(self, state: List[float], goal: List[float], 
-             obstacles: List[List[float]], 
-             silent: bool = True) -> Tuple[float, float]:
-        """
-        规划下一步动作
-        
-        Args:
-            state: 当前状态 [x, y, yaw, v, w]
-            goal: 目标位置 [x, y]
-            obstacles: 障碍物位置列表 [[x, y], ...]
-            silent: 是否静默模式
-        
-        Returns:
-            (线速度, 角速度)
-        """
-        # 计算动态窗口
-        dw = self._calc_dynamic_window(state)
-        
-        # 评估所有可能的轨迹
-        best_u = [0.0, 0.0]
-        min_cost = float('inf')
-        
-        for v in np.arange(dw[0], dw[1], self.v_resolution):
-            for w in np.arange(dw[2], dw[3], self.yaw_rate_resolution):
-                trajectory = self._predict_trajectory(state, v, w)
-                cost = self._calc_cost(trajectory, goal, obstacles)
-                
-                if cost < min_cost:
-                    min_cost = cost
-                    best_u = [v, w]
-        
-        return best_u[0], best_u[1]
-    
-    def _calc_dynamic_window(self, state: List[float]) -> List[float]:
-        """计算动态窗口"""
-        v, w = state[3], state[4]
-        
-        # 速度限制
-        vs = [self.min_speed, self.max_speed, -self.max_yaw_rate, self.max_yaw_rate]
-        
-        # 加速度限制
-        vd = [
-            v - self.max_accel * self.dt,
-            v + self.max_accel * self.dt,
-            w - self.max_dyaw_rate * self.dt,
-            w + self.max_dyaw_rate * self.dt
-        ]
-        
-        # 动态窗口是两者的交集
-        return [
-            max(vs[0], vd[0]),  # min_v
-            min(vs[1], vd[1]),  # max_v
-            max(vs[2], vd[2]),  # min_w
-            min(vs[3], vd[3])   # max_w
-        ]
-    
-    def _predict_trajectory(self, state: List[float], v: float, w: float) -> List[List[float]]:
-        """预测轨迹"""
-        trajectory = [state[:2]]  # 只记录位置
-        x, y, yaw = state[0], state[1], state[2]
-        
-        for _ in range(int(self.predict_time / self.dt)):
-            x += v * math.cos(yaw) * self.dt
-            y += v * math.sin(yaw) * self.dt
-            yaw += w * self.dt
-            trajectory.append([x, y])
-        
-        return trajectory
-    
-    def _calc_cost(self, trajectory: List[List[float]], goal: List[float], 
-                   obstacles: List[List[float]]) -> float:
-        """计算轨迹代价"""
-        # 目标代价（距离目标的距离）
-        goal_cost = math.sqrt((trajectory[-1][0] - goal[0])**2 + 
-                             (trajectory[-1][1] - goal[1])**2)
-        
-        # 速度代价（鼓励高速）
-        speed_cost = self.max_speed - trajectory[-1][0]
-        
-        # 障碍物代价
-        obstacle_cost = 0.0
-        for point in trajectory:
+        # 如果没有提供目标，使用简单避障策略
+        if goal is None:
+            # 检查前方是否有障碍物
+            check_distance = 0.5
+            front_x = position[0] + check_distance * math.cos(yaw)
+            front_y = position[1] + check_distance * math.sin(yaw)
+            
+            obstacle_detected = False
             for obs in obstacles:
-                dist = math.sqrt((point[0] - obs[0])**2 + (point[1] - obs[1])**2)
-                if dist < self.robot_radius:
-                    obstacle_cost += float('inf')
-                else:
-                    obstacle_cost += 1.0 / dist
+                dist = math.sqrt((front_x - obs[0])**2 + (front_y - obs[1])**2)
+                if dist < self.robot_radius + 0.2:
+                    obstacle_detected = True
+                    break
+            
+            if obstacle_detected:
+                return 0.1, 0.5  # 减速并左转
+            else:
+                return 0.3, 0.0  # 直行
         
-        return (self.goal_cost_gain * goal_cost + 
-                self.speed_cost_gain * speed_cost + 
-                self.obstacle_cost_gain * obstacle_cost)
+        # 使用 DWA 规划器计算最优速度
+        v, w = self.dwa_planner.plan(state, goal, obstacles, silent=True)
+        return v, w
 
 
 # 向后兼容的别名
