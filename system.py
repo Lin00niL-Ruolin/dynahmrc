@@ -473,8 +473,8 @@ class DynaHMRCSystem:
                 'orientation': state.get('orientation', [0, 0, 0, 1])
             }
         
-        # 创建路径规划器
-        path_planner = PathPlanner(resolution=0.1, robot_radius=0.3)
+        # 创建路径规划器（使用 AStarPlanner 进行预计算）
+        path_planner = AStarPlanner(resolution=0.1, robot_radius=0.3)
         
         # 为每个机器人预计算可达位置
         print(f"\n[DynaHMRCSystem] 开始预计算可达位置...")
