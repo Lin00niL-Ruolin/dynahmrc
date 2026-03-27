@@ -33,16 +33,18 @@ class Node:
 class AStarPlanner:
     """A* 全局路径规划器 - 支持动态障碍物和智能点转换"""
     
-    def __init__(self, resolution: float = 0.1, robot_radius: float = 0.3):
+    def __init__(self, resolution: float = 0.1, robot_radius: float = 0.3, client_id: int = 0):
         """
         初始化 A* 规划器
         
         Args:
             resolution: 栅格地图分辨率（米）
             robot_radius: 机器人半径（米）
+            client_id: PyBullet 客户端 ID（可选，用于兼容性）
         """
         self.resolution = resolution
         self.robot_radius = robot_radius
+        self.client_id = client_id  # 保存 client_id
         self.static_obstacles: Set[Tuple[int, int]] = set()  # 静态障碍物
         self.dynamic_obstacles: Dict[str, Tuple[int, int]] = {}  # 动态障碍物 {robot_id: (x, y)}
         self.obstacles: Set[Tuple[int, int]] = set()  # 合并后的障碍物
