@@ -162,10 +162,17 @@ class MobileManipulator:
             
             print(f"[MobileManipulator] 全局路径规划成功，路径点数: {len(global_path)}")
             
+            # 可视化规划的路径
+            self._visualize_path(global_path, color=[0, 1, 0], line_width=2)  # 绿色路径
+            
             # 使用 DWA 沿路径导航
             print(f"[MobileManipulator] 开始 DWA 导航...")
             reached = self._dwa_navigation(global_path, scene_objects or {})
             print(f"[MobileManipulator] DWA 导航完成")
+            
+            # 可视化实际走过的路径
+            if hasattr(self, '_actual_path') and self._actual_path:
+                self._visualize_path(self._actual_path, color=[1, 0, 0], line_width=3)  # 红色实际路径
             
             if reached:
                 # 调整最终朝向
@@ -195,6 +202,48 @@ class MobileManipulator:
         finally:
             self.is_busy = False
             self.current_task = None
+    
+    def _visualize_path(self, path: List[List[float]], color: List[float] = [0, 1, 0], line_width: int = 2):
+        """可视化路径
+        
+        Args:
+            path: 路径点列表 [[x, y], [x, y], ...]
+            color: RGB 颜色
+            line_width: 线宽
+        """
+        try:
+            import pybullet as p
+            
+            if not path or len(path) < 2:
+                return
+            
+            # 创建路径线条
+            for i in range(len(path) - 1):
+                p.addUserDebugLine(
+                    lineFromXYZ=[path[i][0], path[i][1], 0.1],
+                    lineToXYZ=[path[i+1][0], path[i+1][1], 0.1],
+                    lineColorRGB=color,
+                    lineWidth=line_width,
+                    lifeTime=10.0,  # 10秒后消失
+                    physicsClientId=self.bestman.client_id
+                )
+            
+            # 在每个路径点添加小标记
+            for i, point in enumerate(path):
+                if i % max(1, len(path) // 10) == 0:  # 每隔几个点标记一次
+                    p.addUserDebugText(
+                        text=str(i),
+                        textPosition=[point[0], point[1], 0.2],
+                        textColorRGB=color,
+                        textSize=1.0,
+                        lifeTime=10.0,
+                        physicsClientId=self.bestman.client_id
+                    )
+            
+            print(f"[MobileManipulator] 路径可视化完成: {len(path)} 个点, 颜色: {color}")
+            
+        except Exception as e:
+            print(f"[MobileManipulator] 路径可视化失败: {e}")
     
     def _dwa_navigation(self, global_path: List[List[float]], scene_objects: Dict[str, Dict]) -> bool:
         """
@@ -233,6 +282,9 @@ class MobileManipulator:
         stuck_counter = 0
         last_position = [self.position[0], self.position[1]]
         stuck_threshold = 100  # 100步内移动距离小于阈值则认为卡住
+        
+        # 记录实际走过的路径
+        self._actual_path = [[self.position[0], self.position[1]]]
         
         while step < max_steps:
             self._update_pose()
@@ -297,6 +349,10 @@ class MobileManipulator:
             
             step += 1
             self.bestman.client.run(5)
+            
+            # 记录实际走过的路径点
+            if step % 5 == 0:  # 每5步记录一次
+                self._actual_path.append([self.position[0], self.position[1]])
             
             if step % 50 == 0:
                 print(f"[MobileManipulator] 导航中... 步骤: {step}, 位置: [{self.position[0]:.3f}, {self.position[1]:.3f}], 速度: {v:.3f}m/s")
