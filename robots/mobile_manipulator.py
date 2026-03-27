@@ -605,8 +605,10 @@ class MobileManipulator:
                         else:
                             print(f"[MobileManipulator] pick: 排除目标物体 '{obj_name}' 不作为障碍物")
                 
-                if not self.navigate_to(approach_pos, scene_objects=navigation_scene_objects):
-                    self.error_status = f"pick_failed: 导航到抓取位置失败"
+                nav_success, nav_msg = self.navigate_to(approach_pos, scene_objects=navigation_scene_objects)
+                print(f"[MobileManipulator] pick 导航结果: success={nav_success}, msg={nav_msg}")
+                if not nav_success:
+                    self.error_status = f"pick_failed: 导航到抓取位置失败 - {nav_msg}"
                     return False
 
                 # 转向物体
@@ -728,6 +730,7 @@ class MobileManipulator:
             )
             print(f"[MobileManipulator] 到目标距离: {distance:.3f}m, 操作范围: {self.manipulation_range}m")
             print(f"[MobileManipulator] 当前机器人位置: {self.position}, 目标位置: {target_position}")
+            print(f"[MobileManipulator] 是否需要导航: {distance > self.manipulation_range} (距离 {distance:.3f} > 范围 {self.manipulation_range})")
 
             # 如果目标太远，先导航
             if distance > self.manipulation_range:
@@ -753,8 +756,10 @@ class MobileManipulator:
                             print(f"[MobileManipulator] place: 排除手中物体 '{obj_name}' 不作为障碍物")
 
                 print(f"[MobileManipulator] 导航到接近位置: {approach_pos}")
-                if not self.navigate_to(approach_pos, scene_objects=navigation_scene_objects):
-                    self.error_status = "place_failed: 导航到接近位置失败"
+                nav_success, nav_msg = self.navigate_to(approach_pos, scene_objects=navigation_scene_objects)
+                print(f"[MobileManipulator] 导航结果: success={nav_success}, msg={nav_msg}")
+                if not nav_success:
+                    self.error_status = f"place_failed: 导航到接近位置失败 - {nav_msg}"
                     return False
 
                 self.rotate_to_yaw(angle)
