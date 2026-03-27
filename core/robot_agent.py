@@ -609,36 +609,36 @@ You specialize in aerial operations and accessing elevated areas."""
         return responsibilities.get(self.normalized_robot_type, "Unknown robot type")
     
     def _calculate_reachable_positions(self, scene_graph: Dict, robot_states: Dict, 
-                                        path_planner=None) -> Dict[str, List[float]]:
+                                        path_planner=None, max_workers: int = 7) -> Dict[str, List[float]]:
         """
-        计算机器人可以到达的位置（优化版本）
-        
-        优化策略：
-        1. 先使用快速距离筛选，只保留距离范围内的物体
-        2. 对筛选后的物体进行A*验证（大幅减少A*调用次数）
-        3. 使用批量处理提高效率
+        计算机器人可以到达的位置（多线程优化版本）
         
         Args:
             scene_graph: 场景图
             robot_states: 机器人状态
             path_planner: 路径规划器（可选），用于A*验证
+            max_workers: 最大线程数，默认7
         
         Returns:
             Dict[str, List[float]]: 可到达位置字典 {位置名称: [x, y, z]}
         """
         import time
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from threading import Lock
+        
         start_time = time.time()
         reachable_positions = {}
+        reachable_lock = Lock()
         
         # 获取当前机器人位置
         my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
         
-        # 更新障碍物地图（如果有path_planner且支持）
+        # 更新障碍物地图（静默）
         if path_planner and hasattr(path_planner, 'update_obstacles_from_scene'):
             try:
                 path_planner.update_obstacles_from_scene(scene_graph)
-            except Exception as e:
-                print(f"[{self.name}] 更新障碍物地图失败: {e}")
+            except Exception:
+                pass
         
         # 过滤场景图中的物体（排除机器人和地面）
         scene_items = {k: v for k, v in scene_graph.items() 
@@ -650,26 +650,14 @@ You specialize in aerial operations and accessing elevated areas."""
         
         # 根据机器人类型设置参数
         if self.normalized_robot_type == 'Manipulator':
-            # 固定机械臂：只能在当前位置操作
             max_reach = 0.8
-            robot_mode = "机械臂模式"
             need_astar = False
         elif self.normalized_robot_type == 'Drone':
-            # 无人机：飞行距离限制
             max_reach = 10.0
-            robot_mode = "无人机模式"
             need_astar = False
-        elif self.normalized_robot_type == 'Mobile':
-            # 移动基座：需要A*验证，但先距离筛选
-            max_reach = 8.0  # 最大移动范围
-            robot_mode = "移动基座模式"
-            need_astar = True
-        else:  # MobileManipulation
+        else:  # Mobile 或 MobileManipulation
             max_reach = 8.0
-            robot_mode = "移动操作模式"
             need_astar = True
-        
-        print(f"\n[{self.name}] 计算可达位置 ({robot_mode}): 共 {total_items} 个物体")
         
         # 第一阶段：快速距离筛选
         candidates = []
@@ -677,7 +665,6 @@ You specialize in aerial operations and accessing elevated areas."""
             pos = info.get('position', [0, 0, 0])
             
             if self.normalized_robot_type == 'Manipulator':
-                # 机械臂：直接检查距离
                 distance = ((pos[0] - my_position[0])**2 + 
                            (pos[1] - my_position[1])**2 + 
                            (pos[2] - my_position[2])**2) ** 0.5
@@ -685,7 +672,6 @@ You specialize in aerial operations and accessing elevated areas."""
                     reachable_positions[f"{name}_approach"] = pos
                     
             elif self.normalized_robot_type == 'Drone':
-                # 无人机：检查飞行距离
                 above_pos = [pos[0], pos[1], pos[2] + 1.5]
                 distance = ((above_pos[0] - my_position[0])**2 + 
                            (above_pos[1] - my_position[1])**2 + 
@@ -695,29 +681,25 @@ You specialize in aerial operations and accessing elevated areas."""
                     reachable_positions[f"{name}_nearby"] = [pos[0], pos[1], pos[2] + 0.3]
                     
             else:
-                # 移动机器人：先距离筛选，再A*验证
                 target_pos = [pos[0] + 0.3, pos[1], 0.0] if self.normalized_robot_type == 'MobileManipulation' else [pos[0], pos[1], 0.0]
                 distance = ((target_pos[0] - my_position[0])**2 + 
                            (target_pos[1] - my_position[1])**2) ** 0.5
                 if distance <= max_reach:
                     candidates.append((name, info, target_pos, distance))
         
-        # 第二阶段：对候选点进行A*验证（如果需要）
+        # 第二阶段：对候选点进行多线程A*验证
         if need_astar and candidates and path_planner:
-            candidates.sort(key=lambda x: x[3])  # 按距离排序，优先检查近的
-            print(f"[{self.name}] 距离筛选后剩余 {len(candidates)} 个候选点，开始A*验证...")
+            candidates.sort(key=lambda x: x[3])
+            total_candidates = len(candidates)
             
             verified_count = 0
-            for idx, (name, info, target_pos, distance) in enumerate(candidates):
-                # 更新进度条
-                progress = (idx + 1) / len(candidates)
-                bar_length = 20
-                filled = int(bar_length * progress)
-                bar = '█' * filled + '░' * (bar_length - filled)
-                percent = int(progress * 100)
-                print(f"\r[{self.name}] A*验证中: {idx+1}/{len(candidates)} [{bar}] {percent}%", end='', flush=True)
+            processed_count = 0
+            progress_lock = Lock()
+            
+            def verify_candidate(candidate_data):
+                """验证单个候选点的可达性"""
+                name, info, target_pos, distance = candidate_data
                 
-                # A*验证路径
                 try:
                     if hasattr(path_planner, 'plan_global_path'):
                         path = path_planner.plan_global_path(
@@ -736,21 +718,46 @@ You specialize in aerial operations and accessing elevated areas."""
                         )
                     
                     if path is not None:
-                        if self.normalized_robot_type == 'MobileManipulation':
-                            reachable_positions[f"{name}_approach"] = target_pos
-                            reachable_positions[f"{name}_position"] = info.get('position', [0, 0, 0])
-                        else:
-                            reachable_positions[f"{name}_approach"] = target_pos
-                        verified_count += 1
-                except Exception as e:
-                    # A*失败，跳过这个点
+                        with reachable_lock:
+                            if self.normalized_robot_type == 'MobileManipulation':
+                                reachable_positions[f"{name}_approach"] = target_pos
+                                reachable_positions[f"{name}_position"] = info.get('position', [0, 0, 0])
+                            else:
+                                reachable_positions[f"{name}_approach"] = target_pos
+                        return True
+                except Exception:
                     pass
+                return False
+            
+            # 使用线程池并行验证，只显示一个进度条
+            print(f"[{self.name}] 计算可达位置: 0/{total_candidates} [{' ' * 20}] 0%", end='', flush=True)
+            
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                future_to_candidate = {
+                    executor.submit(verify_candidate, candidate): candidate 
+                    for candidate in candidates
+                }
+                
+                for future in as_completed(future_to_candidate):
+                    is_reachable = future.result()
+                    
+                    with progress_lock:
+                        processed_count += 1
+                        if is_reachable:
+                            verified_count += 1
+                        
+                        # 更新进度条
+                        progress = processed_count / total_candidates
+                        bar_length = 20
+                        filled = int(bar_length * progress)
+                        bar = '█' * filled + '░' * (bar_length - filled)
+                        percent = int(progress * 100)
+                        print(f"\r[{self.name}] 计算可达位置: {processed_count}/{total_candidates} [{bar}] {percent}%", 
+                              end='', flush=True)
             
             print()  # 换行
-            print(f"[{self.name}] A*验证完成: {verified_count}/{len(candidates)} 个可达")
             
         elif need_astar and not path_planner:
-            # 没有路径规划器，直接使用距离筛选结果
             for name, info, target_pos, distance in candidates:
                 if self.normalized_robot_type == 'MobileManipulation':
                     reachable_positions[f"{name}_approach"] = target_pos
@@ -759,7 +766,7 @@ You specialize in aerial operations and accessing elevated areas."""
                     reachable_positions[f"{name}_approach"] = target_pos
         
         elapsed_time = time.time() - start_time
-        print(f"[{self.name}] 共找到 {len(reachable_positions)} 个可达位置，耗时 {elapsed_time:.3f}s")
+        print(f"[{self.name}] 找到 {len(reachable_positions)} 个可达位置，耗时 {elapsed_time:.2f}s")
         return reachable_positions
     
     def _build_execution_prompt(self, observation: Dict, leader_plan: Dict) -> str:
