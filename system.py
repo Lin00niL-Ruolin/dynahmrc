@@ -43,7 +43,7 @@ from .core.collaboration import FourStageCollaboration, CollaborationResult
 from .core.robot_agent import RobotAgent
 
 # 导入路径规划模块
-from .utils.path_planning import PathPlanner
+from .utils.path_planning import PathPlanner, AStarPlanner
 
 
 class TaskStatus(Enum):
