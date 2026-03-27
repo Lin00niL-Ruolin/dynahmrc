@@ -508,8 +508,6 @@ class CollisionRadiusVisualizer:
             visual_id = self._create_object_collision_visual(obj_id, obj_name, self.colors['obstacle'])
             if visual_id is not None:
                 self.visual_shapes.append(visual_id)
-            
-            print(f"      {obj_name}: 使用实际碰撞形状")
     
     def _create_object_collision_visual(self, obj_id, obj_name, color):
         """创建物体的实际碰撞形状可视化"""
@@ -524,6 +522,7 @@ class CollisionRadiusVisualizer:
             
             # 为每个碰撞形状创建可视化
             visual_ids = []
+            shape_types = []
             for collision in collision_data:
                 geom_type = collision[2]
                 geom_dimensions = collision[3]
@@ -535,6 +534,7 @@ class CollisionRadiusVisualizer:
                 
                 # 根据几何类型创建可视化
                 if geom_type == p.GEOM_BOX:
+                    shape_name = "BOX"
                     # 盒子形状
                     half_extents = geom_dimensions
                     visual_shape_id = p.createVisualShape(
@@ -543,6 +543,7 @@ class CollisionRadiusVisualizer:
                         rgbaColor=color
                     )
                 elif geom_type == p.GEOM_SPHERE:
+                    shape_name = "SPHERE"
                     # 球体形状
                     radius = geom_dimensions[0]
                     visual_shape_id = p.createVisualShape(
@@ -551,6 +552,7 @@ class CollisionRadiusVisualizer:
                         rgbaColor=color
                     )
                 elif geom_type == p.GEOM_CYLINDER:
+                    shape_name = "CYLINDER"
                     # 圆柱体形状
                     radius = geom_dimensions[0]
                     height = geom_dimensions[1]
@@ -561,6 +563,7 @@ class CollisionRadiusVisualizer:
                         rgbaColor=color
                     )
                 elif geom_type == p.GEOM_CAPSULE:
+                    shape_name = "CAPSULE"
                     # 胶囊体形状
                     radius = geom_dimensions[0]
                     height = geom_dimensions[1]
@@ -570,13 +573,24 @@ class CollisionRadiusVisualizer:
                         length=height,
                         rgbaColor=color
                     )
+                elif geom_type == p.GEOM_MESH:
+                    shape_name = "MESH"
+                    # 网格形状（使用默认球体表示）
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_SPHERE,
+                        radius=0.1,
+                        rgbaColor=color
+                    )
                 else:
+                    shape_name = f"OTHER({geom_type})"
                     # 其他形状使用默认球体
                     visual_shape_id = p.createVisualShape(
                         shapeType=p.GEOM_SPHERE,
                         radius=0.1,
                         rgbaColor=color
                     )
+                
+                shape_types.append(shape_name)
                 
                 # 计算世界位置（考虑本地偏移）
                 final_pos = [
@@ -594,6 +608,11 @@ class CollisionRadiusVisualizer:
                     baseOrientation=world_orn
                 )
                 visual_ids.append(multi_body_id)
+            
+            # 打印检测到的形状类型
+            if shape_types:
+                unique_shapes = list(set(shape_types))
+                print(f"      {obj_name}: 形状={unique_shapes}, 共{len(shape_types)}个碰撞体")
             
             # 返回第一个可视化ID（如果有多个，只返回第一个作为代表）
             return visual_ids[0] if visual_ids else None
