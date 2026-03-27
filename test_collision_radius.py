@@ -480,60 +480,132 @@ class CollisionRadiusVisualizer:
         self.visual_shapes.append(visual_id)
     
     def _visualize_all_radii(self):
-        """可视化所有机器人和障碍物的碰撞半径"""
+        """可视化所有机器人和障碍物的实际碰撞形状"""
         # 可视化机器人
         for robot_id, robot_info in self.robots.items():
             position = robot_info['position']
             radius = robot_info['radius']
             
-            # 机器人碰撞半径（蓝色圆柱）
-            visual_id = self._create_cylinder_visual(
-                position=[position[0], position[1], 0.05],
+            # 机器人用半透明蓝色球体表示碰撞体积
+            visual_id = self._create_sphere_visual(
+                position=[position[0], position[1], position[2]],
                 radius=radius,
-                height=0.1,
                 color=self.colors['robot']
             )
             self.visual_shapes.append(visual_id)
             
             print(f"      {robot_id}: 碰撞半径={radius:.2f}m")
         
-        # 可视化障碍物
+        # 可视化障碍物 - 使用实际碰撞形状
         for obj_name, obj_info in self.scene_objects.items():
             if obj_info['type'] == 'ground':
                 continue
             
+            obj_id = obj_info['id']
             position = obj_info['position']
-            radius = obj_info['radius']
             
-            # 障碍物碰撞半径（灰色圆柱）
-            visual_id = self._create_cylinder_visual(
-                position=[position[0], position[1], 0.05],
-                radius=radius,
-                height=0.1,
-                color=self.colors['obstacle']
-            )
-            self.visual_shapes.append(visual_id)
+            # 获取物体的实际碰撞形状
+            visual_id = self._create_object_collision_visual(obj_id, obj_name, self.colors['obstacle'])
+            if visual_id is not None:
+                self.visual_shapes.append(visual_id)
             
-            print(f"      {obj_name}: 碰撞半径={radius:.2f}m")
+            print(f"      {obj_name}: 使用实际碰撞形状")
     
-    def _create_cylinder_visual(self, position, radius, height, color):
-        """创建圆柱体可视化"""
-        visual_shape_id = p.createVisualShape(
-            shapeType=p.GEOM_CYLINDER,
-            radius=radius,
-            length=height,
-            rgbaColor=color
-        )
-        
-        multi_body_id = p.createMultiBody(
-            baseMass=0,
-            baseCollisionShapeIndex=-1,
-            baseVisualShapeIndex=visual_shape_id,
-            basePosition=position,
-            baseOrientation=[0, 0, 0, 1]
-        )
-        
-        return multi_body_id
+    def _create_object_collision_visual(self, obj_id, obj_name, color):
+        """创建物体的实际碰撞形状可视化"""
+        try:
+            # 获取物体的碰撞数据
+            collision_data = p.getCollisionShapeData(obj_id, -1, physicsClientId=self.client.id)
+            
+            if not collision_data:
+                # 如果没有碰撞数据，使用默认球体
+                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                return self._create_sphere_visual([pos[0], pos[1], pos[2]], 0.1, color)
+            
+            # 为每个碰撞形状创建可视化
+            visual_ids = []
+            for collision in collision_data:
+                geom_type = collision[2]
+                geom_dimensions = collision[3]
+                local_pos = collision[4]
+                local_orn = collision[5]
+                
+                # 获取物体世界位置
+                world_pos, world_orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                
+                # 根据几何类型创建可视化
+                if geom_type == p.GEOM_BOX:
+                    # 盒子形状
+                    half_extents = geom_dimensions
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_BOX,
+                        halfExtents=half_extents,
+                        rgbaColor=color
+                    )
+                elif geom_type == p.GEOM_SPHERE:
+                    # 球体形状
+                    radius = geom_dimensions[0]
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_SPHERE,
+                        radius=radius,
+                        rgbaColor=color
+                    )
+                elif geom_type == p.GEOM_CYLINDER:
+                    # 圆柱体形状
+                    radius = geom_dimensions[0]
+                    height = geom_dimensions[1]
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_CYLINDER,
+                        radius=radius,
+                        length=height,
+                        rgbaColor=color
+                    )
+                elif geom_type == p.GEOM_CAPSULE:
+                    # 胶囊体形状
+                    radius = geom_dimensions[0]
+                    height = geom_dimensions[1]
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_CAPSULE,
+                        radius=radius,
+                        length=height,
+                        rgbaColor=color
+                    )
+                else:
+                    # 其他形状使用默认球体
+                    visual_shape_id = p.createVisualShape(
+                        shapeType=p.GEOM_SPHERE,
+                        radius=0.1,
+                        rgbaColor=color
+                    )
+                
+                # 计算世界位置（考虑本地偏移）
+                final_pos = [
+                    world_pos[0] + local_pos[0],
+                    world_pos[1] + local_pos[1],
+                    world_pos[2] + local_pos[2]
+                ]
+                
+                # 创建多体
+                multi_body_id = p.createMultiBody(
+                    baseMass=0,
+                    baseCollisionShapeIndex=-1,
+                    baseVisualShapeIndex=visual_shape_id,
+                    basePosition=final_pos,
+                    baseOrientation=world_orn
+                )
+                visual_ids.append(multi_body_id)
+            
+            # 返回第一个可视化ID（如果有多个，只返回第一个作为代表）
+            return visual_ids[0] if visual_ids else None
+            
+        except Exception as e:
+            print(f"   [警告] 获取物体 {obj_name} 碰撞形状失败: {e}")
+            # 失败时使用默认球体
+            try:
+                pos, orn = p.getBasePositionAndOrientation(obj_id, physicsClientId=self.client.id)
+                return self._create_sphere_visual([pos[0], pos[1], pos[2]], 0.1, color)
+            except:
+                return None
     
     def _create_sphere_visual(self, position, radius, color):
         """创建球体可视化"""
