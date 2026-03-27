@@ -701,12 +701,60 @@ class FourStageCollaboration:
     
     def _is_robot_done(self, robot: RobotAgent) -> bool:
         """Check if a robot has completed its tasks"""
-        # This would check if robot has completed all assigned subtasks
-        return False
+        # 检查机器人是否已完成所有分配的子任务
+        if not self.task_plan or 'task_decomposition' not in self.task_plan:
+            return False
+        
+        # 获取分配给该机器人的任务
+        assigned_tasks = [
+            subtask for subtask in self.task_plan['task_decomposition']
+            if subtask.get('assigned_to') == robot.name
+        ]
+        
+        if not assigned_tasks:
+            # 没有分配任务，认为已完成
+            return True
+        
+        # 检查是否所有分配的任务都已完成
+        for task in assigned_tasks:
+            task_id = task.get('id', '')
+            # 检查执行历史中是否有该任务的成功记录
+            task_completed = False
+            for history_entry in self.execution_history:
+                if (history_entry.get('robot') == robot.name and 
+                    history_entry.get('feedback', {}).get('success', False)):
+                    action = history_entry.get('action', {})
+                    # 检查动作是否与任务相关
+                    action_type = action.get('action', '')
+                    target = action.get('target', '')
+                    if task_id in str(action) or task_id in str(target):
+                        task_completed = True
+                        break
+            
+            if not task_completed:
+                return False
+        
+        return True
     
     def _is_task_complete(self) -> bool:
         """Check if the overall task is complete"""
-        # This would check task completion conditions
+        # 检查所有机器人都已完成任务
+        for name, robot in self.robots.items():
+            if not self._is_robot_done(robot):
+                return False
+        
+        # 检查是否有执行历史（至少执行过一些步骤）
+        if len(self.execution_history) == 0:
+            return False
+        
+        # 检查最近的执行结果是否都成功
+        recent_history = self.execution_history[-10:]  # 最近10条
+        success_count = sum(1 for h in recent_history if h.get('feedback', {}).get('success', False))
+        
+        # 如果最近10步都成功，认为任务完成
+        if len(recent_history) > 0 and success_count == len(recent_history):
+            return True
+        
         return False
     
     def _extract_robot_assignments(self) -> Dict[str, List[str]]:
