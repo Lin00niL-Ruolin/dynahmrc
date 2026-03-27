@@ -258,6 +258,18 @@ class AStarPlanner:
         
         iteration = 0
         max_iterations = 9000  # 最大迭代次数限制
+        print_progress_interval = 500  # 每500次迭代更新进度条
+        
+        # 预估进度（基于迭代次数）
+        def print_progress_bar(current_iter, max_iter, open_set_size, closed_set_size):
+            progress = min(current_iter / max_iter, 1.0)
+            bar_length = 30
+            filled = int(bar_length * progress)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            percent = int(progress * 100)
+            print(f"\r[A*] 规划中 [{bar}] {percent}% | 迭代: {current_iter}/{max_iter} | 开放集: {open_set_size} | 已探索: {closed_set_size}", end='', flush=True)
+        
+        print(f"[A*] 开始规划...")
         
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
@@ -267,17 +279,21 @@ class AStarPlanner:
             if (current.x, current.y) in open_set_dict:
                 del open_set_dict[(current.x, current.y)]
             
-            # 每 500 次迭代打印进度
-            if iteration % 500 == 0:
-                print(f"[A*] 规划中... 迭代 {iteration}, 开放集 {len(open_set)}, 已探索 {len(closed_set)}")
+            # 每 500 次迭代打印进度条
+            if iteration % print_progress_interval == 0:
+                print_progress_bar(iteration, max_iterations, len(open_set), len(closed_set))
             
             # 到达目标
             if current == goal_node:
                 path = self._reconstruct_path(current, cache_key)
                 self.stats['planning_success'] += 1
                 elapsed_time = time.time() - start_time
-                print(f"[A*] 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
-                print(f"[A*] 路径: {path[:5]}{'...' if len(path) > 5 else ''}")
+                print()  # 换行，结束进度条
+                print(f"[A*] ✓ 路径规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
+                if len(path) > 5:
+                    print(f"[A*] 路径: {path[:3]} ... {path[-3:]}")
+                else:
+                    print(f"[A*] 路径: {path}")
                 return path
             
             closed_set.add((current.x, current.y))
@@ -312,10 +328,11 @@ class AStarPlanner:
                 heapq.heappush(open_set, neighbor)
                 open_set_dict[neighbor_key] = neighbor
         
+        print()  # 换行，结束进度条
         if iteration >= max_iterations:
-            print(f"[A*] 规划超时! 达到最大迭代次数 {max_iterations}")
+            print(f"[A*] ✗ 规划超时! 达到最大迭代次数 {max_iterations}")
         else:
-            print(f"[A*] 无法找到路径! 迭代 {iteration} 次, 开放集为空")
+            print(f"[A*] ✗ 无法找到路径! 迭代 {iteration} 次, 开放集为空")
         print(f"[A*] 已探索节点数: {len(closed_set)}")
         
         # 更新统计
@@ -432,6 +449,7 @@ class AStarPlanner:
         
         iteration = 0
         max_iterations = 8000  # 增加迭代次数，允许更多探索
+        print_progress_interval = 500
         
         # 计算起点到终点的直线距离
         direct_distance = math.sqrt((start_node.x - goal_node.x)**2 + (start_node.y - goal_node.y)**2)
@@ -440,6 +458,16 @@ class AStarPlanner:
         heuristic_weight = max(0.01, min(1.0, 3.0 / direct_distance)) if direct_distance > 0 else 0.5
         
         print(f"[A*] 使用宽容启发式，权重={heuristic_weight:.2f}，允许绕路探索")
+        print(f"[A*] 重新规划中...")
+        
+        # 进度条函数
+        def print_progress_bar(current_iter, max_iter, open_set_size, closed_set_size):
+            progress = min(current_iter / max_iter, 1.0)
+            bar_length = 30
+            filled = int(bar_length * progress)
+            bar = '█' * filled + '░' * (bar_length - filled)
+            percent = int(progress * 100)
+            print(f"\r[A*] 重新规划 [{bar}] {percent}% | 迭代: {current_iter}/{max_iter} | 开放集: {open_set_size} | 已探索: {closed_set_size}", end='', flush=True)
         
         while open_set and iteration < max_iterations:
             current = heapq.heappop(open_set)
@@ -448,11 +476,16 @@ class AStarPlanner:
             if (current.x, current.y) in open_set_dict:
                 del open_set_dict[(current.x, current.y)]
             
+            # 每 500 次迭代打印进度条
+            if iteration % print_progress_interval == 0:
+                print_progress_bar(iteration, max_iterations, len(open_set), len(closed_set))
+            
             if current == goal_node:
                 path = self._reconstruct_path(current, cache_key)
                 self.stats['planning_success'] += 1
                 elapsed_time = time.time() - retry_start_time
-                print(f"[A*] 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
+                print()  # 换行
+                print(f"[A*] ✓ 重新规划成功! 迭代 {iteration} 次, 路径长度 {len(path)} 点, 耗时 {elapsed_time:.3f}s")
                 return path
             
             closed_set.add((current.x, current.y))
@@ -486,10 +519,11 @@ class AStarPlanner:
                     heapq.heappush(open_set, neighbor)
                     open_set_dict[neighbor_key] = neighbor
         
+        print()  # 换行
         if iteration >= max_iterations:
-            print(f"[A*] 重新规划超时! 已探索 {len(closed_set)} 个节点")
+            print(f"[A*] ✗ 重新规划超时! 已探索 {len(closed_set)} 个节点")
         else:
-            print(f"[A*] 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
+            print(f"[A*] ✗ 重新规划仍无法找到路径! 已探索 {len(closed_set)} 个节点")
         
         self.stats['planning_failures'] += 1
         return None
