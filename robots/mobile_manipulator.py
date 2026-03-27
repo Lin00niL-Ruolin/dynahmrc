@@ -619,9 +619,9 @@ class MobileManipulator:
                 nav_success, nav_msg = self.navigate_to(approach_pos, scene_objects=navigation_scene_objects)
                 print(f"[MobileManipulator] pick 导航结果: success={nav_success}, msg={nav_msg}")
                 if not nav_success:
-                    self.error_status = f"pick_failed: 导航到抓取位置失败 - {nav_msg}"
-                    return False
-
+                    print(f"[MobileManipulator] 警告: 导航未完成，但继续尝试抓取")
+                    # 不返回失败，继续尝试
+                
                 # 转向物体
                 self.rotate_to_yaw(angle)
             
@@ -770,8 +770,8 @@ class MobileManipulator:
                 nav_success, nav_msg = self.navigate_to(approach_pos, scene_objects=navigation_scene_objects)
                 print(f"[MobileManipulator] 导航结果: success={nav_success}, msg={nav_msg}")
                 if not nav_success:
-                    self.error_status = f"place_failed: 导航到接近位置失败 - {nav_msg}"
-                    return False
+                    print(f"[MobileManipulator] 警告: 导航未完成，但继续尝试放置")
+                    # 不返回失败，继续尝试
 
                 self.rotate_to_yaw(angle)
             
