@@ -97,11 +97,16 @@ class DWAPlanner:
         for v in np.arange(dw[0], dw[1], self.v_resolution):
             for w in np.arange(dw[2], dw[3], self.yaw_rate_resolution):
                 trajectory = self._predict_trajectory(state, v, w)
-                cost = self._calc_cost(trajectory, goal, obstacles)
+                cost = self._calc_cost(trajectory, goal, obstacles, v)
                 
                 if cost < min_cost:
                     min_cost = cost
                     best_u = [v, w]
+        
+        # 如果所有轨迹都不可行，尝试后退或旋转
+        if min_cost == float('inf'):
+            # 尝试后退
+            best_u = [-0.1, 0.0]  # 后退
         
         return best_u[0], best_u[1]
     
@@ -142,14 +147,14 @@ class DWAPlanner:
         return trajectory
     
     def _calc_cost(self, trajectory: List[List[float]], goal: List[float], 
-                   obstacles: List[List[float]]) -> float:
+                   obstacles: List[List[float]], v: float = 0.0) -> float:
         """计算轨迹代价"""
         # 目标代价（距离目标的距离）
         goal_cost = math.sqrt((trajectory[-1][0] - goal[0])**2 + 
                              (trajectory[-1][1] - goal[1])**2)
         
-        # 速度代价（鼓励高速）
-        speed_cost = self.max_speed - trajectory[-1][0]
+        # 速度代价（鼓励高速前进）
+        speed_cost = self.max_speed - abs(v)
         
         # 障碍物代价
         obstacle_cost = 0.0
@@ -157,9 +162,11 @@ class DWAPlanner:
             for obs in obstacles:
                 dist = math.sqrt((point[0] - obs[0])**2 + (point[1] - obs[1])**2)
                 if dist < self.robot_radius:
-                    obstacle_cost += float('inf')
-                else:
-                    obstacle_cost += 1.0 / dist
+                    # 碰撞，返回无穷大代价
+                    return float('inf')
+                elif dist < self.robot_radius * 3:  # 在3倍半径范围内
+                    # 距离越近代价越高，但避免除零
+                    obstacle_cost += 1.0 / max(dist - self.robot_radius, 0.1)
         
         return (self.goal_cost_gain * goal_cost + 
                 self.speed_cost_gain * speed_cost + 
