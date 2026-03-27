@@ -570,6 +570,51 @@ class AStarPlanner:
                     return path
         
         return None
+    
+    def compute_velocity(self, position: List[float], yaw: float, 
+                        current_v: float, current_w: float,
+                        scene_objects: Dict[str, Dict]) -> Tuple[float, float]:
+        """
+        计算速度指令（简化版，用于兼容 DWA 导航）
+        
+        Args:
+            position: 当前位置 [x, y]
+            yaw: 当前朝向（弧度）
+            current_v: 当前线速度
+            current_w: 当前角速度
+            scene_objects: 场景物体信息
+        
+        Returns:
+            (线速度, 角速度)
+        """
+        # 使用简单的导航策略：朝向目标点移动
+        # 这里简化处理，实际应该使用 DWA 规划器
+        
+        # 默认速度
+        v = 0.3  # 默认前进速度
+        w = 0.0  # 默认不旋转
+        
+        # 检查前方是否有障碍物
+        check_distance = 0.5  # 检查前方0.5米
+        front_x = position[0] + check_distance * math.cos(yaw)
+        front_y = position[1] + check_distance * math.sin(yaw)
+        
+        obstacle_detected = False
+        for obj_name, obj_info in scene_objects.items():
+            if obj_info.get('type') == 'graspable':
+                continue
+            obj_pos = obj_info.get('position', [0, 0, 0])
+            dist = math.sqrt((front_x - obj_pos[0])**2 + (front_y - obj_pos[1])**2)
+            if dist < self.robot_radius + 0.2:  # 障碍物在路径上
+                obstacle_detected = True
+                break
+        
+        if obstacle_detected:
+            # 有障碍物，减速并尝试转向
+            v = 0.1
+            w = 0.5  # 左转
+        
+        return v, w
 
 
 class DWAPlanner:
