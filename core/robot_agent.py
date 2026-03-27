@@ -224,6 +224,44 @@ class RobotAgent:
         pos_str = f"{robot_position[0]:.2f},{robot_position[1]:.2f}"
         return hashlib.md5(f"{scene_str}:{pos_str}".encode()).hexdigest()[:16]
     
+    def _get_cached_reachable_positions(self, scene_graph: Dict, robot_states: Dict) -> Dict[str, List[float]]:
+        """
+        从缓存获取可达位置（不触发计算）
+        
+        Args:
+            scene_graph: 场景图
+            robot_states: 机器人状态
+            
+        Returns:
+            Dict[str, List[float]]: 缓存的可达位置
+        """
+        # 获取当前机器人位置
+        my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
+        
+        # 生成缓存键
+        cache_key = self._get_cache_key(scene_graph, my_position)
+        
+        # 如果内存中有缓存，直接返回
+        if cache_key in self._reachable_positions_cache:
+            return self._reachable_positions_cache[cache_key]
+        
+        # 尝试从文件加载缓存
+        if self._cache_file and os.path.exists(self._cache_file):
+            try:
+                with open(self._cache_file, 'r') as f:
+                    data = json.load(f)
+                    self._reachable_positions_cache = data.get('reachable_positions', {})
+                    self._calculation_progress = data.get('progress', {})
+                
+                # 再次检查内存缓存
+                if cache_key in self._reachable_positions_cache:
+                    return self._reachable_positions_cache[cache_key]
+            except Exception:
+                pass
+        
+        # 没有缓存，返回空字典
+        return {}
+    
     def _normalize_robot_type(self, robot_type: str) -> str:
         """
         标准化机器人类型名称
@@ -900,28 +938,28 @@ You specialize in aerial operations and accessing elevated areas."""
         # 获取职责说明
         responsibilities = self._get_robot_responsibilities()
         
-        # 计算可到达位置（使用A*验证，静默模式）
-        reachable_positions = self._calculate_reachable_positions(
-            scene_graph, robot_states, self.path_planner,
-            use_cache=True, silent=True
-        )
+        # 从缓存加载可达位置（不重新计算，后台线程正在计算）
+        reachable_positions = self._get_cached_reachable_positions(scene_graph, robot_states)
         
-        # 检查是否计算完成（断点续算进度）
+        # 检查计算进度
         my_position = robot_states.get(self.name, {}).get('position', [0, 0, 0])
         cache_key = self._get_cache_key(scene_graph, my_position)
         progress_key = f"{self.name}_{cache_key}"
         completed_items = set(self._calculation_progress.get(progress_key, []))
         total_items = len([k for k in scene_graph.keys() if not k.startswith('robot_') and k != 'ground'])
         
-        # 如果计算未完成（第四阶段还没算完），提供物品原始位置
+        # 判断计算状态
         calculation_complete = len(completed_items) >= total_items or total_items == 0
+        has_cached_positions = len(reachable_positions) > 0
         
-        if reachable_positions and calculation_complete:
+        # 生成位置信息字符串
+        if has_cached_positions and calculation_complete:
+            # 计算完成，有缓存位置
             reachable_str = "\n".join([f"  - {name}: [{pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}]" 
                                        for name, pos in reachable_positions.items()])
-            position_note = "Note: These positions are ONLY for navigation actions. For pick/place/manipulate actions, use object names directly."
-        elif reachable_positions and not calculation_complete:
-            # 计算未完成，提供部分可达位置 + 所有物品原始位置
+            position_note = "Note: These positions are verified reachable. Use them for navigation actions. For pick/place/manipulate actions, use object names directly."
+        elif has_cached_positions and not calculation_complete:
+            # 计算中，有部分缓存位置
             partial_str = "\n".join([f"  - {name}: [{pos[0]:.2f}, {pos[1]:.2f}, {pos[2]:.2f}]" 
                                      for name, pos in list(reachable_positions.items())[:10]])
             
@@ -932,22 +970,22 @@ You specialize in aerial operations and accessing elevated areas."""
                 if not name.startswith('robot_') and name != 'ground'
             ])
             
-            reachable_str = f"""[PARTIAL - Calculating {len(completed_items)}/{total_items}]
+            reachable_str = f"""[PARTIAL - Background calculating {len(completed_items)}/{total_items}]
 {partial_str}
 
-=== ALL OBJECT POSITIONS (Use if no reachable position available) ===
+=== ALL OBJECT POSITIONS (Fallback if no reachable position available) ===
 {object_positions_str}"""
-            position_note = "WARNING: Reachable position calculation is incomplete. Use object positions above for navigation, or wait for calculation to complete."
+            position_note = "INFO: Background calculation in progress. Use verified reachable positions above if available, otherwise use object positions as fallback."
         else:
-            # 没有可达位置，提供物品原始位置
+            # 没有缓存位置，提供物品原始位置
             object_positions_str = "\n".join([
                 f"  - {name}: [{info.get('position', [0,0,0])[0]:.2f}, {info.get('position', [0,0,0])[1]:.2f}, {info.get('position', [0,0,0])[2]:.2f}]"
                 for name, info in scene_graph.items()
                 if not name.startswith('robot_') and name != 'ground'
             ])
-            reachable_str = f"""[CALCULATION PENDING - Using raw object positions]
+            reachable_str = f"""[BACKGROUND CALCULATING - Using raw object positions for now]
 {object_positions_str}"""
-            position_note = "WARNING: Using raw object positions. These may not be reachable - navigation may fail. Consider waiting for path calculation to complete."
+            position_note = "INFO: Reachable position calculation running in background. Using raw object positions. Navigation may fail if position is blocked."
         
         return f"""You are {self.name}, a {self.normalized_robot_type} robot.
 

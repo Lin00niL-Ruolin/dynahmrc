@@ -446,8 +446,9 @@ class DynaHMRCSystem:
         print(f"[DynaHMRCSystem] 已创建 {len(self.robot_configs)} 个机器人")
     
     def _precompute_reachable_positions(self):
-        """预计算所有机器人的可达位置（场景加载后立即执行）"""
+        """预计算所有机器人的可达位置（后台线程，不阻塞程序）"""
         import os
+        import threading
         
         # 获取场景文件名作为缓存标识
         scene_path = self.scene_config.get('scene_path', '')
@@ -473,19 +474,40 @@ class DynaHMRCSystem:
                 'orientation': state.get('orientation', [0, 0, 0, 1])
             }
         
-        # 创建路径规划器（使用 AStarPlanner 进行预计算）
-        path_planner = AStarPlanner(resolution=0.1, robot_radius=0.3)
+        # 保存计算状态
+        self._precompute_status = {
+            'running': True,
+            'completed': {},
+            'total_robots': len(self.robot_factory.get_all_robots())
+        }
         
-        # 为每个机器人预计算可达位置
-        print(f"\n[DynaHMRCSystem] 开始预计算可达位置...")
+        # 为每个机器人启动后台线程进行预计算
+        print(f"\n[DynaHMRCSystem] 启动后台预计算线程...")
         print(f"[DynaHMRCSystem] 缓存目录: {cache_dir}")
         
         for robot_id, robot in self.robot_factory.get_all_robots().items():
+            thread = threading.Thread(
+                target=self._precompute_for_robot,
+                args=(robot_id, robot, scene_graph, robot_states, cache_dir, scene_name),
+                daemon=True,
+                name=f"Precompute-{robot_id}"
+            )
+            thread.start()
+            print(f"[{robot_id}] 后台计算线程已启动")
+        
+        print(f"[DynaHMRCSystem] 所有预计算线程已启动，程序继续执行\n")
+    
+    def _precompute_for_robot(self, robot_id, robot, scene_graph, robot_states, cache_dir, scene_name):
+        """为单个机器人预计算可达位置（在后台线程中运行）"""
+        try:
+            # 创建路径规划器（每个线程独立的规划器）
+            path_planner = AStarPlanner(resolution=0.1, robot_radius=0.3)
+            
             # 创建机器人代理
             robot_type = robot.robot_type
             capabilities = robot.capabilities
             
-            # 创建临时 LLM 客户端（仅用于初始化）
+            # 创建临时 LLM 客户端
             from Dyna_hmrc_web.dynahmrc_web.dynahmrc.utils.llm_api import create_llm_client
             temp_llm = create_llm_client(client_type='mock')
             
@@ -509,18 +531,22 @@ class DynaHMRCSystem:
             
             if cache_key in agent._reachable_positions_cache and len(completed_items) >= total_items:
                 print(f"[{robot_id}] 已有完整缓存，跳过计算")
-                continue
+                self._precompute_status['completed'][robot_id] = True
+                return
             
             # 预计算可达位置（使用断点续算）
-            print(f"\n[{robot_id}] 预计算可达位置...")
+            print(f"[{robot_id}] 后台计算开始...")
             reachable = agent._calculate_reachable_positions(
                 scene_graph, robot_states, path_planner,
-                max_workers=4, use_cache=True, silent=False
+                max_workers=2, use_cache=True, silent=True  # 静默模式，减少输出
             )
             
-            print(f"[{robot_id}] 预计算完成: {len(reachable)} 个可达位置")
-        
-        print(f"\n[DynaHMRCSystem] 预计算完成\n")
+            print(f"[{robot_id}] 后台计算完成: {len(reachable)} 个可达位置")
+            self._precompute_status['completed'][robot_id] = True
+            
+        except Exception as e:
+            print(f"[{robot_id}] 后台计算出错: {e}")
+            self._precompute_status['completed'][robot_id] = False
     
     def _get_scene_graph_for_precompute(self) -> Dict[str, Any]:
         """获取场景图用于预计算（从场景配置中提取）"""
