@@ -309,7 +309,14 @@ class MobileManipulator:
                 stuck_counter += 1
                 if stuck_counter > stuck_threshold:
                     print(f"[MobileManipulator] 检测到卡住，已停止移动 {stuck_counter} 步")
-                    return False
+                    # 尝试远离障碍物恢复
+                    if self._recover_from_stuck(scene_objects):
+                        print(f"[MobileManipulator] 恢复成功，继续导航")
+                        stuck_counter = 0
+                        last_position = [self.position[0], self.position[1]]
+                    else:
+                        print(f"[MobileManipulator] 恢复失败，结束导航")
+                        return False
             else:
                 stuck_counter = 0
                 last_position = [self.position[0], self.position[1]]
@@ -490,6 +497,80 @@ class MobileManipulator:
         self.position[1] = new_y
         self.yaw = new_yaw
         self.orientation = orientation
+    
+    def _recover_from_stuck(self, scene_objects: Dict[str, Dict]) -> bool:
+        """当卡住时尝试远离障碍物恢复
+        
+        Returns:
+            是否恢复成功
+        """
+        try:
+            print(f"[MobileManipulator] 尝试从卡住状态恢复...")
+            
+            # 找到最近的障碍物
+            nearest_obs = None
+            nearest_dist = float('inf')
+            nearest_pos = None
+            
+            for obj_name, obj_info in scene_objects.items():
+                if obj_info.get('type') == 'graspable':
+                    continue
+                if obj_name == self.robot_id or obj_name == f"robot_{self.robot_id}":
+                    continue
+                
+                obs_pos = obj_info.get('position', [0, 0, 0])
+                dist = math.sqrt(
+                    (obs_pos[0] - self.position[0]) ** 2 +
+                    (obs_pos[1] - self.position[1]) ** 2
+                )
+                if dist < nearest_dist:
+                    nearest_dist = dist
+                    nearest_obs = obj_name
+                    nearest_pos = obs_pos
+            
+            if nearest_obs is None:
+                print(f"[MobileManipulator] 没有找到障碍物，尝试随机移动")
+                # 随机选择一个方向移动
+                import random
+                random_yaw = random.uniform(-math.pi, math.pi)
+                self.rotate_to_yaw(random_yaw)
+                self.move_forward(0.3)
+                return True
+            
+            print(f"[MobileManipulator] 最近障碍物: '{nearest_obs}' 距离 {nearest_dist:.3f}m")
+            
+            # 计算远离障碍物的方向
+            dx = self.position[0] - nearest_pos[0]
+            dy = self.position[1] - nearest_pos[1]
+            escape_yaw = math.atan2(dy, dx)
+            
+            print(f"[MobileManipulator] 远离方向: {escape_yaw:.3f} rad")
+            
+            # 转向远离方向并移动
+            self.rotate_to_yaw(escape_yaw)
+            
+            # 尝试移动几步
+            for i in range(10):
+                self.move_forward(0.05)
+                self.bestman.client.run(5)
+                
+                # 检查是否远离了障碍物
+                new_dist = math.sqrt(
+                    (nearest_pos[0] - self.position[0]) ** 2 +
+                    (nearest_pos[1] - self.position[1]) ** 2
+                )
+                if new_dist > nearest_dist + 0.1:
+                    print(f"[MobileManipulator] 成功远离障碍物，新距离: {new_dist:.3f}m")
+                    return True
+            
+            print(f"[MobileManipulator] 恢复移动完成")
+            return True
+            
+        except Exception as e:
+            print(f"[MobileManipulator] 恢复失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     def _simple_navigation(self, target_pos: List[float]):
         """简单导航实现（备用）"""
