@@ -381,7 +381,8 @@ class MobileManipulator:
                 self.yaw,
                 current_v,
                 current_yaw_rate,
-                scene_objects
+                scene_objects,
+                goal=goal  # 传入目标点，使用完整 DWA 规划
             )
             
             # 应用速度
