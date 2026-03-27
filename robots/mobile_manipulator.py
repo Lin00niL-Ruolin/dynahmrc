@@ -612,59 +612,30 @@ class MobileManipulator:
                 # 转向物体
                 self.rotate_to_yaw(angle)
             
-            # 执行抓取
-            pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.1]
-            grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2]]
+            # 执行抓取 - 使用 BestMan 的 pick 方法
+            print(f"[MobileManipulator] 使用 BestMan 的 pick 方法抓取物体 {object_id}")
             
-            print(f"[MobileManipulator] 抓取位置信息:")
-            print(f"  物体位置: {obj_pos}")
-            print(f"  预抓取位置: {pre_grasp_pos}")
-            print(f"  抓取位置: {grasp_pos}")
+            # 构建抓取位姿（参考 BestMan 的实现）
+            from Robotics_API.Pose import Pose
+            pick_pose = Pose([obj_pos[0], obj_pos[1], obj_pos[2]], [obj_orn[0], obj_orn[1], obj_orn[2], obj_orn[3]])
             
-            # 获取当前末端执行器位置
-            eef_state = p.getLinkState(
-                self.bestman.arm_id,
-                self.bestman.eef_id,
-                physicsClientId=self.bestman.client_id
-            )
-            print(f"  当前末端位置: {eef_state[0]}")
-            
-            # 1. 移动到预抓取位置
-            print(f"[MobileManipulator] 步骤1: 移动到预抓取位置")
-            if not self._move_arm_to_position(pre_grasp_pos):
-                self.error_status = f"pick_failed: 移动到预抓取位置失败"
-                return False
-            
-            # 2. 打开夹爪
-            print(f"[MobileManipulator] 步骤2: 打开夹爪")
-            self.open_gripper()
-            
-            # 3. 下降到抓取位置
-            print(f"[MobileManipulator] 步骤3: 下降到抓取位置 {grasp_pos}")
-            if not self._move_arm_to_position(grasp_pos):
-                print(f"[MobileManipulator] 下降到抓取位置失败，尝试调整...")
-                # 尝试稍微高一点的抓取位置
-                adjusted_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]
-                print(f"[MobileManipulator] 尝试调整后的抓取位置: {adjusted_grasp_pos}")
-                if not self._move_arm_to_position(adjusted_grasp_pos):
-                    self.error_status = f"pick_failed: 下降到抓取位置失败"
-                    return False
-            
-            # 4. 关闭夹爪
-            self.close_gripper()
-            
-            # 5. 创建约束
-            self._create_grasp_constraint(object_id)
-            
-            # 6. 抬升
-            if not self._move_arm_to_position(pre_grasp_pos):
-                self.error_status = f"pick_failed: 抬升物体失败"
-                return False
-            
-            self.is_holding_object = True
-            self.held_object_id = object_id
-            
-            return True
+            # 调用 BestMan 的 pick 方法
+            if hasattr(self.bestman, 'pick'):
+                print(f"[MobileManipulator] 调用 bestman.pick()")
+                self.bestman.pick(pick_pose)
+                
+                # 创建约束（BestMan 的 pick 可能不创建约束，我们自己创建）
+                self._create_grasp_constraint(object_id)
+                
+                self.is_holding_object = True
+                self.held_object_id = object_id
+                
+                print(f"[MobileManipulator] 抓取完成")
+                return True
+            else:
+                print(f"[MobileManipulator] bestman 没有 pick 方法，使用备用方案")
+                # 备用方案：手动执行抓取
+                return self._manual_pick(object_id, obj_pos, obj_orn)
             
         except Exception as e:
             import traceback
@@ -673,6 +644,59 @@ class MobileManipulator:
         finally:
             self.is_busy = False
             self.current_task = None
+    
+    def _manual_pick(self, object_id: int, obj_pos: List[float], obj_orn: List[float]) -> bool:
+        """手动抓取（备用方案）"""
+        try:
+            print(f"[MobileManipulator] 手动抓取物体 {object_id}")
+            
+            # 参考 BestMan 的实现
+            # 预抓取位置（物体上方 0.06m）
+            pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.06]
+            # 抓取位置（物体下方 0.03m，确保夹爪能夹住）
+            grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] - 0.03]
+            # 抬升位置（物体上方 0.5m）
+            lift_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.5]
+            
+            print(f"  预抓取: {pre_grasp_pos}")
+            print(f"  抓取: {grasp_pos}")
+            print(f"  抬升: {lift_pos}")
+            
+            # 1. 移动到预抓取位置
+            if not self._move_arm_to_position(pre_grasp_pos):
+                print(f"[MobileManipulator] 移动到预抓取位置失败")
+                return False
+            
+            # 2. 打开夹爪
+            self.open_gripper()
+            
+            # 3. 下降到抓取位置（物体下方）
+            if not self._move_arm_to_position(grasp_pos):
+                print(f"[MobileManipulator] 下降到抓取位置失败")
+                return False
+            
+            # 4. 关闭夹爪
+            self.close_gripper()
+            
+            # 5. 创建约束
+            self._create_grasp_constraint(object_id)
+            
+            # 6. 抬升
+            if not self._move_arm_to_position(lift_pos):
+                print(f"[MobileManipulator] 抬升失败")
+                return False
+            
+            self.is_holding_object = True
+            self.held_object_id = object_id
+            
+            print(f"[MobileManipulator] 手动抓取完成")
+            return True
+            
+        except Exception as e:
+            print(f"[MobileManipulator] 手动抓取失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     def place(self, target_position: List[float], scene_objects: Optional[Dict[str, Dict]] = None) -> bool:
         """
