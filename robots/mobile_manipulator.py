@@ -616,18 +616,39 @@ class MobileManipulator:
             pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.1]
             grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2]]
             
+            print(f"[MobileManipulator] 抓取位置信息:")
+            print(f"  物体位置: {obj_pos}")
+            print(f"  预抓取位置: {pre_grasp_pos}")
+            print(f"  抓取位置: {grasp_pos}")
+            
+            # 获取当前末端执行器位置
+            eef_state = p.getLinkState(
+                self.bestman.arm_id,
+                self.bestman.eef_id,
+                physicsClientId=self.bestman.client_id
+            )
+            print(f"  当前末端位置: {eef_state[0]}")
+            
             # 1. 移动到预抓取位置
+            print(f"[MobileManipulator] 步骤1: 移动到预抓取位置")
             if not self._move_arm_to_position(pre_grasp_pos):
                 self.error_status = f"pick_failed: 移动到预抓取位置失败"
                 return False
             
             # 2. 打开夹爪
+            print(f"[MobileManipulator] 步骤2: 打开夹爪")
             self.open_gripper()
             
             # 3. 下降到抓取位置
+            print(f"[MobileManipulator] 步骤3: 下降到抓取位置 {grasp_pos}")
             if not self._move_arm_to_position(grasp_pos):
-                self.error_status = f"pick_failed: 下降到抓取位置失败"
-                return False
+                print(f"[MobileManipulator] 下降到抓取位置失败，尝试调整...")
+                # 尝试稍微高一点的抓取位置
+                adjusted_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]
+                print(f"[MobileManipulator] 尝试调整后的抓取位置: {adjusted_grasp_pos}")
+                if not self._move_arm_to_position(adjusted_grasp_pos):
+                    self.error_status = f"pick_failed: 下降到抓取位置失败"
+                    return False
             
             # 4. 关闭夹爪
             self.close_gripper()
