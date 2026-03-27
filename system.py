@@ -462,7 +462,7 @@ class DynaHMRCSystem:
         os.makedirs(cache_dir, exist_ok=True)
         
         # 获取场景图
-        scene_graph = self._get_scene_graph()
+        scene_graph = self._get_scene_graph_for_precompute()
         
         # 获取机器人状态
         robot_states = {}
@@ -521,6 +521,42 @@ class DynaHMRCSystem:
             print(f"[{robot_id}] 预计算完成: {len(reachable)} 个可达位置")
         
         print(f"\n[DynaHMRCSystem] 预计算完成\n")
+    
+    def _get_scene_graph_for_precompute(self) -> Dict[str, Any]:
+        """获取场景图用于预计算（从场景配置中提取）"""
+        scene_graph = {}
+        
+        # 从场景配置中获取物体
+        objects = self.scene_config.get("objects", [])
+        for obj in objects:
+            name = obj.get("name", "unknown")
+            scene_graph[name] = {
+                "type": obj.get("type", "unknown"),
+                "position": obj.get("position", [0, 0, 0]),
+                "orientation": obj.get("orientation", [0, 0, 0, 1]),
+                "size": obj.get("size", [0.1, 0.1, 0.1])
+            }
+        
+        # 如果从JSON文件加载的场景，也尝试从那里获取
+        scene_path = self.scene_config.get('scene_path', '')
+        if scene_path and os.path.exists(scene_path):
+            try:
+                with open(scene_path, 'r') as f:
+                    scene_data = json.load(f)
+                    if isinstance(scene_data, dict) and 'objects' in scene_data:
+                        for obj in scene_data['objects']:
+                            name = obj.get("name", obj.get("id", "unknown"))
+                            if name not in scene_graph:
+                                scene_graph[name] = {
+                                    "type": obj.get("type", "unknown"),
+                                    "position": obj.get("position", [0, 0, 0]),
+                                    "orientation": obj.get("orientation", [0, 0, 0, 1]),
+                                    "size": obj.get("size", [0.1, 0.1, 0.1])
+                                }
+            except Exception as e:
+                print(f"[WARN] 加载场景文件失败: {e}")
+        
+        return scene_graph
     
     def _init_coordinator(self):
         """初始化 LLM 协调器"""
