@@ -60,8 +60,8 @@ class DroneArmCollaborationTest:
         self.locations = {
             'item_start': [-3.0,2.0,3.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
-            'arm_base': [-1.0, 0, 0],              # 机械臂基座位置
-            'tray_position': [1.0, 1.0, 1.5],     # 托盘位置
+            'arm_base': [-0.5, 0, 0],              # 机械臂基座位置
+            'tray_position': [1.0, 1.0, 1.0],     # 托盘位置
             'drone_start': [2.0, -2.0, 1.5],       # 无人机起始位置
         }
         
@@ -106,7 +106,7 @@ class DroneArmCollaborationTest:
                 model_path="Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf",
                 object_position=[0, 0, 0],
                 object_orientation=[0, 0, 0, 1],
-                scale=1.0,
+                scale=1.5,
                 fixed_base=True
             )
             self.scene_objects['table'] = table_id
@@ -130,7 +130,7 @@ class DroneArmCollaborationTest:
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
                 object_position=self.locations['tray_position'],
                 object_orientation=[0, 0, 0, 1],
-                scale=2.5,
+                scale=2.0,
                 fixed_base=True
             )
             self.scene_objects['tray'] = tray_id
