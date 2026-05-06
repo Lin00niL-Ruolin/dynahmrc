@@ -58,7 +58,7 @@ class DroneArmCollaborationTest:
         
         # 场景位置配置
         self.locations = {
-            'item_start': [-3.0,2.0,1.0],      # 物品初始位置
+            'item_start': [-3.0,2.0,3.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
             'arm_base': [-1.0, 0, 0],              # 机械臂基座位置
             'tray_position': [1.0, 1.0, 1.5],     # 托盘位置
@@ -148,24 +148,6 @@ class DroneArmCollaborationTest:
             self.scene_objects['cup'] = cup_id
             print(f"   创建黄色杯子 (ID: {cup_id}) 在位置 {self.locations['item_start']}")
 
-            # 5. 创建地面标记（便于观察位置）
-            for name, pos in [
-                ('item_zone', self.locations['item_start'][:2] + [0.05]),
-                ('table_zone', self.locations['table_center'][:2] + [0.05]),
-                ('tray_zone', self.locations['tray_position'][:2] + [0.05])
-            ]:
-                marker_id = self.client.load_object(
-                    obj_name=name,
-                    model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                    object_position=pos,
-                    object_orientation=[0, 0, 0, 1],
-                    scale=0.3,
-                    fixed_base=True
-                )
-                self.scene_objects[name] = marker_id
-            
-            print("   [OK] 创建位置标记")
-            
             # 等待场景稳定
             for _ in range(100):
                 self.client.run(1)
