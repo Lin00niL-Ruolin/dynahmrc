@@ -224,7 +224,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.1: 导航到物品上方
         print("\n   [1.1] Lucy 导航到物品上方...")
-        approach_pos = [item_pos[0], item_pos[1], item_pos[2] - 0.5]
+        approach_pos = [item_pos[0], item_pos[1], item_pos[2] - 1.5]
         success, msg = self.drone.navigate_to(approach_pos)
         if success:
             print(f"   [OK] 导航成功: {msg}")
