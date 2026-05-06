@@ -134,7 +134,7 @@ class DroneArmCollaborationTest:
                 fixed_base=False
             )
             self.scene_objects['cup'] = cup_id
-            print(f"   [OK] 创建黄色杯子 (ID: {cup_id}) 在位置 {self.locations['item_start']}")
+            print(f"   创建黄色杯子 (ID: {cup_id}) 在位置 {self.locations['item_start']}")
             
             # 4. 创建地面标记（便于观察位置）
             for name, pos in [
