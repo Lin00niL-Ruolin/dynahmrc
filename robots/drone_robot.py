@@ -179,38 +179,25 @@ class DroneRobot:
             self.is_busy = False
             self.current_task = None
     
-    def _fly_to(self, target_pos: List[float], headless: bool = True):
-        """
-        飞行到指定位置（3D）
-        
-        Args:
-            target_pos: 目标位置 [x, y, z]
-            headless: 是否无GUI模式（华为云等），无GUI模式下使用直接设置位置避免卡顿
-        """
+    def _fly_to(self, target_pos: List[float]):
+        """飞行到指定位置（3D）"""
         try:
             print(f"[DroneRobot] _fly_to: 从 {self.position} 飞到 {target_pos}")
             
-            if headless:
-                # 无GUI模式：直接使用 set_base_pose，避免仿真步进延迟
-                print(f"[DroneRobot] 无GUI模式：使用 set_base_pose")
-                if hasattr(self.bestman, 'set_base_pose'):
-                    self.bestman.set_base_pose(target_pos, self.orientation)
-                else:
-                    self._set_position_directly(target_pos)
+            # 使用 BestMan 的移动功能
+            if hasattr(self.bestman, 'move_base_to'):
+                print(f"[DroneRobot] 使用 move_base_to")
+                from Robotics_API.Pose import Pose
+                target_pose = Pose(target_pos, self.orientation)
+                result = self.bestman.move_base_to(target_pose)
+                print(f"[DroneRobot] move_base_to 返回: {result}")
+            elif hasattr(self.bestman, 'set_base_pose'):
+                print(f"[DroneRobot] 使用 set_base_pose")
+                self.bestman.set_base_pose(target_pos, self.orientation)
             else:
-                # GUI模式：使用平滑移动
-                if hasattr(self.bestman, 'move_base_to'):
-                    print(f"[DroneRobot] 使用 move_base_to")
-                    from Robotics_API.Pose import Pose
-                    target_pose = Pose(target_pos, self.orientation)
-                    result = self.bestman.move_base_to(target_pose)
-                    print(f"[DroneRobot] move_base_to 返回: {result}")
-                elif hasattr(self.bestman, 'set_base_pose'):
-                    print(f"[DroneRobot] 使用 set_base_pose")
-                    self.bestman.set_base_pose(target_pos, self.orientation)
-                else:
-                    print(f"[DroneRobot] 使用直接设置位置")
-                    self._set_position_directly(target_pos)
+                # 备用：直接设置位置
+                print(f"[DroneRobot] 使用直接设置位置")
+                self._set_position_directly(target_pos)
             
             self._update_pose()
             print(f"[DroneRobot] 飞行后位置: {self.position}")
