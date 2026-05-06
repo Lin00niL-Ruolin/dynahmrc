@@ -117,7 +117,7 @@ class DroneArmCollaborationTest:
                 obj_name="cabinet",
                 model_path="Asset/Scene/Object/URDF_models/cabinate/cabinate_Dynahmrc.urdf",
                 object_position=[-3.0, 2.0, 0],
-                object_orientation=[0, 0, 0, 1],
+                object_orientation=[0, 1, 1, 1],
                 scale=1.0,
                 fixed_base=True
             )
@@ -130,7 +130,7 @@ class DroneArmCollaborationTest:
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
                 object_position=self.locations['tray_position'],
                 object_orientation=[0, 0, 0, 1],
-                scale=0.8,
+                scale=2.5,
                 fixed_base=True
             )
             self.scene_objects['tray'] = tray_id
