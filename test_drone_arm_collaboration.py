@@ -56,15 +56,6 @@ class DroneArmCollaborationTest:
         # 场景物体
         self.scene_objects = {}
         
-        # 场景位置配置
-        self.locations = {
-            'item_start': [-2.9,1.99,3.1],      # 物品初始位置
-            'table_center': [0, 0, 0.8],           # 桌子中心位置
-            'arm_base': [-0.5, 0, 1.6],              # 机械臂基座位置
-            'tray_position': [0.0, 0.2, 1.3],     # 托盘位置
-            'drone_start': [2.0, -2.0, 2.0],       # 无人机起始位置
-        }
-        
     def setup_environment(self):
         """初始化仿真环境"""
         print("\n" + "="*70)
@@ -128,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=self.locations['tray_position'],
+                object_position=[0.0, 0.2, 1.3],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -140,13 +131,13 @@ class DroneArmCollaborationTest:
             cup_id = self.client.load_object(
                 obj_name="cup",
                 model_path="Asset/Scene/Object/URDF_models/yellow_cup/model.urdf",
-                object_position=self.locations['item_start'],
+                object_position=[-2.9, 1.99, 3.1],
                 object_orientation=[0, 0, 0, 1],
                 scale=1.5,
                 fixed_base=False
             )
             self.scene_objects['cup'] = cup_id
-            print(f"   创建黄色杯子 (ID: {cup_id}) 在位置 {self.locations['item_start']}")
+            print(f"   创建黄色杯子 (ID: {cup_id}) 在位置 [-2.9, 1.99, 3.1]")
 
             # 等待场景稳定
             for _ in range(100):
@@ -175,10 +166,10 @@ class DroneArmCollaborationTest:
                 robot_id="Lucy",
                 robot_type="drone",
                 robot_model="drone",
-                init_position=self.locations['drone_start']
+                init_position=[2.0, -2.0, 2.0]
             )
             print(f"   [OK] 无人机 Lucy 创建成功")
-            print(f"        位置: {self.locations['drone_start']}")
+            print(f"        位置: [2.0, -2.0, 2.0]")
             print(f"        能力: navigation, pick, place, perception")
             
             # 2. 创建固定机械臂 Bob
@@ -187,10 +178,10 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=self.locations['arm_base']
+                init_position=[-0.5, 0, 1.6]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
-            print(f"        基座位置: {self.locations['arm_base']}")
+            print(f"        基座位置: [-0.5, 0, 1.6]")
             print(f"        能力: manipulation, perception (固定基座，不可移动)")
             
             # 等待机器人初始化
@@ -219,8 +210,8 @@ class DroneArmCollaborationTest:
         print("="*70)
         
         cup_id = self.scene_objects['cup']
-        item_pos = self.locations['item_start']
-        table_pos = self.locations['table_center']
+        item_pos = [-2.9, 1.99, 3.1]
+        table_pos = [0, 0, 0.8]
         
         # 步骤 1.1: 导航到物品上方
         print("\n   [1.1] Lucy 导航到物品上方...")
@@ -302,8 +293,8 @@ class DroneArmCollaborationTest:
         print("="*70)
         
         cup_id = self.scene_objects['cup']
-        table_pos = self.locations['table_center']
-        tray_pos = self.locations['tray_position']
+        table_pos = [0, 0, 0.8]
+        tray_pos = [0.0, 0.2, 1.3]
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -360,9 +351,7 @@ class DroneArmCollaborationTest:
         # 步骤 2.5: 机械臂复位
         print("\n   [2.5] Bob 复位...")
         # 回到初始姿态
-        home_pos = [self.locations['arm_base'][0], 
-                    self.locations['arm_base'][1], 
-                    self.locations['arm_base'][2] + 0.8]
+        home_pos = [-0.5, 0, 2.4]
         self.arm_robot.move_to_position(home_pos)
         print(f"   [OK] Bob 已复位")
         
