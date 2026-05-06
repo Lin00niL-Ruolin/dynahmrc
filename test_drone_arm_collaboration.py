@@ -61,7 +61,7 @@ class DroneArmCollaborationTest:
             'item_start': [-3.0,2.0,1.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
             'arm_base': [-1.0, 0, 0],              # 机械臂基座位置
-            'tray_position': [1.0, 1.0, 0.8],     # 托盘位置
+            'tray_position': [1.0, 1.0, 1.5],     # 托盘位置
             'drone_start': [2.0, -2.0, 1.5],       # 无人机起始位置
         }
         
