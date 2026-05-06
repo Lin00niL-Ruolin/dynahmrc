@@ -270,14 +270,14 @@ class DroneTester:
             print("\n   [测试 5.2] 放置箱子到目标区域...")
             
             # 先飞到目标区域上方
-            target_pos = [-2.0, 3.0, 1.0]
+            target_pos = [-2.0, 3.0, 0.4]
             print(f"   先导航到目标区域上方 {target_pos}...")
             nav_success, nav_msg = self.drone.navigate_to(target_pos)
             print(f"   导航结果: {nav_success}, {nav_msg}")
             time.sleep(0.5)
             
             # 执行放置
-            place_location = [-2.0, 3.0, 1]  # 目标区域，高度1米
+            place_location = [-2.0, 3.0, 0.4]  # 目标区域，高度1米
             place_success, place_msg = self.drone.place(target_position=place_location)
             print(f"   {'✓' if place_success else '✗'} 放置箱子到 {place_location}: {'成功' if place_success else '失败'} ({place_msg})")
             
