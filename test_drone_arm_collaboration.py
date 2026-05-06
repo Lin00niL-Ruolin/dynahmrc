@@ -60,9 +60,9 @@ class DroneArmCollaborationTest:
         self.locations = {
             'item_start': [-3.0,2.0,3.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
-            'arm_base': [-0.5, 0, 1.3],              # 机械臂基座位置
+            'arm_base': [-0.5, 0, 1.6],              # 机械臂基座位置
             'tray_position': [1.0, 1.0, 1.3],     # 托盘位置
-            'drone_start': [2.0, -2.0, 1.5],       # 无人机起始位置
+            'drone_start': [2.0, -2.0, 2.0],       # 无人机起始位置
         }
         
     def setup_environment(self):
