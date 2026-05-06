@@ -39,6 +39,32 @@ class DroneTester:
         self.drone = None
         self.scene_objects = {}
         
+    def _set_camera_to_table(self):
+        """设置摄像机视角对着桌子"""
+        try:
+            import pybullet as p
+            
+            # 桌子位置
+            table_pos = [2.0, 0, 0]
+            
+            # 摄像机参数
+            camera_distance = 3.5  # 距离桌子3.5米
+            camera_yaw = -90       # 水平旋转角度（-90度对着桌子正面）
+            camera_pitch = -30     # 垂直俯仰角度（-30度俯视）
+            
+            # 设置摄像机
+            p.resetDebugVisualizerCamera(
+                cameraDistance=camera_distance,
+                cameraYaw=camera_yaw,
+                cameraPitch=camera_pitch,
+                cameraTargetPosition=table_pos,
+                physicsClientId=self.client.get_client_id()
+            )
+            print(f"   ✓ 摄像机已对准桌子 (位置: {table_pos})")
+            
+        except Exception as e:
+            print(f"   [WARN] 设置摄像机视角失败: {e}")
+    
     def setup_environment(self):
         """设置仿真环境"""
         print("\n" + "="*60)
@@ -58,6 +84,10 @@ class DroneTester:
             
             self.visualizer = Visualizer(self.client, cfg.Visualizer)
             print("   ✓ Visualizer 初始化成功")
+            
+            # 设置摄像机视角对着桌子
+            # 桌子位置: [2.0, 0, 0], 摄像机从斜上方观察
+            self._set_camera_to_table()
             
         except Exception as e:
             print(f"   [ERROR] 初始化失败: {e}")
