@@ -117,7 +117,7 @@ class DroneArmCollaborationTest:
                 obj_name="cabinet",
                 model_path="Asset/Scene/Object/URDF_models/cabinate/cabinate_Dynahmrc.urdf",
                 object_position=[-3.0, 2.0, 0],
-                object_orientation=[0, 0, 0.707, -0.707],
+                object_orientation=[0.5, 0.5, 0.5, 0.5],
                 scale=1.0,
                 fixed_base=True
             )
