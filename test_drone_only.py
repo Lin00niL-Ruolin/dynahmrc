@@ -309,7 +309,12 @@ class DroneTester:
             print(f"   导航结果: {nav_success}, {nav_msg}")
             
             time.sleep(0.5)
-            
+
+            target_pos = [2.0, 0.0, 2.0]
+            print(f"   先导航到目标区域上方 {target_pos}...")
+            nav_success, nav_msg = self.drone.navigate_to(target_pos)
+            print(f"   导航结果: {nav_success}, {nav_msg}")
+
             return pick_success and place_success
             
         except Exception as e:
