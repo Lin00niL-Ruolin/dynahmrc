@@ -277,7 +277,7 @@ class DroneTester:
             time.sleep(0.5)
             
             # 执行放置
-            place_location = [-1.9, 2.9, 1]  # 目标区域，高度1米
+            place_location = [-1.995, 2.99, 1]  # 目标区域，高度1米
             place_success, place_msg = self.drone.place(target_position=place_location)
             print(f"   {'✓' if place_success else '✗'} 放置箱子到 {place_location}: {'成功' if place_success else '失败'} ({place_msg})")
             
