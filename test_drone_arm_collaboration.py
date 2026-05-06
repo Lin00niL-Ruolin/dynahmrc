@@ -58,10 +58,10 @@ class DroneArmCollaborationTest:
         
         # 场景位置配置
         self.locations = {
-            'item_start': [1.5, -1.5, 0.5],      # 物品初始位置
+            'item_start': [-3.0,2.0,1.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
-            'arm_base': [-1.5, 0, 0],              # 机械臂基座位置
-            'tray_position': [-1.5, 1.0, 0.8],     # 托盘位置
+            'arm_base': [-1.0, 0, 0],              # 机械臂基座位置
+            'tray_position': [1.0, 1.0, 0.8],     # 托盘位置
             'drone_start': [2.0, -2.0, 1.5],       # 无人机起始位置
         }
         
@@ -111,8 +111,20 @@ class DroneArmCollaborationTest:
             )
             self.scene_objects['table'] = table_id
             print(f"   [OK] 创建客厅桌子 (ID: {table_id})")
+
+            # 2. 创建柜子
+            cabinet_id = self.client.load_object(
+                obj_name="cabinet",
+                model_path="Asset/Scene/Object/URDF_models/cabinate/cabinate_Dynahmrc.urdf",
+                object_position=[-3.0, 2.0, 0],
+                object_orientation=[0, 0, 0, 1],
+                scale=1.0,
+                fixed_base=True
+            )
+            self.scene_objects['cabinet'] = cabinet_id
+            print(f"   [OK] 创建柜子 (ID: {cabinet_id})")
             
-            # 2. 创建托盘
+            # 3. 创建托盘
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
@@ -123,8 +135,8 @@ class DroneArmCollaborationTest:
             )
             self.scene_objects['tray'] = tray_id
             print(f"   [OK] 创建托盘 (ID: {tray_id})")
-            
-            # 3. 创建物品（杯子）- 使用黄色杯子模型
+
+            # 4. 创建物品（杯子）- 使用黄色杯子模型
             cup_id = self.client.load_object(
                 obj_name="cup",
                 model_path="Asset/Scene/Object/URDF_models/yellow_cup/model.urdf",
@@ -135,8 +147,8 @@ class DroneArmCollaborationTest:
             )
             self.scene_objects['cup'] = cup_id
             print(f"   创建黄色杯子 (ID: {cup_id}) 在位置 {self.locations['item_start']}")
-            
-            # 4. 创建地面标记（便于观察位置）
+
+            # 5. 创建地面标记（便于观察位置）
             for name, pos in [
                 ('item_zone', self.locations['item_start'][:2] + [0.05]),
                 ('table_zone', self.locations['table_center'][:2] + [0.05]),
