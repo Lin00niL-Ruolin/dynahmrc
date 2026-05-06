@@ -141,7 +141,7 @@ class DroneTester:
             target_id = self.client.load_object(
                 obj_name="target_zone",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[-2.0, 0, 0.1],
+                object_position=[-2.0, 3.0, 0.1],
                 object_orientation=[0, 0, 0, 1],
                 scale=1.0,
                 fixed_base=True
@@ -207,7 +207,7 @@ class DroneTester:
             
             # 测试点2: 飞到目标区域上方
             print("\n   [测试 4.2] 导航到目标区域上方...")
-            target2 = [-2.0, 0.0, 2.0]  # 目标区域上方2米高
+            target2 = [-2.0, 3.0, 2.0]  # 目标区域上方2米高
             success2, msg2 = self.drone.navigate_to(target2)
             print(f"   {'✓' if success2 else '✗'} 导航到 {target2}: {'成功' if success2 else '失败'} ({msg2})")
             time.sleep(1)
@@ -270,17 +270,28 @@ class DroneTester:
             print("\n   [测试 5.2] 放置箱子到目标区域...")
             
             # 先飞到目标区域上方
-            target_pos = [-2.0, 0.0, 2.0]
+            target_pos = [-2.0, 3.0, 1.0]
             print(f"   先导航到目标区域上方 {target_pos}...")
             nav_success, nav_msg = self.drone.navigate_to(target_pos)
             print(f"   导航结果: {nav_success}, {nav_msg}")
             time.sleep(0.5)
             
             # 执行放置
-            place_location = [-2.0, 0.0, 1.0]  # 目标区域，高度1米
+            place_location = [-2.0, 3.0, 0.5]  # 目标区域，高度1米
             place_success, place_msg = self.drone.place(target_position=place_location)
             print(f"   {'✓' if place_success else '✗'} 放置箱子到 {place_location}: {'成功' if place_success else '失败'} ({place_msg})")
             
+            target_pos = [-2.0, 3.0, 2.0]
+            print(f"   先导航到目标区域上方 {target_pos}...")
+            nav_success, nav_msg = self.drone.navigate_to(target_pos)
+            print(f"   导航结果: {nav_success}, {nav_msg}")
+            time.sleep(0.5)
+
+            target_pos = [2.0, 3.0, 1.0]
+            print(f"   先导航到目标区域上方 {target_pos}...")
+            nav_success, nav_msg = self.drone.navigate_to(target_pos)
+            print(f"   导航结果: {nav_success}, {nav_msg}")
+            time.sleep(0.5)
             return pick_success and place_success
             
         except Exception as e:
