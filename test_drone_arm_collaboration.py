@@ -58,7 +58,7 @@ class DroneArmCollaborationTest:
         
         # 场景位置配置
         self.locations = {
-            'item_start': [-3.0,2.0,3.0],      # 物品初始位置
+            'item_start': [-2.9,1.99,3.1],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
             'arm_base': [-0.5, 0, 1.6],              # 机械臂基座位置
             'tray_position': [0.0, 0.2, 1.3],     # 托盘位置
