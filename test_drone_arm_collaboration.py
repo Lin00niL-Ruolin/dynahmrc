@@ -61,7 +61,7 @@ class DroneArmCollaborationTest:
             'item_start': [-3.0,2.0,3.0],      # 物品初始位置
             'table_center': [0, 0, 0.8],           # 桌子中心位置
             'arm_base': [-0.5, 0, 1.6],              # 机械臂基座位置
-            'tray_position': [1.0, 1.0, 1.3],     # 托盘位置
+            'tray_position': [0.0, 0.2, 1.3],     # 托盘位置
             'drone_start': [2.0, -2.0, 2.0],       # 无人机起始位置
         }
         
@@ -224,7 +224,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.1: 导航到物品上方
         print("\n   [1.1] Lucy 导航到物品上方...")
-        approach_pos = [item_pos[0], item_pos[1], item_pos[2] - 1.5]
+        approach_pos = [item_pos[0], item_pos[1], item_pos[2]]
         success, msg = self.drone.navigate_to(approach_pos)
         if success:
             print(f"   [OK] 导航成功: {msg}")
