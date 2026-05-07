@@ -185,6 +185,12 @@ class RobotFactory:
                     print(f"[RobotFactory] 固定机械臂底座已锁定")
             
             return arm_instance
+            
+        elif model == "xarm6":
+            # 可以添加 xarm6 支持
+            raise NotImplementedError("xarm6 支持待实现")
+        else:
+            raise ValueError(f"不支持的机械臂型号: {model}")
     
     def _sync_arm_with_base(self, arm_instance, cfg):
         """
@@ -237,17 +243,10 @@ class RobotFactory:
                 print(f"         机械臂位置: [{target_arm_pos[0]:.2f}, {target_arm_pos[1]:.2f}, {target_arm_pos[2]:.2f}]")
             else:
                 print(f"[RobotFactory] 机械臂位置已正确: [{arm_pos[0]:.2f}, {arm_pos[1]:.2f}, {arm_pos[2]:.2f}]")
-                
         except Exception as e:
             print(f"[RobotFactory] 同步机械臂位置失败: {e}")
             import traceback
             traceback.print_exc()
-            
-        elif model == "xarm6":
-            # 可以添加 xarm6 支持
-            raise NotImplementedError("xarm6 支持待实现")
-        else:
-            raise ValueError(f"不支持的机械臂型号: {model}")
     
     def _get_pybullet(self):
         """获取 pybullet 模块"""
