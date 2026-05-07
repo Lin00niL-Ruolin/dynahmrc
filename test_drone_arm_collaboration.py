@@ -179,7 +179,7 @@ class DroneArmCollaborationTest:
                 robot_type="arm",
                 robot_model="panda",
                 init_position=[0, 0.6, 1.3],
-                init_orientation=[0, 0, 1, 0]  # 旋转180度，面向反方向
+                init_orientation=[0, 0, 0, 1]  # 默认朝向（面向+X方向）
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.3]")        
@@ -327,7 +327,7 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         table_pos = [0, 0, 0.8]
-        tray_pos = [0.8, 0.2, 1.3]
+        tray_pos = [0.5, 0.6, 1.3]  # 在机械臂前方，确保在臂展范围内
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
