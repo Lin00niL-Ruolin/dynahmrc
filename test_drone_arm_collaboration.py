@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[-1.0, 0, 1.5]
+                init_position=[0, 0.5, 1.5]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-1.3, 0, 1.3]")  
