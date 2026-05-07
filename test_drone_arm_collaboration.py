@@ -166,7 +166,7 @@ class DroneArmCollaborationTest:
                 robot_id="Lucy",
                 robot_type="drone",
                 robot_model="drone",
-                init_position=[5.0,3.0,0.0]
+                init_position=[5.0,-3.0,0.0]
             )
             print(f"   [OK] 无人机 Lucy 创建成功")
             print(f"        位置: [0.0,0.0,0.0]")   
@@ -178,10 +178,10 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.5, 1.3]
+                init_position=[0, 0.6, 1.5]     
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
-            print(f"        基座位置: [-1.3, 0, 1.3]")  
+            print(f"        基座位置: [-0.0, 0.6, 1.5]")        
             print(f"        能力: manipulation, perception (固定基座，不可移动)")
             
             # 等待机器人初始化
