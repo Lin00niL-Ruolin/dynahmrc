@@ -91,6 +91,111 @@ class MultiRobotCollaboration:
             'fridge_closed': False,
         }
         
+        # 冰箱门控制
+        self.fridge_door_joint_idx = None
+        self.fridge_door_open_angle = 2.0  # 打开角度（弧度）
+        
+    def _get_fridge_door_joint(self):
+        """获取冰箱门关节索引"""
+        import pybullet as p
+        
+        fridge_id = self.scene_objects.get('elementE')  # 冰箱ID
+        if fridge_id is None:
+            print("[冰箱控制] 错误：找不到冰箱")
+            return None
+        
+        # 查找冰箱门关节
+        num_joints = p.getNumJoints(fridge_id, physicsClientId=self.client.client_id)
+        for i in range(num_joints):
+            joint_info = p.getJointInfo(fridge_id, i, physicsClientId=self.client.client_id)
+            joint_name = joint_info[1].decode('utf-8')
+            if 'door' in joint_name.lower() or 'fridge_door' in joint_name.lower():
+                print(f"[冰箱控制] 找到冰箱门关节: {joint_name}, 索引: {i}")
+                return i
+        
+        print("[冰箱控制] 警告：未找到冰箱门关节")
+        return None
+    
+    def open_fridge_door(self):
+        """打开冰箱门"""
+        import pybullet as p
+        
+        if self.fridge_door_joint_idx is None:
+            self.fridge_door_joint_idx = self._get_fridge_door_joint()
+        
+        if self.fridge_door_joint_idx is None:
+            print("[冰箱控制] 无法打开冰箱门：未找到关节")
+            return False
+        
+        fridge_id = self.scene_objects.get('elementE')
+        
+        # 设置关节电机控制，让门旋转打开
+        p.setJointMotorControl2(
+            bodyUniqueId=fridge_id,
+            jointIndex=self.fridge_door_joint_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=self.fridge_door_open_angle,
+            force=50,
+            physicsClientId=self.client.client_id
+        )
+        
+        # 等待门打开
+        print("[冰箱控制] 正在打开冰箱门...")
+        for _ in range(100):
+            self.client.run(1)
+        
+        print("[冰箱控制] 冰箱门已打开")
+        return True
+    
+    def close_fridge_door(self):
+        """关闭冰箱门"""
+        import pybullet as p
+        
+        if self.fridge_door_joint_idx is None:
+            self.fridge_door_joint_idx = self._get_fridge_door_joint()
+        
+        if self.fridge_door_joint_idx is None:
+            print("[冰箱控制] 无法关闭冰箱门：未找到关节")
+            return False
+        
+        fridge_id = self.scene_objects.get('elementE')
+        
+        # 设置关节电机控制，让门旋转关闭
+        p.setJointMotorControl2(
+            bodyUniqueId=fridge_id,
+            jointIndex=self.fridge_door_joint_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=0.0,  # 关闭位置
+            force=50,
+            physicsClientId=self.client.client_id
+        )
+        
+        # 等待门关闭
+        print("[冰箱控制] 正在关闭冰箱门...")
+        for _ in range(100):
+            self.client.run(1)
+        
+        print("[冰箱控制] 冰箱门已关闭")
+        return True
+    
+    def get_fridge_interior_position(self):
+        """获取冰箱内部位置（用于放置物品）"""
+        import pybullet as p
+        
+        fridge_id = self.scene_objects.get('elementE')
+        if fridge_id is None:
+            return [4.0, 5.3, 0.8]  # 默认位置
+        
+        # 获取冰箱基座位置
+        pos, orn = p.getBasePositionAndOrientation(fridge_id, physicsClientId=self.client.client_id)
+        
+        # 冰箱内部位置（在冰箱前方一点，门打开后可以访问）
+        # 需要根据实际冰箱朝向调整
+        interior_pos = [pos[0] - 0.3, pos[1], pos[2] + 0.3]
+        
+        print(f"[冰箱控制] 冰箱内部位置: {interior_pos}")
+        return interior_pos
+        
     def initialize(self):
         """初始化环境和机器人"""
         print("\n" + "="*70)
@@ -141,17 +246,25 @@ class MultiRobotCollaboration:
         
     def _create_task_objects(self):
         """创建任务所需的额外物体"""
-        # 在冰箱里放柠檬
-        lemon_id = self.client.load_object(
-            obj_name="lemon",
-            model_path="Asset/Scene/Object/URDF_models/food_lemon/model.urdf",
-            object_position=[4.0, 5.3, 0.8],  # 冰箱内部
-            object_orientation=[0, 0, 0],
-            scale=1.0,
-            fixed_base=False
-        )
-        self.scene_objects['lemon'] = lemon_id
-        print(f"   ✓ 在冰箱中创建柠檬 (ID: {lemon_id})")
+        # 检查场景文件中是否已有柠檬
+        has_lemon_in_scene = 'lemon' in self.scene_objects
+        
+        # 如果场景中没有柠檬，在冰箱里创建一个
+        if not has_lemon_in_scene:
+            print("   [任务物体] 场景中无柠檬，在冰箱中创建...")
+            # 冰箱位置 [4.1, 5.42, 1.055]，内部位置在冰箱前方一点
+            lemon_id = self.client.load_object(
+                obj_name="lemon",
+                model_path="Asset/Scene/Object/URDF_models/food_lemon/model.urdf",
+                object_position=[3.85, 5.42, 0.9],  # 冰箱内部（门打开后可访问）
+                object_orientation=[0, 0, 0],
+                scale=1.0,
+                fixed_base=False
+            )
+            self.scene_objects['lemon'] = lemon_id
+            print(f"   ✓ 在冰箱中创建柠檬 (ID: {lemon_id})，位置: [3.85, 5.42, 0.9]")
+        else:
+            print(f"   ✓ 场景文件中已有柠檬 (ID: {self.scene_objects['lemon']})")
         
         # 在卫生间洗手池上放杯子
         cup_id = self.client.load_object(
@@ -284,7 +397,7 @@ class MultiRobotCollaboration:
             
             # 2. 打开冰箱门
             print("[Robot1] 打开冰箱门...")
-            # TODO: 实现打开冰箱门动作
+            self.open_fridge_door()
             self.task_status['fridge_opened'] = True
             print("[Robot1] 冰箱门已打开")
             
@@ -342,7 +455,7 @@ class MultiRobotCollaboration:
             
             # 关闭冰箱门
             print("[Robot2] 关闭冰箱门...")
-            # TODO: 实现关闭冰箱门动作
+            self.close_fridge_door()
             self.task_status['fridge_closed'] = True
             print("[Robot2] 冰箱门已关闭")
             
