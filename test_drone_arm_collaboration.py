@@ -119,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.2, 0.2, 1.4],
+                object_position=[0.8, 0.2, 1.4],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -212,11 +212,11 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         item_pos = [-2.9, 1.99, 2.1]
-        table_pos = [0, 0, 0]
+        table_pos = [0, 0, 0.8]
         
         # 步骤 1.1: 导航到物品上方
         print("\n   [1.1] Lucy 导航到物品上方...")
-        approach_pos = [item_pos[0], item_pos[1], item_pos[2]]
+        approach_pos = [item_pos[0], item_pos[1], item_pos[2]+0.5]
         success, msg = self.drone.navigate_to(approach_pos)
         if success:
             print(f"   [OK] 导航成功: {msg}")
@@ -238,7 +238,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.3: 抬升到安全高度
         print("\n   [1.3] Lucy 抬升到安全高度...")
-        safe_pos = [item_pos[0], item_pos[1], 4.0]
+        safe_pos = [item_pos[0], item_pos[1], item_pos[2]+1.0]      
         success, msg = self.drone.navigate_to(safe_pos)
         if success:
             print(f"   [OK] 抬升成功")
