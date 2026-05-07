@@ -250,7 +250,7 @@ class DroneArmCollaborationTest:
         print("\n   [1.4] Lucy 导航到桌子上方...")
         # 桌子高度约0.8米，放置高度约0.9米
         place_pos = [table_pos[0], table_pos[1], table_pos[2] + 0.1]
-        hover_pos = [place_pos[0], place_pos[1], place_pos[2] + 0.4]
+        hover_pos = [place_pos[0], place_pos[1], place_pos[2] + 2.0]
         
         success, msg = self.drone.navigate_to(hover_pos)
         if success:
