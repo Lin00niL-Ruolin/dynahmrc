@@ -150,7 +150,7 @@ def test_real_scene():
             robot_id="robot_2",
             robot_type="mobile_base",
             robot_model="segbot",
-            init_position=[-1.0, 1.0, 0]
+            init_position=[-2.0, 3.0, 0]
         )
         print(f"   ✓ 创建机器人 robot_2 (mobile_base)")
         
