@@ -178,7 +178,8 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.6, 1.3]     
+                init_position=[0, 0.6, 1.3],
+                init_orientation=[0, 0, 1, 0]  # 旋转180度，面向反方向
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.3]")        
