@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.5, 0.2]
+                init_position=[0, 0.5, 0.8]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-1.3, 0, 1.3]")  
@@ -239,7 +239,7 @@ class DroneArmCollaborationTest:
         # 步骤 1.3: 抬升到安全高度
         print("\n   [1.3] Lucy 抬升到安全高度...")
         safe_pos = [item_pos[0], item_pos[1], item_pos[2]+2.0]      
-        
+
         success, msg = self.drone.navigate_to(safe_pos)
         if success:
             print(f"   [OK] 抬升成功")
