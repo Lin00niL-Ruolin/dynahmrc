@@ -118,7 +118,7 @@ def test_real_scene():
         box_id = client.load_object(
             obj_name="box",
             model_path="Asset/Scene/Object/URDF_models/cracker_box/model.urdf",
-            object_position=[0.5, 0, 1.3],  # 放在 table 桌面上（高度1.3米）
+            object_position=[0.5, 0, 1.3],  # 放在 table 桌面上（高度0.85米）
             object_orientation=[0, 0, 0, 1],
             scale=1.0,
             fixed_base=False
@@ -205,13 +205,13 @@ def test_real_scene():
     # 7. 测试动作执行
     print("\n7. 测试动作执行...")
     
-    # 7.1 导航到 table 附近（保持安全距离）
+    # 7.1 导航到 table 附近
     print("\n   7.1 导航到 table 附近...")
     try:
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [-0.8, 0, 0]}  # 导航到 table 附近，保持安全距离（table 在 [0,0,0]）
+            {'target': [0.3, 0, 0]}  # 导航到 table 附近
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
@@ -225,15 +225,15 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.2 抓取测试 - 从 table 上抓取 box（保持安全距离）
+    # 7.2 抓取测试 - 从 table 上抓取 box
     print("\n   7.2 测试 pick 动作...")
     try:
-        # 先导航到 table 附近（保持安全距离）
+        # 先导航到 table 附近
         print("      先导航到 table 附近...")
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [-0.8, 0, 0]}  # 导航到 table 附近，保持安全距离
+            {'target': [0.3, 0, 0]}  # 导航到 table 附近
         )
         print(f"      导航结果: success={feedback.success}")
 
@@ -256,7 +256,7 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.3 放置测试 - 将物品放到 table_2 上（保持安全距离）
+    # 7.3 放置测试 - 将物品放到 table_2 上
     print("\n   7.3 测试 place 动作...")
     try:
         # 先导航到 table_2 附近
@@ -264,7 +264,7 @@ def test_real_scene():
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [3.0, 5.0, 0]}  # table_2 在 [4.0, 5.0, 0]，保持安全距离
+            {'target': [3.8, 5.0, 0]}  # table_2 在 [4.0, 5.0, 0]
         )
         print(f"      导航结果: success={feedback.success}")
         
@@ -273,7 +273,7 @@ def test_real_scene():
         feedback = adapter.execute_action(
             'robot_1',
             'place',
-            {'target': [4.0, 5.0, 1.3]}  # table_2 表面高度约1.3米
+            {'target': [4.0, 5.0, 1.3]}  # table_2 表面高度约0.85米
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
