@@ -103,11 +103,22 @@ def test_real_scene():
         )
         print(f"   ✓ 创建桌子 (ID: {table_id})")
         
+        # 创建新桌子（用于放置物品）
+        new_table_id = client.load_object(
+            obj_name="table_2",
+            model_path="Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf",
+            object_position=[4.0,5.0,0], 
+            object_orientation=[0, 0, 0, 1],
+            scale=1.0,
+            fixed_base=True
+        )
+        print(f"   ✓ 创建新桌子 (ID: {new_table_id})")
+        
         # 创建箱子（可抓取物体）
         box_id = client.load_object(
             obj_name="box",
             model_path="Asset/Scene/Object/URDF_models/cracker_box/model.urdf",
-            object_position=[0.5, 0, 0.5],  # 放在桌子上方
+            object_position=[0.5, 0, 1.3],  # 放在桌子上方 
             object_orientation=[0, 0, 0, 1],
             scale=1.0,
             fixed_base=False
@@ -168,6 +179,7 @@ def test_real_scene():
         
         # 注册场景物体
         adapter.register_scene_object("table", table_id, "furniture")
+        adapter.register_scene_object("new_table", new_table_id, "furniture")
         adapter.register_scene_object("box", box_id, "graspable")
         adapter.register_scene_object("target_zone", target_id, "marker")
         
@@ -256,13 +268,24 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.3 放置测试
+    # 7.3 放置测试 - 将物品放到新桌子上
     print("\n   7.3 测试 place 动作...")
     try:
+        # 先导航到新桌子附近
+        print("      先导航到新桌子附近...")
+        feedback = adapter.execute_action(
+            'robot_1',
+            'navigate',
+            {'target': [1.8, 0, 0]}
+        )
+        print(f"      导航结果: success={feedback.success}")
+        
+        # 将物品放置到新桌子上
+        print("      将物品放置到新桌子上...")
         feedback = adapter.execute_action(
             'robot_1',
             'place',
-            {'target': [1.0, 0, 0.5]}
+            {'target': [2.0, 0, 0.85]}  # 新桌子表面高度约0.85米（桌面0.8米 + 厚度0.05米）
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
