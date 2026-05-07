@@ -58,7 +58,25 @@ class ArmRobot:
         # 同步机械臂位置与基座高度（修复基座抬高后手臂不跟随的问题）
         self._sync_arm_position_with_base()
         
+        # 重置机械臂到收起状态（折叠姿态）
+        self._reset_to_folded_pose()
+        
         print(f"[ArmRobot] 固定机械臂 {robot_id} 初始化完成 (不可移动)")
+    
+    def _reset_to_folded_pose(self):
+        """重置机械臂到收起（折叠）状态"""
+        try:
+            # 收起状态的关节角度
+            folded_joint_values = [0, -1.57, 1.57, -1.57, 0, 0, 0]
+            
+            # 使用 BestMan 的方法重置关节
+            if hasattr(self.bestman, 'sim_reset_arm_to_joint_values'):
+                self.bestman.sim_reset_arm_to_joint_values(folded_joint_values)
+                print(f"[ArmRobot] 机械臂已重置到收起状态")
+            else:
+                print(f"[ArmRobot] 警告: 无法重置机械臂姿态，sim_reset_arm_to_joint_values 方法不存在")
+        except Exception as e:
+            print(f"[ArmRobot] 重置机械臂姿态失败: {e}")
     
     def _sync_arm_position_with_base(self):
         """
