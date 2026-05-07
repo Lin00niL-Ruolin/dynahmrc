@@ -268,7 +268,7 @@ class DroneArmCollaborationTest:
         print("\n   [1.5] Lucy 下降并放置物品...")
         
         # 1. 下降到更接近桌子的位置（桌子上方0.1米）
-        approach_pos = [place_pos[0], place_pos[1], place_pos[2] + 0.8]
+        approach_pos = [-0.2, 0.2, place_pos[2] + 0.8]  
         print(f"   [下降] 接近桌子: {approach_pos}")
         success, msg = self.drone.navigate_to(approach_pos)
         if not success:
