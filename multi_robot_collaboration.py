@@ -392,7 +392,7 @@ class MultiRobotCollaboration:
             self.adapter.execute_action(
                 'mobile_robot1',
                 'navigate',
-                {'target': [3.5, 5.0, 0]}
+                {'target': [2.9, 5.0, 0]}
             )
             
             # 2. 打开冰箱门
