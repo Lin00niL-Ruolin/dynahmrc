@@ -324,7 +324,7 @@ class DroneArmCollaborationTest:
         print("\n   [2.2] Bob 抓取物品...")
         success, msg = self.arm_robot.pick("cup", obj_pos)      
         if success:
-            print(f"   [OK] 抓取成功: {msg}")
+            print(f"    [OK] 抓取成功: {msg}")
         else:
             print(f"   [ERROR] 抓取失败: {msg}")    
             return False
