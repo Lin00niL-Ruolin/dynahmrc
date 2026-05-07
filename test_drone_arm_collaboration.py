@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.6, 1.6]     
+                init_position=[0, 0.6, 1.3]     
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.3]")        
@@ -274,7 +274,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.6: 抬升离开
         print("\n   [1.6] Lucy 离开桌子...")
-        leave_pos = [table_pos[0] + 2.0, table_pos[1]+3.0, 0.0]
+        leave_pos = [table_pos[0] + 2.0, table_pos[1]+3.0, 2.0]
         success, msg = self.drone.navigate_to(leave_pos)
         if success:
             print(f"   [OK] Lucy 已离开工作区域")
