@@ -302,7 +302,7 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         table_pos = [0, 0, 0.8]
-        tray_pos = [0.8, 0.2, 1.4]
+        tray_pos = [0.8, 0.2, 1.3]
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -337,10 +337,10 @@ class DroneArmCollaborationTest:
         # 步骤 2.3: 移动物品到托盘
         print("\n   [2.3] Bob 移动物品到托盘...")
         # 托盘上的放置位置（稍微高一点，确保物品落入托盘）
-        tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2] + 0.15]
+        tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2]]
         
         # 先移动到预放置位置（托盘上方）
-        pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.1]
+        pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.2]
         success = self.arm_robot.move_to_position(pre_place_pos)
         if success:
             print(f"   [OK] 到达预放置位置")
