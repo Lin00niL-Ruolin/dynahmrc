@@ -212,7 +212,7 @@ class MultiRobotCollaboration:
             robot_id="mobile_robot2",
             robot_type="mobile_manipulator",
             robot_model="panda_on_segbot",
-            init_position=[3.0, 4.0, 0]  # 厨房附近
+            init_position=[-2.0, 4.0, 0]  # 厨房附近
         )
         self.mobile_robot2 = mobile2_bestman
         self.robots['mobile_robot2'] = mobile2_bestman
