@@ -270,6 +270,8 @@ class DroneArmCollaborationTest:
             print(f"   [ERROR] 放置失败: {msg}")
             return False
         
+        time.sleep(0.5)
+        
         # 步骤 1.6: 抬升离开
         print("\n   [1.6] Lucy 离开桌子...")
         leave_pos = [table_pos[0] + 1.0, table_pos[1], 1.5]
@@ -281,6 +283,8 @@ class DroneArmCollaborationTest:
         
         print("\n   [DONE] 阶段 1 完成: 物品已放置在桌子上")
         return True
+    
+        time.sleep(0.5)
     
     def phase2_arm_pick_and_place(self):
         """
@@ -318,11 +322,11 @@ class DroneArmCollaborationTest:
         
         # 步骤 2.2: 抓取物品
         print("\n   [2.2] Bob 抓取物品...")
-        success = self.arm_robot.pick("cup", obj_pos)   
+        success, msg = self.arm_robot.pick("cup", obj_pos)      
         if success:
-            print(f"   [OK] 抓取成功")
+            print(f"   [OK] 抓取成功: {msg}")
         else:
-            print(f"   [ERROR] 抓取失败")
+            print(f"   [ERROR] 抓取失败: {msg}")    
             return False
         
         # 等待抓取稳定
