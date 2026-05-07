@@ -55,7 +55,51 @@ class ArmRobot:
         # 更新初始位置
         self._update_pose()
         
+        # 同步机械臂位置与基座高度（修复基座抬高后手臂不跟随的问题）
+        self._sync_arm_position_with_base()
+        
         print(f"[ArmRobot] 固定机械臂 {robot_id} 初始化完成 (不可移动)")
+    
+    def _sync_arm_position_with_base(self):
+        """
+        同步机械臂位置与基座高度
+        修复：当基座Z坐标提高时，机械臂也应相应提高
+        """
+        try:
+            # 获取基座当前位置
+            base_pose = self.bestman.sim_get_current_base_pose()
+            base_pos = base_pose.get_position()
+            base_z = base_pos[2]
+            
+            # 获取机械臂当前位置
+            arm_id = self.bestman.arm_id
+            arm_pos, arm_orn = p.getBasePositionAndOrientation(
+                arm_id, physicsClientId=self.bestman.client_id
+            )
+            
+            # 计算机械臂应该在的高度（基座上方0.1米）
+            target_arm_z = base_z + 0.1
+            
+            # 如果机械臂高度与基座高度不匹配，重新设置
+            if abs(arm_pos[2] - target_arm_z) > 0.01:
+                new_arm_pos = [base_pos[0], base_pos[1], target_arm_z]
+                p.resetBasePositionAndOrientation(
+                    arm_id,
+                    new_arm_pos,
+                    arm_orn,
+                    physicsClientId=self.bestman.client_id
+                )
+                print(f"[ArmRobot] 机械臂位置已同步: {arm_pos[2]:.2f} -> {target_arm_z:.2f}")
+                
+                # 重新创建约束（先删除旧的，再创建新的）
+                # 注意：这里不删除约束，因为约束在初始化时创建，会随位置更新
+                
+                # 运行几步仿真让位置生效
+                for _ in range(10):
+                    p.stepSimulation(physicsClientId=self.bestman.client_id)
+                
+        except Exception as e:
+            print(f"[ArmRobot] 同步机械臂位置失败: {e}")
     
     def _update_pose(self):
         """从 BestMan 实例更新当前位姿"""
