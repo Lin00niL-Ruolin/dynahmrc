@@ -366,7 +366,13 @@ class DroneArmCollaborationTest:
         
         # 先移动到预放置位置（托盘上方）
         pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.2]
-        success = self.arm_robot.move_to_position(pre_place_pos)
+        print(f"   [DEBUG] 预放置位置: {pre_place_pos}")
+        
+        # 使用垂直向下的朝向
+        import pybullet as p
+        import numpy as np
+        place_orn = p.getQuaternionFromEuler([0, np.pi, 0])
+        success = self.arm_robot.move_to_position(pre_place_pos, target_orientation=place_orn, steps=30)
         if success:
             print(f"   [OK] 到达预放置位置")
         else:

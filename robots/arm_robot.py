@@ -221,12 +221,18 @@ class ArmRobot:
             place_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
             
             # 1. 移动到托盘上方0.4米（预放置位置）
+            print(f"[ArmRobot] 移动到悬停位置: {hover_pos}")
             if not self.move_to_position(hover_pos, target_orientation=place_orn, steps=30):
+                print(f"[ArmRobot] 移动到悬停位置失败")
                 return False
+            print(f"[ArmRobot] 已到达悬停位置")
             
             # 2. 下降到托盘正上方0.2米处
+            print(f"[ArmRobot] 下降到释放位置: {release_pos}")
             if not self.move_to_position(release_pos, target_orientation=place_orn, steps=20):
+                print(f"[ArmRobot] 下降到释放位置失败")
                 return False
+            print(f"[ArmRobot] 已到达释放位置")
             
             # 3. 确保机械臂已稳定到达释放位置
             self._wait_for_arm_stable(release_pos)
@@ -274,6 +280,8 @@ class ArmRobot:
             是否成功
         """
         try:
+            print(f"[ArmRobot] move_to_position() 目标: {target_position}, 朝向: {target_orientation}")
+            
             # 使用 BestMan 的 sim_move_eef_to_goal_pose 进行平滑移动
             if hasattr(self.bestman, 'sim_move_eef_to_goal_pose'):
                 from Robotics_API.Pose import Pose
@@ -281,6 +289,10 @@ class ArmRobot:
                 
                 # 执行平滑运动，使用更多步数
                 self.bestman.sim_move_eef_to_goal_pose(target_pose, steps=steps)
+                
+                # 检查是否到达目标
+                final_pos, _ = self.get_end_effector_pose()
+                print(f"[ArmRobot] 移动后位置: {final_pos}")
                 return True
             else:
                 # 备用：使用简单的关节控制
@@ -288,6 +300,7 @@ class ArmRobot:
                 
         except Exception as e:
             self.error_status = f"move_failed: {str(e)}"
+            print(f"[ArmRobot] 移动失败: {e}")
             return False
     
     def _simple_ik_move(self, target_pos, target_orn):
