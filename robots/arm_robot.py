@@ -160,9 +160,12 @@ class ArmRobot:
             # 2. 打开夹爪
             self.open_gripper()
             
-            # 3. 下降到抓取位置
-            if not self.move_to_position(grasp_pos):
+            # 3. 下降到抓取位置（使用更多步数确保平滑）
+            if not self.move_to_position(grasp_pos, steps=30):
                 return False, "无法下降到抓取位置"
+            
+            # 3.5 确保机械臂已稳定到达抓取位置
+            self._wait_for_arm_stable(grasp_pos)
             
             # 4. 关闭夹爪（抓取）
             self.close_gripper()
@@ -205,9 +208,12 @@ class ArmRobot:
             if not self.move_to_position(pre_place_pos):
                 return False
             
-            # 2. 下降到放置位置
-            if not self.move_to_position(place_pos):
+            # 2. 下降到放置位置（使用更多步数确保平滑到达）
+            if not self.move_to_position(place_pos, steps=30):
                 return False
+            
+            # 2.5 确保机械臂已稳定到达目标位置
+            self._wait_for_arm_stable(place_pos)
             
             # 3. 打开夹爪（释放）
             self.open_gripper()
@@ -231,7 +237,8 @@ class ArmRobot:
     def move_to_position(
         self,
         target_position: List[float],
-        target_orientation: Optional[List[float]] = None
+        target_orientation: Optional[List[float]] = None,
+        steps: int = 20
     ) -> bool:
         """
         移动末端执行器到目标位置
@@ -239,19 +246,19 @@ class ArmRobot:
         Args:
             target_position: 目标位置 [x, y, z]
             target_orientation: 目标姿态（四元数）[x, y, z, w]
+            steps: 插值步数，越大运动越平滑
         
         Returns:
             是否成功
         """
         try:
-            # 使用 BestMan 的 IK 和轨迹执行
-            if hasattr(self.bestman, 'sim_move_arm_to_target_pose'):
-                # 构建目标位姿
+            # 使用 BestMan 的 sim_move_eef_to_goal_pose 进行平滑移动
+            if hasattr(self.bestman, 'sim_move_eef_to_goal_pose'):
                 from Robotics_API.Pose import Pose
                 target_pose = Pose(target_position, target_orientation or [0, 0, 0, 1])
                 
-                # 执行运动
-                self.bestman.sim_move_arm_to_target_pose(target_pose)
+                # 执行平滑运动，使用更多步数
+                self.bestman.sim_move_eef_to_goal_pose(target_pose, steps=steps)
                 return True
             else:
                 # 备用：使用简单的关节控制
@@ -285,8 +292,16 @@ class ArmRobot:
                     physicsClientId=self.bestman.client_id
                 )
             
-            # 等待执行
-            self.bestman.client.run(50)
+            # 等待执行 - 增加步数并检查是否到达目标
+            max_wait_steps = 200  # 最大等待步数
+            for _ in range(max_wait_steps):
+                self.bestman.client.run(1)
+                # 检查是否接近目标
+                current_pos, _ = self.get_end_effector_pose()
+                dist = np.linalg.norm(np.array(current_pos) - np.array(target_pos))
+                if dist < 0.02:  # 2cm误差范围内认为到达
+                    break
+            
             return True
             
         except Exception as e:
@@ -296,11 +311,15 @@ class ArmRobot:
         """打开夹爪"""
         if hasattr(self.bestman, 'sim_open_gripper'):
             self.bestman.sim_open_gripper()
+            # 等待夹爪完全打开
+            self.bestman.client.run(50)
     
     def close_gripper(self):
         """关闭夹爪"""
         if hasattr(self.bestman, 'sim_close_gripper'):
             self.bestman.sim_close_gripper()
+            # 等待夹爪完全关闭
+            self.bestman.client.run(50)
     
     def _create_grasp_constraint(self, object_id: int):
         """创建抓取约束"""
@@ -330,6 +349,25 @@ class ArmRobot:
         # 备选：使用 BestMan 的方法
         elif hasattr(self.bestman, 'sim_remove_gripper_constraint'):
             self.bestman.sim_remove_gripper_constraint()
+    
+    def _wait_for_arm_stable(self, target_pos: List[float], threshold: float = 0.01, max_steps: int = 100):
+        """
+        等待机械臂稳定到达目标位置
+        
+        Args:
+            target_pos: 目标位置
+            threshold: 位置误差阈值（默认1cm）
+            max_steps: 最大等待步数
+        """
+        for _ in range(max_steps):
+            self.bestman.client.run(1)
+            current_pos, _ = self.get_end_effector_pose()
+            dist = np.linalg.norm(np.array(current_pos) - np.array(target_pos))
+            if dist < threshold:
+                print(f"[ArmRobot] 机械臂已稳定到达目标位置，误差: {dist:.4f}m")
+                return True
+        print(f"[ArmRobot] 警告: 机械臂未完全稳定，当前误差可能较大")
+        return False
     
     def get_end_effector_pose(self) -> Tuple[List[float], List[float]]:
         """获取末端执行器位姿"""

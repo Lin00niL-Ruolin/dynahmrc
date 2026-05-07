@@ -354,8 +354,8 @@ class DroneArmCollaborationTest:
         
         # 步骤 2.3: 移动物品到托盘
         print("\n   [2.3] Bob 移动物品到托盘...")
-        # 托盘上的放置位置（稍微高一点，确保物品落入托盘）
-        tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2]]
+        # 托盘上的放置位置（托盘内部，低于托盘边缘）
+        tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2] - 0.05]
         
         # 先移动到预放置位置（托盘上方）
         pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.2]
