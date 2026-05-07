@@ -118,7 +118,7 @@ def test_real_scene():
         box_id = client.load_object(
             obj_name="box",
             model_path="Asset/Scene/Object/URDF_models/cracker_box/model.urdf",
-            object_position=[0.5, 0, 1.3],  # 放在 table 桌面上（高度0.85米）
+            object_position=[0.5, 0, 1.3],  # 放在 table 桌面上（高度1.3米）
             object_orientation=[0, 0, 0, 1],
             scale=1.0,
             fixed_base=False
@@ -144,6 +144,15 @@ def test_real_scene():
             init_position=[-1.0, 0, 0]
         )
         print(f"   ✓ 创建机器人 robot_1 (mobile_manipulator)")
+        
+        # 创建移动基座机器人
+        robot2 = robot_factory.create_robot(
+            robot_id="robot_2",
+            robot_type="mobile_base",
+            robot_model="segbot",
+            init_position=[-2.0, 3.0, 0]
+        )
+        print(f"   ✓ 创建机器人 robot_2 (mobile_base)")
         
     except Exception as e:
         print(f"   [ERROR] 创建机器人失败: {e}")
@@ -196,14 +205,13 @@ def test_real_scene():
     # 7. 测试动作执行
     print("\n7. 测试动作执行...")
     
-    # 7.1 导航到 table 附近（保持安全距离，桌子是障碍物）
+    # 7.1 导航到 table 附近（保持安全距离）
     print("\n   7.1 导航到 table 附近...")
     try:
-        # 桌子在 [0, 0, 0]，机器人停在距离桌子 1.0 米外 [-1.0, 0, 0]
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [-1.0, 0, 0]}  # 距离桌子 1.0 米，避免碰撞
+            {'target': [-0.8, 0, 0]}  # 导航到 table 附近，保持安全距离（table 在 [0,0,0]）
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
@@ -217,7 +225,7 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.2 抓取测试 - 从 table 上抓取 box
+    # 7.2 抓取测试 - 从 table 上抓取 box（保持安全距离）
     print("\n   7.2 测试 pick 动作...")
     try:
         # 先导航到 table 附近（保持安全距离）
@@ -225,7 +233,7 @@ def test_real_scene():
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [-0.8, 0, 0]}  # 距离桌子 0.8 米，机械臂可以够到箱子
+            {'target': [-0.8, 0, 0]}  # 导航到 table 附近，保持安全距离
         )
         print(f"      导航结果: success={feedback.success}")
 
@@ -248,15 +256,15 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.3 放置测试 - 将物品放到 table_2 上
+    # 7.3 放置测试 - 将物品放到 table_2 上（保持安全距离）
     print("\n   7.3 测试 place 动作...")
     try:
-        # 先导航到 table_2 附近（保持安全距离）
+        # 先导航到 table_2 附近
         print("      先导航到 table_2 附近...")
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [3.0, 5.0, 0]}  # 距离 table_2 约 1.0 米，避免碰撞
+            {'target': [3.0, 5.0, 0]}  # table_2 在 [4.0, 5.0, 0]，保持安全距离
         )
         print(f"      导航结果: success={feedback.success}")
         
@@ -265,7 +273,7 @@ def test_real_scene():
         feedback = adapter.execute_action(
             'robot_1',
             'place',
-            {'target': [4.0, 5.0, 0.85]}  # table_2 表面高度约 0.85 米
+            {'target': [4.0, 5.0, 1.3]}  # table_2 表面高度约1.3米
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
@@ -298,13 +306,19 @@ def test_real_scene():
     # 8. 测试协作框架集成
     print("\n8. 测试协作框架集成...")
     try:
-        # 创建 Robot Agent
+        # 创建 Robot Agents
         llm_client = MockLLMClient()
         robot_agents = [
             RobotAgent(
                 name='robot_1',
                 robot_type='mobile_manipulator',
                 capabilities=['navigation', 'manipulation', 'transport'],
+                llm_client=llm_client
+            ),
+            RobotAgent(
+                name='robot_2',
+                robot_type='mobile_base',
+                capabilities=['navigation', 'transport'],
                 llm_client=llm_client
             )
         ]
