@@ -213,7 +213,7 @@ class DroneArmCollaborationTest:
         print("="*70)
         
         cup_id = self.scene_objects['cup']
-        item_pos = [-2.9, 1.99, 3.1]
+        item_pos = [-2.9, 1.99, 2.1]
         table_pos = [0, 0, 0]
         
         # 步骤 1.1: 导航到物品上方
