@@ -267,6 +267,13 @@ class DroneArmCollaborationTest:
         success, msg = self.drone.place(place_pos)
         if success:
             print(f"   [OK] 放置成功: {msg}")
+            
+            # 等待杯子稳定
+            print("   [等待] 等待杯子稳定...")
+            time.sleep(1.0)  # 停留1秒
+            for _ in range(30):  # 运行30步仿真
+                self.client.run(1)
+            print("   [OK] 杯子已稳定")
         else:
             print(f"   [ERROR] 放置失败: {msg}")
             return False
