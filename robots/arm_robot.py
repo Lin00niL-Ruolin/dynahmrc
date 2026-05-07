@@ -128,7 +128,7 @@ class ArmRobot:
             "capabilities": self.capabilities
         }
     
-    def pick(self, object_id: int, grasp_pose: Optional[Dict] = None) -> bool:
+    def pick(self, object_id: int, grasp_pose: Optional[Dict] = None) -> Tuple[bool, str]:
         """
         抓取物体
         
@@ -137,7 +137,7 @@ class ArmRobot:
             grasp_pose: 抓取位姿（可选，自动计算）
         
         Returns:
-            是否成功
+            (是否成功, 消息)
         """
         try:
             self.is_busy = True
@@ -155,14 +155,14 @@ class ArmRobot:
             # 执行抓取流程
             # 1. 移动到预抓取位置
             if not self.move_to_position(pre_grasp_pos):
-                return False
+                return False, "无法移动到预抓取位置"
             
             # 2. 打开夹爪
             self.open_gripper()
             
             # 3. 下降到抓取位置
             if not self.move_to_position(grasp_pos):
-                return False
+                return False, "无法下降到抓取位置"
             
             # 4. 关闭夹爪（抓取）
             self.close_gripper()
@@ -172,13 +172,13 @@ class ArmRobot:
             
             # 6. 抬升
             if not self.move_to_position(pre_grasp_pos):
-                return False
+                return False, "无法抬升"
             
-            return True
+            return True, "抓取成功"
             
         except Exception as e:
             self.error_status = f"pick_failed: {str(e)}"
-            return False
+            return False, str(e)
         finally:
             self.is_busy = False
             self.current_task = None
