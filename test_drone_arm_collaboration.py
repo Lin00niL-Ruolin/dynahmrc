@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.6, 1.4]     
+                init_position=[0, 0.6, 1.2]     
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.5]")        
@@ -249,7 +249,7 @@ class DroneArmCollaborationTest:
         # 步骤 1.4: 导航到桌子上方
         print("\n   [1.4] Lucy 导航到桌子上方...")
         # 桌子高度约0.8米，放置高度约0.9米
-        place_pos = [table_pos[0], table_pos[1], table_pos[2] + 0.1]
+        place_pos = [table_pos[0], table_pos[1], table_pos[2] + 1.0]
         hover_pos = [place_pos[0], place_pos[1], place_pos[2] + 2.0]
         
         success, msg = self.drone.navigate_to(hover_pos)
