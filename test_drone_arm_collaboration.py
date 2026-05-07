@@ -327,7 +327,8 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         table_pos = [0, 0, 0.8]
-        tray_pos = [0.3, 0.2, 1.3]  # 与实际托盘位置一致（已调整到机械臂可达范围）
+        # 托盘位置 - 必须与创建时一致 [0.45, 0.2, 1.35]
+        tray_pos = [0.45, 0.2, 1.35]
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -365,7 +366,7 @@ class DroneArmCollaborationTest:
         tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2] - 0.05]
         
         # 先移动到预放置位置（托盘上方）
-        pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.2]
+        pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.3]
         
         # 使用垂直向下的朝向
         import pybullet as p
