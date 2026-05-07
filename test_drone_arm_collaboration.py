@@ -116,10 +116,12 @@ class DroneArmCollaborationTest:
             print(f"   [OK] 创建柜子 (ID: {cabinet_id})")
             
             # 3. 创建托盘
+            # 调整托盘位置到机械臂可达范围内
+            # 机械臂基座在 [0, 0.4, 1.3]，托盘放在侧前方 [0.3, 0.2, 1.3]
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.5, 0.2, 1.35],
+                object_position=[0.3, 0.2, 1.35],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -325,7 +327,7 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         table_pos = [0, 0, 0.8]
-        tray_pos = [0.5, 0.2, 1.35]  # 与实际托盘位置一致
+        tray_pos = [0.3, 0.2, 1.3]  # 与实际托盘位置一致（已调整到机械臂可达范围）
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -359,14 +361,11 @@ class DroneArmCollaborationTest:
         
         # 步骤 2.3: 移动物品到托盘
         print("\n   [2.3] Bob 移动物品到托盘...")
-        print(f"   [DEBUG] tray_pos = {tray_pos}")
         # 托盘上的放置位置（托盘内部，低于托盘边缘）
         tray_place_pos = [tray_pos[0], tray_pos[1], tray_pos[2] - 0.05]
-        print(f"   [DEBUG] tray_place_pos = {tray_place_pos}")
         
         # 先移动到预放置位置（托盘上方）
         pre_place_pos = [tray_place_pos[0], tray_place_pos[1], tray_place_pos[2] + 0.2]
-        print(f"   [DEBUG] 预放置位置: {pre_place_pos}")
         
         # 使用垂直向下的朝向
         import pybullet as p

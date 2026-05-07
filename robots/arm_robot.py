@@ -148,13 +148,9 @@ class ArmRobot:
                 object_id, physicsClientId=self.bestman.client_id
             )
             
-            print(f"[ArmRobot] pick() 物体当前位置: {obj_pos}")
-            
             # 计算预抓取位置（物体上方）
             pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.15]
             grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]  # 稍微 above物体表面
-            
-            print(f"[ArmRobot] 抓取位置: {grasp_pos}")
             
             # 抓取朝向：垂直向下（夹爪朝下）
             # 使用欧拉角 [roll, pitch, yaw] = [0, π, 0] 表示垂直向下
@@ -208,31 +204,21 @@ class ArmRobot:
             self.is_busy = True
             self.current_task = f"place_at_{target_position}"
             
-            print(f"[ArmRobot] place() 被调用，目标位置: {target_position}")
-            
             # 计算放置路径
             # 在托盘正上方0.2高度处释放，让杯子掉落到托盘中
             release_pos = [target_position[0], target_position[1], target_position[2] + 0.2]
             hover_pos = [target_position[0], target_position[1], target_position[2] + 0.4]
             
-            print(f"[ArmRobot] 释放位置: {release_pos}, 悬停位置: {hover_pos}")
-            
             # 放置朝向：垂直向下（夹爪朝下）
             place_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
             
             # 1. 移动到托盘上方0.4米（预放置位置）
-            print(f"[ArmRobot] 移动到悬停位置: {hover_pos}")
             if not self.move_to_position(hover_pos, target_orientation=place_orn, steps=30):
-                print(f"[ArmRobot] 移动到悬停位置失败")
                 return False
-            print(f"[ArmRobot] 已到达悬停位置")
             
             # 2. 下降到托盘正上方0.2米处
-            print(f"[ArmRobot] 下降到释放位置: {release_pos}")
             if not self.move_to_position(release_pos, target_orientation=place_orn, steps=20):
-                print(f"[ArmRobot] 下降到释放位置失败")
                 return False
-            print(f"[ArmRobot] 已到达释放位置")
             
             # 3. 确保机械臂已稳定到达释放位置
             self._wait_for_arm_stable(release_pos)
@@ -280,8 +266,6 @@ class ArmRobot:
             是否成功
         """
         try:
-            print(f"[ArmRobot] move_to_position() 目标: {target_position}, 朝向: {target_orientation}")
-            
             # 使用 BestMan 的 sim_move_eef_to_goal_pose 进行平滑移动
             if hasattr(self.bestman, 'sim_move_eef_to_goal_pose'):
                 from Robotics_API.Pose import Pose
@@ -289,10 +273,6 @@ class ArmRobot:
                 
                 # 执行平滑运动，使用更多步数
                 self.bestman.sim_move_eef_to_goal_pose(target_pose, steps=steps)
-                
-                # 检查是否到达目标
-                final_pos, _ = self.get_end_effector_pose()
-                print(f"[ArmRobot] 移动后位置: {final_pos}")
                 return True
             else:
                 # 备用：使用简单的关节控制
@@ -300,7 +280,6 @@ class ArmRobot:
                 
         except Exception as e:
             self.error_status = f"move_failed: {str(e)}"
-            print(f"[ArmRobot] 移动失败: {e}")
             return False
     
     def _simple_ik_move(self, target_pos, target_orn):
