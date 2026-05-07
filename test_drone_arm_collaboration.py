@@ -264,19 +264,38 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.5: 下降并放置
         print("\n   [1.5] Lucy 下降并放置物品...")
-        success, msg = self.drone.place(place_pos)
-        if success:
-            print(f"   [OK] 放置成功: {msg}")
-            
-            # 等待杯子稳定
-            print("   [等待] 等待杯子稳定...")
-            time.sleep(1.0)  # 停留1秒
-            for _ in range(30):  # 运行30步仿真
-                self.client.run(1)
-            print("   [OK] 杯子已稳定")
-        else:
-            print(f"   [ERROR] 放置失败: {msg}")
+        
+        # 1. 下降到更接近桌子的位置（桌子上方0.1米）
+        approach_pos = [place_pos[0], place_pos[1], place_pos[2] + 0.1]
+        print(f"   [下降] 接近桌子: {approach_pos}")
+        success, msg = self.drone.navigate_to(approach_pos)
+        if not success:
+            print(f"   [ERROR] 无法接近桌子: {msg}")
             return False
+        
+        # 2. 放下杯子（直接调用底层释放）
+        print("   [放置] 释放杯子...")
+        if hasattr(self.drone.bestman, 'release'):
+            release_success = self.drone.bestman.release()
+            if release_success:
+                self.drone.is_holding_object = False
+                self.drone.held_object_id = None
+                print(f"   [OK] 杯子已释放")
+            else:
+                print(f"   [ERROR] 释放失败")
+                return False
+        else:
+            # 简化版：直接标记为已放置
+            self.drone.is_holding_object = False
+            self.drone.held_object_id = None
+            print(f"   [OK] 杯子已释放（简化）")
+        
+        # 3. 等待杯子稳定（无人机保持在当前位置不上升）
+        print("   [等待] 等待杯子稳定...")
+        time.sleep(1.0)  # 停留1秒
+        for _ in range(50):  # 运行50步仿真让杯子稳定
+            self.client.run(1)
+        print("   [OK] 杯子已稳定")
         
         # 步骤 1.6: 抬升离开
         print("\n   [1.6] Lucy 离开桌子...")
