@@ -148,7 +148,7 @@ class RobotFactory:
                 'tcp_link': 7,
                 'tcp_height': 0.05,
                 'arm_place_height': 1.0,
-                'arm_reset_jointValues': [0.0, -0.5, 0.0, -2.5, 0.0, 2.0, 0.0],
+                'arm_reset_jointValues': [0, -1.57, 1.57, -1.57, 0, 0, 0],  # 收起状态（手臂折叠）
                 # Camera 配置
                 'fov': 60,
                 'width': 640,
