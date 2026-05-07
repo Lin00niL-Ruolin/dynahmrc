@@ -295,8 +295,8 @@ class DroneArmCollaborationTest:
         print("="*70)
         
         cup_id = self.scene_objects['cup']
-        table_pos = [0, 0, 0]
-        tray_pos = [0.0, 0.2, 1.0]
+        table_pos = [0, 0, 0.8]
+        tray_pos = [0.8, 0.2, 1.4]
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -316,7 +316,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 2.2: 抓取物品
         print("\n   [2.2] Bob 抓取物品...")
-        success = self.arm_robot.pick(cup_id)
+        success = self.arm_robot.pick("cup", obj_pos)   
         if success:
             print(f"   [OK] 抓取成功")
         else:
