@@ -148,9 +148,13 @@ class ArmRobot:
                 object_id, physicsClientId=self.bestman.client_id
             )
             
+            print(f"[ArmRobot] pick() 物体当前位置: {obj_pos}")
+            
             # 计算预抓取位置（物体上方）
             pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.15]
             grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]  # 稍微 above物体表面
+            
+            print(f"[ArmRobot] 抓取位置: {grasp_pos}")
             
             # 抓取朝向：垂直向下（夹爪朝下）
             # 使用欧拉角 [roll, pitch, yaw] = [0, π, 0] 表示垂直向下
@@ -204,10 +208,14 @@ class ArmRobot:
             self.is_busy = True
             self.current_task = f"place_at_{target_position}"
             
+            print(f"[ArmRobot] place() 被调用，目标位置: {target_position}")
+            
             # 计算放置路径
             # 在托盘正上方0.2高度处释放，让杯子掉落到托盘中
             release_pos = [target_position[0], target_position[1], target_position[2] + 0.2]
             hover_pos = [target_position[0], target_position[1], target_position[2] + 0.4]
+            
+            print(f"[ArmRobot] 释放位置: {release_pos}, 悬停位置: {hover_pos}")
             
             # 放置朝向：垂直向下（夹爪朝下）
             place_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
