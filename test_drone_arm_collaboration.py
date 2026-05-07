@@ -290,13 +290,6 @@ class DroneArmCollaborationTest:
             self.drone.held_object_id = None
             print(f"   [OK] 杯子已释放（简化）")
         
-        # 3. 等待杯子稳定（无人机保持在当前位置不上升）
-        print("   [等待] 等待杯子稳定...")
-        time.sleep(1.0)  # 停留1秒
-        for _ in range(50):  # 运行50步仿真让杯子稳定
-            self.client.run(1)
-        print("   [OK] 杯子已稳定")
-        
         # 步骤 1.6: 抬升离开
         print("\n   [1.6] Lucy 离开桌子...")
         leave_pos = [table_pos[0] + 2.0, table_pos[1]+3.0, 2.0]

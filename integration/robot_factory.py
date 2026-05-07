@@ -588,7 +588,7 @@ class MobileBaseAdapter:
                 return True
             
             # 使用插值实现平滑移动
-            steps = max(int(distance * 50), 20)  # 根据距离计算步数，最少20步
+            steps = max(int(distance * 100), 40)  # 根据距离计算步数，最少40步（速度减半）
             print(f"[MobileBaseAdapter] 平滑移动: {distance:.2f}m, {steps} 步")
             
             for i in range(1, steps + 1):
