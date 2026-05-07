@@ -166,9 +166,26 @@ class ArmRobot:
                 object_id, physicsClientId=self.bestman.client_id
             )
             
+            print(f"[ArmRobot] 物体基座位置: {obj_pos}")
+            
+            # 获取物体边界框信息
+            try:
+                aabb_min, aabb_max = p.getAABB(object_id, physicsClientId=self.bestman.client_id)
+                obj_height = aabb_max[2] - aabb_min[2]
+                obj_center = [(aabb_min[i] + aabb_max[i]) / 2 for i in range(3)]
+                print(f"[ArmRobot] 物体AABB: min={aabb_min}, max={aabb_max}")
+                print(f"[ArmRobot] 物体高度: {obj_height}, 中心: {obj_center}")
+            except:
+                obj_height = 0.1  # 默认高度
+                obj_center = obj_pos
+                print(f"[ArmRobot] 无法获取AABB，使用默认值")
+            
             # 计算预抓取位置（物体上方）
-            pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.15]
-            grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]  # 稍微 above物体表面
+            pre_grasp_pos = [obj_center[0], obj_center[1], obj_center[2] + obj_height/2 + 0.15]
+            grasp_pos = [obj_center[0], obj_center[1], obj_center[2] + obj_height/2 + 0.02]  # 在物体表面上方
+            
+            print(f"[ArmRobot] 抓取位置: {grasp_pos}")
+            print(f"[ArmRobot] 预抓取位置: {pre_grasp_pos}")
             
             # 抓取朝向：垂直向下（夹爪朝下）
             # 使用欧拉角 [roll, pitch, yaw] = [0, π, 0] 表示垂直向下
