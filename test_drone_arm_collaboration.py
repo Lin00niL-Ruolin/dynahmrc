@@ -119,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.2, 0.2, 1.0],
+                object_position=[0.2, 0.2, 1.4],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -166,10 +166,10 @@ class DroneArmCollaborationTest:
                 robot_id="Lucy",
                 robot_type="drone",
                 robot_model="drone",
-                init_position=[2.0, -2.0, 4.0]
+                init_position=[0.0,0.0,0.0]
             )
             print(f"   [OK] 无人机 Lucy 创建成功")
-            print(f"        位置: [2.0, -2.0, 4.0]")
+            print(f"        位置: [0.0,0.0,0.0]")   
             print(f"        能力: navigation, pick, place, perception")
             
             # 2. 创建固定机械臂 Bob
@@ -178,15 +178,13 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[-1.3, 0, 1.3]
+                init_position=[-1.0, 0, 1.5]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
-            print(f"        基座位置: [-1.0, 0, 1.0]")
+            print(f"        基座位置: [-1.3, 0, 1.3]")  
             print(f"        能力: manipulation, perception (固定基座，不可移动)")
             
             # 等待机器人初始化
-            time.sleep(0.5)
-
             time.sleep(0.5)
 
             
