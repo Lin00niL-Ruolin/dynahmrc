@@ -119,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.3, 0.0, 1.35],
+                object_position=[0.5, 0.2, 1.35],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -322,7 +322,7 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         table_pos = [0, 0, 0.8]
-        tray_pos = [0.3, 0.0, 1.35]  # 与实际托盘位置一致
+        tray_pos = [0.5, 0.2, 1.35]  # 与实际托盘位置一致
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
