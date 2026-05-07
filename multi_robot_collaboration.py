@@ -300,7 +300,7 @@ class MultiRobotCollaboration:
             robot_id="drone",
             robot_type="drone",
             robot_model="quadcopter",
-            init_position=[-0.3, 8.0, 2.0],  # 卫生间上方
+            init_position=[-0.3, 8.0, 0.0],  # 卫生间上方
             init_orientation=[0, 0, 0, 1]
         )
         self.drone = DroneRobot("drone", drone_bestman)
@@ -338,7 +338,7 @@ class MultiRobotCollaboration:
             robot_id="arm_robot",
             robot_type="arm",
             robot_model="panda",
-            init_position=[0.4, 1.85, 1.0],  # 客厅桌子表面
+            init_position=[0.6, 1.0, 1.0],  # 客厅桌子表面
             init_orientation=[0, 0, 0, 1]
         )
         self.arm_robot = ArmRobot("arm_robot", arm_bestman)
