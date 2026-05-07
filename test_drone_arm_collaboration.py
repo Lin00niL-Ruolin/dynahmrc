@@ -166,7 +166,7 @@ class DroneArmCollaborationTest:
                 robot_id="Lucy",
                 robot_type="drone",
                 robot_model="drone",
-                init_position=[0.0,0.0,0.0]
+                init_position=[5.0,3.0,0.0]
             )
             print(f"   [OK] 无人机 Lucy 创建成功")
             print(f"        位置: [0.0,0.0,0.0]")   
