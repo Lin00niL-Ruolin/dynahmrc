@@ -174,12 +174,14 @@ class DroneArmCollaborationTest:
             
             # 2. 创建固定机械臂 Bob
             print("\n   [创建] 固定机械臂 Bob...")
+            # 桌子在 [0, 0, 0.8]，机械臂在 [0, 0.6, 1.3]
+            # 桌子在机械臂的 -Y 方向，所以机械臂需要面向 -Y（旋转 -90 度）
             self.arm_robot = self.robot_factory.create_robot(
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
                 init_position=[0, 0.6, 1.3],
-                init_orientation=[0, 0, 0, 1]  # 默认朝向（面向+X方向）
+                init_orientation=[0, 0, -0.707, 0.707]  # 面向 -Y 方向（桌子）
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.3]")        

@@ -149,19 +149,23 @@ class ArmRobot:
             )
             
             # 计算预抓取位置（物体上方）
-            pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.1]
-            grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2]]
+            pre_grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.15]
+            grasp_pos = [obj_pos[0], obj_pos[1], obj_pos[2] + 0.02]  # 稍微 above物体表面
+            
+            # 抓取朝向：垂直向下（夹爪朝下）
+            # 使用欧拉角 [roll, pitch, yaw] = [0, π, 0] 表示垂直向下
+            grasp_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
             
             # 执行抓取流程
-            # 1. 移动到预抓取位置
-            if not self.move_to_position(pre_grasp_pos):
+            # 1. 移动到预抓取位置（带朝向）
+            if not self.move_to_position(pre_grasp_pos, target_orientation=grasp_orn, steps=30):
                 return False, "无法移动到预抓取位置"
             
             # 2. 打开夹爪
             self.open_gripper()
             
-            # 3. 下降到抓取位置（使用更多步数确保平滑）
-            if not self.move_to_position(grasp_pos, steps=30):
+            # 3. 下降到抓取位置（带朝向）
+            if not self.move_to_position(grasp_pos, target_orientation=grasp_orn, steps=30):
                 return False, "无法下降到抓取位置"
             
             # 3.5 确保机械臂已稳定到达抓取位置
@@ -173,8 +177,8 @@ class ArmRobot:
             # 5. 创建约束（模拟抓取）
             self._create_grasp_constraint(object_id)
             
-            # 6. 抬升
-            if not self.move_to_position(pre_grasp_pos):
+            # 6. 抬升（保持垂直朝向）
+            if not self.move_to_position(pre_grasp_pos, target_orientation=grasp_orn, steps=30):
                 return False, "无法抬升"
             
             return True, "抓取成功"
@@ -201,15 +205,18 @@ class ArmRobot:
             self.current_task = f"place_at_{target_position}"
             
             # 计算放置路径
-            pre_place_pos = [target_position[0], target_position[1], target_position[2] + 0.1]
+            pre_place_pos = [target_position[0], target_position[1], target_position[2] + 0.15]
             place_pos = target_position
             
-            # 1. 移动到预放置位置
-            if not self.move_to_position(pre_place_pos):
+            # 放置朝向：垂直向下（夹爪朝下）
+            place_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
+            
+            # 1. 移动到预放置位置（带朝向）
+            if not self.move_to_position(pre_place_pos, target_orientation=place_orn, steps=30):
                 return False
             
-            # 2. 下降到放置位置（使用更多步数确保平滑到达）
-            if not self.move_to_position(place_pos, steps=30):
+            # 2. 下降到放置位置（带朝向）
+            if not self.move_to_position(place_pos, target_orientation=place_orn, steps=30):
                 return False
             
             # 2.5 确保机械臂已稳定到达目标位置
@@ -221,8 +228,8 @@ class ArmRobot:
             # 4. 移除约束
             self._remove_grasp_constraint()
             
-            # 5. 抬升
-            if not self.move_to_position(pre_place_pos):
+            # 5. 抬升（保持垂直朝向）
+            if not self.move_to_position(pre_place_pos, target_orientation=place_orn, steps=30):
                 return False
             
             return True
@@ -323,7 +330,24 @@ class ArmRobot:
     
     def _create_grasp_constraint(self, object_id: int):
         """创建抓取约束"""
-        # 直接使用 PyBullet 创建约束，避免 BestMan 方法中的 getLinkState 问题
+        # 获取物体当前位置
+        obj_pos, obj_orn = p.getBasePositionAndOrientation(
+            object_id, physicsClientId=self.bestman.client_id
+        )
+        
+        # 获取末端执行器当前位置
+        eef_pos, eef_orn = self.get_end_effector_pose()
+        
+        # 计算物体相对于末端执行器的偏移（在末端执行器坐标系中）
+        # 将物体位置转换到末端执行器坐标系
+        inv_eef_pos, inv_eef_orn = p.invertTransform(eef_pos, eef_orn, physicsClientId=self.bestman.client_id)
+        local_pos, local_orn = p.multiplyTransforms(
+            inv_eef_pos, inv_eef_orn,
+            obj_pos, obj_orn,
+            physicsClientId=self.bestman.client_id
+        )
+        
+        # 创建约束，使用计算出的相对位置
         self.constraint_id = p.createConstraint(
             parentBodyUniqueId=self.bestman.arm_id,
             parentLinkIndex=self.bestman.eef_id,
@@ -331,10 +355,11 @@ class ArmRobot:
             childLinkIndex=-1,  # -1 表示 base
             jointType=p.JOINT_FIXED,
             jointAxis=[0, 0, 0],
-            parentFramePosition=[0, 0, 0],
+            parentFramePosition=local_pos,
             childFramePosition=[0, 0, 0],
             physicsClientId=self.bestman.client_id
         )
+        print(f"[ArmRobot] 创建抓取约束 ID: {self.constraint_id}, 相对位置: {local_pos}")
     
     def _remove_grasp_constraint(self):
         """移除抓取约束"""
