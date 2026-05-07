@@ -7,7 +7,7 @@
 2. 无人机抓取物品
 3. 无人机将物品放置到客厅桌子上
 4. 固定机械臂(Bob)从桌子上抓取物品
-5. 固定机械臂将物品放置到托盘中
+5. 固定机械臂将物品放置到托盘
 
 异构协作演示：
 - Lucy (Drone): 具备空中导航和轻量抓取能力
@@ -119,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.0, 0.2, 1.3],
+                object_position=[0.2, 0.2, 1.0],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -166,10 +166,10 @@ class DroneArmCollaborationTest:
                 robot_id="Lucy",
                 robot_type="drone",
                 robot_model="drone",
-                init_position=[2.0, -2.0, 2.0]
+                init_position=[2.0, -2.0, 4.0]
             )
             print(f"   [OK] 无人机 Lucy 创建成功")
-            print(f"        位置: [2.0, -2.0, 2.0]")
+            print(f"        位置: [2.0, -2.0, 4.0]")
             print(f"        能力: navigation, pick, place, perception")
             
             # 2. 创建固定机械臂 Bob
@@ -178,14 +178,17 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[-0.5, 0, 1.6]
+                init_position=[-1.3, 0, 1.0]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
-            print(f"        基座位置: [-0.5, 0, 1.6]")
+            print(f"        基座位置: [-1.0, 0, 1.0]")
             print(f"        能力: manipulation, perception (固定基座，不可移动)")
             
             # 等待机器人初始化
             time.sleep(0.5)
+
+            time.sleep(0.5)
+
             
             return True
             
@@ -211,7 +214,7 @@ class DroneArmCollaborationTest:
         
         cup_id = self.scene_objects['cup']
         item_pos = [-2.9, 1.99, 3.1]
-        table_pos = [0, 0, 0.8]
+        table_pos = [0, 0, 0]
         
         # 步骤 1.1: 导航到物品上方
         print("\n   [1.1] Lucy 导航到物品上方...")
@@ -233,11 +236,11 @@ class DroneArmCollaborationTest:
             return False
         
         # 等待抓取稳定
-        time.sleep(0.5)
+        time.sleep(1.0)
         
         # 步骤 1.3: 抬升到安全高度
         print("\n   [1.3] Lucy 抬升到安全高度...")
-        safe_pos = [item_pos[0], item_pos[1], 1.5]
+        safe_pos = [item_pos[0], item_pos[1], 4.0]
         success, msg = self.drone.navigate_to(safe_pos)
         if success:
             print(f"   [OK] 抬升成功")
@@ -293,8 +296,8 @@ class DroneArmCollaborationTest:
         print("="*70)
         
         cup_id = self.scene_objects['cup']
-        table_pos = [0, 0, 0.8]
-        tray_pos = [0.0, 0.2, 1.3]
+        table_pos = [0, 0, 0]
+        tray_pos = [0.0, 0.2, 1.0]
         
         # 等待物品稳定（无人机放置后可能有晃动）
         print("\n   [等待] 等待物品稳定...")
@@ -367,7 +370,7 @@ class DroneArmCollaborationTest:
         
         print("\n任务描述:")
         print("  - Lucy (Drone): 空中运输，从物品位置 -> 客厅桌子")
-        print("  - Bob (Arm):    桌面操作，从客厅桌子 -> 托盘")
+        print("  - Bob (Arm):  桌面操作，从客厅桌子 -> 托盘")
         print("  - 物品: yellow_cup (黄色杯子)")
         
         # 阶段 1: 无人机任务
