@@ -131,7 +131,7 @@ class DroneArmCollaborationTest:
             cup_id = self.client.load_object(
                 obj_name="cup",
                 model_path="Asset/Scene/Object/URDF_models/yellow_cup/model.urdf",
-                object_position=[-2.9, 1.99, 3.1],
+                object_position=[-2.9, 1.99, 2.1],
                 object_orientation=[0, 0, 0, 1],
                 scale=1.5,
                 fixed_base=False
@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[-1.3, 0, 1.0]
+                init_position=[-1.3, 0, 1.3]
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-1.0, 0, 1.0]")
