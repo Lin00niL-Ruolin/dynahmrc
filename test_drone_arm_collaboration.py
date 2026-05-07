@@ -226,7 +226,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 1.2: 抓取物品
         print("\n   [1.2] Lucy 抓取物品...")
-        success, msg = self.drone.pick("cup", item_pos)
+        success, msg = self.drone.pick(cup_id, item_pos)
         if success:
             print(f"   [OK] 抓取成功: {msg}")
         else:
