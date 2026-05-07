@@ -630,12 +630,12 @@ class MobileBaseAdapter:
         """旋转基座到目标朝向"""
         self.sim_rotate_base_to_target_yaw(target_yaw)
     
-    def grasp(self, object_id: int) -> bool:
+    def grasp(self, object_id) -> bool:
         """
         抓取物体
         
         Args:
-            object_id: 物体ID
+            object_id: 物体ID (整数或字符串名称)
         
         Returns:
             是否抓取成功
@@ -643,13 +643,19 @@ class MobileBaseAdapter:
         import pybullet as p
         
         try:
-            print(f"[MobileBaseAdapter] 尝试抓取物体 {object_id}")
+            # 将物体名称/ID转换为整数ID
+            if isinstance(object_id, str):
+                object_id_int = self.client.resolve_object_id(object_id)
+            else:
+                object_id_int = object_id
+            
+            print(f"[MobileBaseAdapter] 尝试抓取物体 {object_id} (ID: {object_id_int})")
             
             # 获取无人机当前位置
             drone_pose = self.sim_get_current_base_pose()
             drone_pos = drone_pose.get_position()
             
-            # 获取物体当前位置
+            # 获取物体当前位置 (使用原始object_id，因为get_object_pose也支持字符串)
             obj_pose = self.client.get_object_pose(object_id)
             obj_pos = obj_pose.get_position()
             
@@ -674,7 +680,7 @@ class MobileBaseAdapter:
             constraint_id = p.createConstraint(
                 parentBodyUniqueId=self.base_id,
                 parentLinkIndex=-1,  # 基座
-                childBodyUniqueId=object_id,
+                childBodyUniqueId=object_id_int,  # 使用整数ID
                 childLinkIndex=-1,  # 基座
                 jointType=p.JOINT_FIXED,
                 jointAxis=[0, 0, 0],
@@ -687,7 +693,7 @@ class MobileBaseAdapter:
             
             # 保存约束ID用于后续释放
             self._grasp_constraint_id = constraint_id
-            self._grasped_object_id = object_id
+            self._grasped_object_id = object_id_int
             
             # 运行几步仿真让约束生效
             self.client.run(10)
