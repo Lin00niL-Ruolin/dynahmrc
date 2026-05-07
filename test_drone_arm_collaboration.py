@@ -178,10 +178,10 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.6, 1.2]     
+                init_position=[0, 0.6, 1.3]     
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
-            print(f"        基座位置: [-0.0, 0.6, 1.5]")        
+            print(f"        基座位置: [-0.0, 0.6, 1.3]")        
             print(f"        能力: manipulation, perception (固定基座，不可移动)")
             
             # 等待机器人初始化
@@ -322,7 +322,7 @@ class DroneArmCollaborationTest:
         
         # 步骤 2.2: 抓取物品
         print("\n   [2.2] Bob 抓取物品...")
-        success, msg = self.arm_robot.pick("cup", obj_pos)      
+        success, msg = self.arm_robot.pick(cup_id, obj_pos)      
         if success:
             print(f"    [OK] 抓取成功: {msg}")
         else:
