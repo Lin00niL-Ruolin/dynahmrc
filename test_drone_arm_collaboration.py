@@ -119,7 +119,7 @@ class DroneArmCollaborationTest:
             tray_id = self.client.load_object(
                 obj_name="tray",
                 model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-                object_position=[0.8, 0.2, 1.4],
+                object_position=[0.8, 0.2, 1.0],
                 object_orientation=[0, 0, 0, 1],
                 scale=2.2,
                 fixed_base=True
@@ -178,7 +178,7 @@ class DroneArmCollaborationTest:
                 robot_id="Bob",
                 robot_type="arm",
                 robot_model="panda",
-                init_position=[0, 0.6, 1.5]     
+                init_position=[0, 0.6, 0.8]     
             )
             print(f"   [OK] 固定机械臂 Bob 创建成功")
             print(f"        基座位置: [-0.0, 0.6, 1.5]")        
