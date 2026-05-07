@@ -205,31 +205,38 @@ class ArmRobot:
             self.current_task = f"place_at_{target_position}"
             
             # 计算放置路径
-            pre_place_pos = [target_position[0], target_position[1], target_position[2] + 0.15]
-            place_pos = target_position
+            # 在托盘正上方0.2高度处释放，让杯子掉落到托盘中
+            release_pos = [target_position[0], target_position[1], target_position[2] + 0.2]
+            hover_pos = [target_position[0], target_position[1], target_position[2] + 0.4]
             
             # 放置朝向：垂直向下（夹爪朝下）
             place_orn = p.getQuaternionFromEuler([0, np.pi, 0], physicsClientId=self.bestman.client_id)
             
-            # 1. 移动到预放置位置（带朝向）
-            if not self.move_to_position(pre_place_pos, target_orientation=place_orn, steps=30):
+            # 1. 移动到托盘上方0.4米（预放置位置）
+            if not self.move_to_position(hover_pos, target_orientation=place_orn, steps=30):
                 return False
             
-            # 2. 下降到放置位置（带朝向）
-            if not self.move_to_position(place_pos, target_orientation=place_orn, steps=30):
+            # 2. 下降到托盘正上方0.2米处
+            if not self.move_to_position(release_pos, target_orientation=place_orn, steps=20):
                 return False
             
-            # 2.5 确保机械臂已稳定到达目标位置
-            self._wait_for_arm_stable(place_pos)
+            # 3. 确保机械臂已稳定到达释放位置
+            self._wait_for_arm_stable(release_pos)
             
-            # 3. 打开夹爪（释放）
+            # 4. 打开夹爪（释放）- 杯子掉落到托盘中
             self.open_gripper()
             
-            # 4. 移除约束
+            # 5. 移除约束（让杯子自由掉落）
             self._remove_grasp_constraint()
             
-            # 5. 抬升（保持垂直朝向）
-            if not self.move_to_position(pre_place_pos, target_orientation=place_orn, steps=30):
+            # 6. 等待杯子掉落到托盘中
+            print("[ArmRobot] 等待杯子掉落到托盘中...")
+            for _ in range(100):
+                self.bestman.client.run(1)
+            print("[ArmRobot] 杯子已掉落")
+            
+            # 7. 抬升离开
+            if not self.move_to_position(hover_pos, target_orientation=place_orn, steps=30):
                 return False
             
             return True
