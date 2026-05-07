@@ -381,6 +381,15 @@ class DroneArmCollaborationTest:
         self.arm_robot.move_to_position(home_pos)
         print(f"   [OK] Bob 已复位")
         
+        print("\n   [2.6] Lucy 导航到桌子上方...")
+        # 桌子高度约0.8米，放置高度约0.9米
+        #place_pos = [table_pos[0], table_pos[1], table_pos[2]+0.2]
+        hover_pos = [3.0, -2.0, 4.0]
+        #hover_pos2 = [place_pos[0], place_pos[1], place_pos[2]]
+
+        success, msg = self.drone.navigate_to(hover_pos)
+
+
         print("\n   [DONE] 阶段 2 完成: 物品已从桌子转移到托盘")
         return True
     
