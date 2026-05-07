@@ -270,8 +270,6 @@ class DroneArmCollaborationTest:
             print(f"   [ERROR] 放置失败: {msg}")
             return False
         
-        time.sleep(0.5)
-        
         # 步骤 1.6: 抬升离开
         print("\n   [1.6] Lucy 离开桌子...")
         leave_pos = [table_pos[0] + 2.0, table_pos[1]+3.0, 2.0]
