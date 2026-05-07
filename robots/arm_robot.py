@@ -62,14 +62,14 @@ class ArmRobot:
     
     def _sync_arm_position_with_base(self):
         """
-        同步机械臂位置与基座高度
-        修复：当基座Z坐标提高时，机械臂也应相应提高
+        同步机械臂位置与基座位置
+        修复：当基座位置改变时，机械臂也应相应移动
         """
         try:
             # 获取基座当前位置
             base_pose = self.bestman.sim_get_current_base_pose()
             base_pos = base_pose.get_position()
-            base_z = base_pos[2]
+            base_orn = base_pose.get_orientation()
             
             # 获取机械臂当前位置
             arm_id = self.bestman.arm_id
@@ -77,22 +77,26 @@ class ArmRobot:
                 arm_id, physicsClientId=self.bestman.client_id
             )
             
-            # 计算机械臂应该在的高度（基座上方0.1米）
-            target_arm_z = base_z + 0.1
+            # 计算机械臂应该在的位置（基座上方0.1米）
+            target_arm_pos = [base_pos[0], base_pos[1], base_pos[2] + 0.1]
             
-            # 如果机械臂高度与基座高度不匹配，重新设置
-            if abs(arm_pos[2] - target_arm_z) > 0.01:
-                new_arm_pos = [base_pos[0], base_pos[1], target_arm_z]
+            # 检查位置是否需要同步（X、Y、Z任一坐标差异超过0.01）
+            pos_diff = [
+                abs(arm_pos[0] - target_arm_pos[0]),
+                abs(arm_pos[1] - target_arm_pos[1]),
+                abs(arm_pos[2] - target_arm_pos[2])
+            ]
+            
+            if any(diff > 0.01 for diff in pos_diff):
                 p.resetBasePositionAndOrientation(
                     arm_id,
-                    new_arm_pos,
-                    arm_orn,
+                    target_arm_pos,
+                    base_orn,  # 使用基座朝向
                     physicsClientId=self.bestman.client_id
                 )
-                print(f"[ArmRobot] 机械臂位置已同步: {arm_pos[2]:.2f} -> {target_arm_z:.2f}")
-                
-                # 重新创建约束（先删除旧的，再创建新的）
-                # 注意：这里不删除约束，因为约束在初始化时创建，会随位置更新
+                print(f"[ArmRobot] 机械臂位置已同步:")
+                print(f"         从: [{arm_pos[0]:.2f}, {arm_pos[1]:.2f}, {arm_pos[2]:.2f}]")
+                print(f"         到: [{target_arm_pos[0]:.2f}, {target_arm_pos[1]:.2f}, {target_arm_pos[2]:.2f}]")
                 
                 # 运行几步仿真让位置生效
                 for _ in range(10):
