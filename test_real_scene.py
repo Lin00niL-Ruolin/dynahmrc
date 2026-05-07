@@ -114,27 +114,16 @@ def test_real_scene():
         )
         print(f"   ✓ 创建新桌子 (ID: {new_table_id})")
         
-        # 创建箱子（可抓取物体）
+        # 创建箱子（可抓取物体）- 放在 table 桌面上
         box_id = client.load_object(
             obj_name="box",
             model_path="Asset/Scene/Object/URDF_models/cracker_box/model.urdf",
-            object_position=[0.5, 0, 1.3],  # 放在桌子上方 
+            object_position=[0.5, 0, 1.3],  # 放在 table 桌面上（高度0.85米）
             object_orientation=[0, 0, 0, 1],
             scale=1.0,
             fixed_base=False
         )
         print(f"   ✓ 创建箱子 (ID: {box_id})")
-        
-        # 创建目标区域标记
-        target_id = client.load_object(
-            obj_name="target_zone",
-            model_path="Asset/Scene/Object/URDF_models/clear_box/model.urdf",
-            object_position=[2.0, 0, 0.1],
-            object_orientation=[0, 0, 0, 1],
-            scale=1.0,
-            fixed_base=True
-        )
-        print(f"   ✓ 创建目标区域 (ID: {target_id})")
         
     except Exception as e:
         print(f"   [ERROR] 创建场景失败: {e}")
@@ -179,9 +168,8 @@ def test_real_scene():
         
         # 注册场景物体
         adapter.register_scene_object("table", table_id, "furniture")
-        adapter.register_scene_object("new_table", new_table_id, "furniture")
+        adapter.register_scene_object("table_2", new_table_id, "furniture")
         adapter.register_scene_object("box", box_id, "graspable")
-        adapter.register_scene_object("target_zone", target_id, "marker")
         
         print(f"   ✓ Adapter 创建成功，管理 {len(all_robots)} 个机器人")
         print(f"   ✓ 注册 {len(adapter.scene_objects)} 个场景物体")
@@ -217,13 +205,13 @@ def test_real_scene():
     # 7. 测试动作执行
     print("\n7. 测试动作执行...")
     
-    # 7.1 导航测试
-    print("\n   7.1 测试 navigate 动作...")
+    # 7.1 导航到 table 附近
+    print("\n   7.1 导航到 table 附近...")
     try:
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [0.3, 0, 0]}  # 导航到桌子附近
+            {'target': [0.3, 0, 0]}  # 导航到 table 附近
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
@@ -233,24 +221,24 @@ def test_real_scene():
             print(f"      error_code: {feedback.error_code}")
             print(f"      error_details: {feedback.error_details}")
     except Exception as e:
-        print(f"   [ERROR] 导航测试失败: {e}")
+        print(f"   [ERROR] 导航失败: {e}")
         import traceback
         traceback.print_exc()
 
-    # 7.2 抓取测试
+    # 7.2 抓取测试 - 从 table 上抓取 box
     print("\n   7.2 测试 pick 动作...")
     try:
-        # 先导航到箱子附近
-        print("      先导航到箱子附近...")
+        # 先导航到 table 附近
+        print("      先导航到 table 附近...")
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [0.5, 0, 0]}
+            {'target': [0.3, 0, 0]}  # 导航到 table 附近
         )
         print(f"      导航结果: success={feedback.success}")
 
-        # 尝试抓取箱子（使用物体名称）
-        print("      尝试抓取箱子...")
+        # 尝试抓取 table 上的 box
+        print("      尝试抓取 table 上的箱子...")
         feedback = adapter.execute_action(
             'robot_1',
             'pick',
@@ -268,24 +256,24 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.3 放置测试 - 将物品放到新桌子上
+    # 7.3 放置测试 - 将物品放到 table_2 上
     print("\n   7.3 测试 place 动作...")
     try:
-        # 先导航到新桌子附近
-        print("      先导航到新桌子附近...")
+        # 先导航到 table_2 附近
+        print("      先导航到 table_2 附近...")
         feedback = adapter.execute_action(
             'robot_1',
             'navigate',
-            {'target': [1.8, 0, 0]}
+            {'target': [3.8, 5.0, 0]}  # table_2 在 [4.0, 5.0, 0]
         )
         print(f"      导航结果: success={feedback.success}")
         
-        # 将物品放置到新桌子上
-        print("      将物品放置到新桌子上...")
+        # 将物品放置到 table_2 上
+        print("      将物品放置到 table_2 上...")
         feedback = adapter.execute_action(
             'robot_1',
             'place',
-            {'target': [2.0, 0, 0.85]}  # 新桌子表面高度约0.85米（桌面0.8米 + 厚度0.05米）
+            {'target': [4.0, 5.0, 1.3]}  # table_2 表面高度约0.85米
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
         if feedback.success:
@@ -299,17 +287,21 @@ def test_real_scene():
         import traceback
         traceback.print_exc()
 
-    # 7.4 等待测试
-    print("\n   7.4 测试 wait 动作...")
+    # 7.4 回到初始位置
+    print("\n   7.4 回到初始位置...")
     try:
         feedback = adapter.execute_action(
-            'robot_2',
-            'wait',
-            {'duration': 1}
+            'robot_1',
+            'navigate',
+            {'target': [-1.0, 0, 0]}  # 初始位置
         )
         print(f"   结果: success={feedback.success}, message={feedback.message}")
+        if feedback.success:
+            print("   ✓ 回到初始位置成功")
+        else:
+            print(f"   ✗ 回到初始位置失败!")
     except Exception as e:
-        print(f"   [ERROR] 等待测试失败: {e}")
+        print(f"   [ERROR] 回到初始位置失败: {e}")
     
     # 8. 测试协作框架集成
     print("\n8. 测试协作框架集成...")
