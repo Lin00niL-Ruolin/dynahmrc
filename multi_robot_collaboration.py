@@ -171,6 +171,37 @@ class MultiRobotCollaboration:
         print("[冰箱控制] 警告：未找到冰箱门关节")
         return None
     
+    def _ensure_fridge_door_closed(self):
+        """确保冰箱门在初始化时是关闭的"""
+        import pybullet as p
+        
+        if self.fridge_door_joint_idx is None:
+            self.fridge_door_joint_idx = self._get_fridge_door_joint()
+        
+        if self.fridge_door_joint_idx is None:
+            print("[冰箱控制] 无法关闭冰箱门：未找到关节")
+            return False
+        
+        fridge_id = self.scene_objects.get('elementE')
+        
+        # 设置关节电机控制，让门旋转关闭
+        p.setJointMotorControl2(
+            bodyUniqueId=fridge_id,
+            jointIndex=self.fridge_door_joint_idx,
+            controlMode=p.POSITION_CONTROL,
+            targetPosition=0.0,  # 关闭位置
+            force=50,
+            physicsClientId=self.client.client_id
+        )
+        
+        # 等待门关闭
+        print("[冰箱控制] 正在确保冰箱门关闭...")
+        for _ in range(100):
+            self.client.run(1)
+        
+        print("[冰箱控制] 冰箱门已确保关闭")
+        return True
+    
     def open_fridge_door(self):
         """打开冰箱门"""
         import pybullet as p
@@ -294,6 +325,10 @@ class MultiRobotCollaboration:
             obj_type = 'furniture' if name in ['elementA', 'elementB1', 'elementB2', 'elementE'] else 'graspable'
             self.adapter.register_scene_object(name, obj_id, obj_type)
         print("   ✓ Adapter 创建成功")
+        
+        # 6. 初始化冰箱门状态（确保门是关闭的）
+        print("\n6. 初始化冰箱门状态...")
+        self._ensure_fridge_door_closed()
         
         print("\n" + "="*70)
         print("初始化完成")
@@ -445,18 +480,15 @@ class MultiRobotCollaboration:
         initial_position = [-2.0, 4.5, 0]
         
         try:
-            # 1. 导航到冰箱（目标点远离冰箱门旋转范围，避免转圈）
-            # 冰箱在 [4.1, 5.42]，目标点设在冰箱前方偏左，距离约1.5米
-            fridge_target = [2.8, 4.8, 0]
+            # 1. 导航到冰箱（目标点远离冰箱门旋转范围，避免碰撞）
+            # 冰箱在 [4.1, 5.42]，目标点设在冰箱左侧，距离约2米，避免门打开时碰撞
+            fridge_target = [2.5, 4.5, 0]
             print("[Robot1] 导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot1',
                 'navigate',
                 {'target': fridge_target}
             )
-            
-            # 等待机器人到达冰箱位置
-            self._wait_for_robot_arrival('mobile_robot1', fridge_target, tolerance=1.0)
             print("[Robot1] 已到达冰箱位置")
             
             # 2. 打开冰箱门（确保到达后才打开）
@@ -481,9 +513,6 @@ class MultiRobotCollaboration:
                 'navigate',
                 {'target': initial_position}
             )
-            
-            # 等待回到初始位置
-            self._wait_for_robot_arrival('mobile_robot1', initial_position, tolerance=1.0)
             print("[Robot1] 已回到初始位置")
             
             # 标记柠檬已取上（通知robot2可以出发）
@@ -497,9 +526,6 @@ class MultiRobotCollaboration:
                 'navigate',
                 {'target': table_target}
             )
-            
-            # 等待到达桌子
-            self._wait_for_robot_arrival('mobile_robot1', table_target, tolerance=1.0)
             print("[Robot1] 已到达客厅桌子")
             
             # 6. 放置柠檬到桌子
@@ -527,13 +553,16 @@ class MultiRobotCollaboration:
             
             print("[Robot2] robot1已取上柠檬，开始出发...")
             
-            # 从初始位置导航到冰箱
+            # 从初始位置导航到冰箱（目标点在冰箱右侧，避免与打开的门碰撞）
+            # 冰箱在 [4.1, 5.42]，门打开时向左侧旋转，右侧是安全的
+            fridge_target = [5.5, 5.0, 0]
             print("[Robot2] 从初始位置导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot2',
                 'navigate',
-                {'target': [3.8, 5.0, 0]}
+                {'target': fridge_target}
             )
+            print("[Robot2] 已到达冰箱位置")
             
             # 关闭冰箱门
             print("[Robot2] 关闭冰箱门...")
