@@ -368,7 +368,7 @@ class MultiRobotCollaboration:
             robot_id="mobile_robot1",
             robot_type="mobile_manipulator",
             robot_model="panda_on_segbot",
-            init_position=[2.0, 6.0, 0]  # 厨房附近
+            init_position=[-2.0, 4.5, 0]  # 左侧远处，远离冰箱
         )
         self.mobile_robot1 = mobile1_bestman
         self.robots['mobile_robot1'] = mobile1_bestman
@@ -380,7 +380,7 @@ class MultiRobotCollaboration:
             robot_id="mobile_robot2",
             robot_type="mobile_manipulator",
             robot_model="panda_on_segbot",
-            init_position=[-2.0, 4.0, 0]  # 厨房附近
+            init_position=[5.0, 4.0, 0]  # 右侧远处，与robot1不重合
         )
         self.mobile_robot2 = mobile2_bestman
         self.robots['mobile_robot2'] = mobile2_bestman
@@ -441,12 +441,13 @@ class MultiRobotCollaboration:
         """移动操作机器人1：打开冰箱 → 拿取柠檬 → 回初始位置 → 放到客厅桌子"""
         print("\n[Robot1] 开始柠檬任务")
         
-        # 记录初始位置
-        initial_position = [2.0, 4.0, 0]
+        # 记录初始位置（与创建时一致）
+        initial_position = [-2.0, 4.5, 0]
         
         try:
-            # 1. 导航到冰箱
-            fridge_target = [2.0, 5.5, 0]
+            # 1. 导航到冰箱（目标点远离冰箱门旋转范围，避免转圈）
+            # 冰箱在 [4.1, 5.42]，目标点设在冰箱前方偏左，距离约1.5米
+            fridge_target = [2.8, 4.8, 0]
             print("[Robot1] 导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot1',
@@ -455,7 +456,7 @@ class MultiRobotCollaboration:
             )
             
             # 等待机器人到达冰箱位置
-            self._wait_for_robot_arrival('mobile_robot1', fridge_target, tolerance=0.8)
+            self._wait_for_robot_arrival('mobile_robot1', fridge_target, tolerance=1.0)
             print("[Robot1] 已到达冰箱位置")
             
             # 2. 打开冰箱门（确保到达后才打开）
@@ -482,7 +483,7 @@ class MultiRobotCollaboration:
             )
             
             # 等待回到初始位置
-            self._wait_for_robot_arrival('mobile_robot1', initial_position, tolerance=0.8)
+            self._wait_for_robot_arrival('mobile_robot1', initial_position, tolerance=1.0)
             print("[Robot1] 已回到初始位置")
             
             # 标记柠檬已取上（通知robot2可以出发）
@@ -498,7 +499,7 @@ class MultiRobotCollaboration:
             )
             
             # 等待到达桌子
-            self._wait_for_robot_arrival('mobile_robot1', table_target, tolerance=0.8)
+            self._wait_for_robot_arrival('mobile_robot1', table_target, tolerance=1.0)
             print("[Robot1] 已到达客厅桌子")
             
             # 6. 放置柠檬到桌子
