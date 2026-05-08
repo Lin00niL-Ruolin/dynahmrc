@@ -313,7 +313,7 @@ class MultiRobotCollaboration:
             robot_id="mobile_robot1",
             robot_type="mobile_manipulator",
             robot_model="panda_on_segbot",
-            init_position=[2.0, 4.0, 0]  # 厨房附近
+            init_position=[4.5, 4.0, 0]  # 厨房附近
         )
         self.mobile_robot1 = mobile1_bestman
         self.robots['mobile_robot1'] = mobile1_bestman
@@ -392,7 +392,7 @@ class MultiRobotCollaboration:
             self.adapter.execute_action(
                 'mobile_robot1',
                 'navigate',
-                {'target': [2.9, 5.0, 0]}
+                {'target': [3.2, 5.5, 0]}
             )
             
             # 2. 打开冰箱门
