@@ -89,6 +89,7 @@ class MultiRobotCollaboration:
             'cup_on_table': False,
             'fridge_opened': False,
             'fridge_closed': False,
+            'lemon_picked': False,  # 新增：标记robot1已取上柠檬
         }
         
         # 冰箱门控制
@@ -383,8 +384,11 @@ class MultiRobotCollaboration:
         print("="*70)
         
     def _robot1_lemon_task(self):
-        """移动操作机器人1：打开冰箱 → 拿取柠檬 → 放到客厅桌子"""
+        """移动操作机器人1：打开冰箱 → 拿取柠檬 → 回初始位置 → 放到客厅桌子"""
         print("\n[Robot1] 开始柠檬任务")
+        
+        # 记录初始位置
+        initial_position = [2.0, 4.0, 0]
         
         try:
             # 1. 导航到冰箱
@@ -410,7 +414,19 @@ class MultiRobotCollaboration:
             )
             print("[Robot1] 柠檬已抓取")
             
-            # 4. 导航到客厅桌子
+            # 4. 先回到初始位置
+            print("[Robot1] 返回初始位置...")
+            self.adapter.execute_action(
+                'mobile_robot1',
+                'navigate',
+                {'target': initial_position}
+            )
+            print("[Robot1] 已回到初始位置")
+            
+            # 标记柠檬已取上（通知robot2可以出发）
+            self.task_status['lemon_picked'] = True
+            
+            # 5. 导航到客厅桌子
             print("[Robot1] 导航到客厅桌子...")
             self.adapter.execute_action(
                 'mobile_robot1',
@@ -418,7 +434,7 @@ class MultiRobotCollaboration:
                 {'target': [0.3, 1.5, 0]}
             )
             
-            # 5. 放置柠檬到桌子
+            # 6. 放置柠檬到桌子
             print("[Robot1] 放置柠檬到客厅桌子...")
             self.adapter.execute_action(
                 'mobile_robot1',
@@ -432,21 +448,19 @@ class MultiRobotCollaboration:
             print(f"[Robot1] 任务失败: {e}")
             
     def _robot2_close_fridge_task(self):
-        """移动操作机器人2：等待机器人1拿出柠檬后关冰箱门"""
+        """移动操作机器人2：等待robot1取上柠檬后再出发关冰箱门"""
         print("\n[Robot2] 等待关冰箱门任务")
         
         try:
-            # 等待冰箱被打开
-            print("[Robot2] 等待冰箱被打开...")
-            while not self.task_status['fridge_opened']:
+            # 等待robot1把柠檬取上（关键：不是等冰箱打开，而是等柠檬被取上）
+            print("[Robot2] 等待robot1取上柠檬...")
+            while not self.task_status['lemon_picked']:
                 time.sleep(0.5)
             
-            # 等待柠檬被拿出（等待几秒钟）
-            print("[Robot2] 等待柠檬被拿出...")
-            time.sleep(3)
+            print("[Robot2] robot1已取上柠檬，开始出发...")
             
-            # 导航到冰箱
-            print("[Robot2] 导航到冰箱...")
+            # 从初始位置导航到冰箱
+            print("[Robot2] 从初始位置导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot2',
                 'navigate',
