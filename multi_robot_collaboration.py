@@ -446,7 +446,7 @@ class MultiRobotCollaboration:
         
         try:
             # 1. 导航到冰箱
-            fridge_target = [2.5, 5.5, 0]
+            fridge_target = [2.0, 5.5, 0]
             print("[Robot1] 导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot1',
