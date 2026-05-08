@@ -96,6 +96,60 @@ class MultiRobotCollaboration:
         self.fridge_door_joint_idx = None
         self.fridge_door_open_angle = 2.0  # 打开角度（弧度）
         
+    def _wait_for_robot_arrival(self, robot_id: str, target_position: list, tolerance: float = 0.5, timeout: int = 300):
+        """等待机器人到达目标位置
+        
+        Args:
+            robot_id: 机器人ID
+            target_position: 目标位置 [x, y, z]
+            tolerance: 位置容差（米）
+            timeout: 最大等待步数
+        """
+        import pybullet as p
+        
+        print(f"[等待到达] 等待 {robot_id} 到达 {target_position}...")
+        
+        robot = self.robots.get(robot_id)
+        if robot is None:
+            print(f"[等待到达] 错误：找不到机器人 {robot_id}")
+            return False
+        
+        for step in range(timeout):
+            # 获取机器人当前位置
+            try:
+                if hasattr(robot, 'get_state'):
+                    state = robot.get_state()
+                    current_pos = state.get('position', [0, 0, 0])
+                elif hasattr(robot, 'base_id'):
+                    current_pos, _ = p.getBasePositionAndOrientation(
+                        robot.base_id, physicsClientId=self.client.client_id
+                    )
+                else:
+                    print(f"[等待到达] 无法获取机器人位置")
+                    return False
+                
+                # 计算距离（只考虑x,y平面距离）
+                distance = ((current_pos[0] - target_position[0])**2 + 
+                           (current_pos[1] - target_position[1])**2)**0.5
+                
+                if distance < tolerance:
+                    print(f"[等待到达] {robot_id} 已到达目标位置，距离: {distance:.3f}m")
+                    return True
+                
+                # 推进仿真
+                self.client.run(1)
+                
+                # 每50步打印一次进度
+                if step % 50 == 0:
+                    print(f"[等待到达] {robot_id} 当前位置: [{current_pos[0]:.2f}, {current_pos[1]:.2f}], 距离目标: {distance:.3f}m")
+                    
+            except Exception as e:
+                print(f"[等待到达] 获取位置出错: {e}")
+                return False
+        
+        print(f"[等待到达] 警告：{robot_id} 未在超时时间内到达目标")
+        return False
+        
     def _get_fridge_door_joint(self):
         """获取冰箱门关节索引"""
         import pybullet as p
@@ -392,14 +446,19 @@ class MultiRobotCollaboration:
         
         try:
             # 1. 导航到冰箱
+            fridge_target = [2.5, 5.5, 0]
             print("[Robot1] 导航到冰箱...")
             self.adapter.execute_action(
                 'mobile_robot1',
                 'navigate',
-                {'target': [2.5, 5.5, 0]}
+                {'target': fridge_target}
             )
             
-            # 2. 打开冰箱门
+            # 等待机器人到达冰箱位置
+            self._wait_for_robot_arrival('mobile_robot1', fridge_target, tolerance=0.8)
+            print("[Robot1] 已到达冰箱位置")
+            
+            # 2. 打开冰箱门（确保到达后才打开）
             print("[Robot1] 打开冰箱门...")
             self.open_fridge_door()
             self.task_status['fridge_opened'] = True
@@ -421,18 +480,26 @@ class MultiRobotCollaboration:
                 'navigate',
                 {'target': initial_position}
             )
+            
+            # 等待回到初始位置
+            self._wait_for_robot_arrival('mobile_robot1', initial_position, tolerance=0.8)
             print("[Robot1] 已回到初始位置")
             
             # 标记柠檬已取上（通知robot2可以出发）
             self.task_status['lemon_picked'] = True
             
             # 5. 导航到客厅桌子
+            table_target = [0.3, 1.5, 0]
             print("[Robot1] 导航到客厅桌子...")
             self.adapter.execute_action(
                 'mobile_robot1',
                 'navigate',
-                {'target': [0.3, 1.5, 0]}
+                {'target': table_target}
             )
+            
+            # 等待到达桌子
+            self._wait_for_robot_arrival('mobile_robot1', table_target, tolerance=0.8)
+            print("[Robot1] 已到达客厅桌子")
             
             # 6. 放置柠檬到桌子
             print("[Robot1] 放置柠檬到客厅桌子...")
