@@ -393,7 +393,7 @@ class MultiRobotCollaboration:
             robot_id="arm_robot",
             robot_type="arm",
             robot_model="panda",
-            init_position=[0.6, 1.5, 0.8],  # 客厅桌子表面
+            init_position=[1.6, 1.5, 0.8],  # 客厅桌子表面
             init_orientation=[0, 0, 0, 1]
         )
         self.arm_robot = ArmRobot("arm_robot", arm_bestman)
