@@ -10,25 +10,33 @@ export function useDynaHMRC() {
   const wsRef = useRef<WebSocket | null>(null);
   const dialogRef = useRef<RobotDialogue[]>([]);
 
-  const connectWebSocket = useCallback((id: string) => {
+  const connectWebSocket = useCallback((id: string, autoStart = false) => {
     if (wsRef.current) {
       wsRef.current.close();
     }
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:3001/ws/${id}`;
+    // Use Vite dev server proxy for WebSocket (works with tunnels like localtunnel)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws/${id}`;
 
+    console.log('[WS] Connecting to:', wsUrl);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       setConnected(true);
       setRunId(id);
+      // Auto-start the engine
+      if (autoStart) {
+        console.log('[WS] Auto-starting engine...');
+        ws.send(JSON.stringify({ command: 'start' }));
+      }
     };
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        console.log('[WS] Received:', msg.type, msg.data?.stage || '');
 
         switch (msg.type) {
           case 'state':
@@ -57,7 +65,7 @@ export function useDynaHMRC() {
 
     ws.onerror = (e) => {
       console.error('[WS Error]', e);
-      setError('WebSocket connection error');
+      setError('WebSocket connection error - check browser console for details');
     };
 
     return ws;
@@ -92,8 +100,8 @@ export function useDynaHMRC() {
       setState(null);
       setError(null);
 
-      // Connect WebSocket
-      connectWebSocket(data.runId);
+      // Connect WebSocket with auto-start
+      connectWebSocket(data.runId, true);
       return data.runId;
     } catch (e: any) {
       setError(e.message);

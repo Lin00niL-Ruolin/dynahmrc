@@ -22,6 +22,18 @@ export default function App() {
       color: '#e2e8f0',
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
+      {/* Debug Bar */}
+      <div style={{
+        background: '#1e293b', borderBottom: '1px solid #334155',
+        padding: '4px 16px', fontSize: 11, color: '#64748b',
+        display: 'flex', gap: 16, fontFamily: 'monospace',
+      }}>
+        <span>🔍 DEBUG: {hmrc.connected ? '✅ WS Connected' : '❌ WS Disconnected'}</span>
+        <span>Run: {hmrc.runId || 'none'}</span>
+        <span>Dialogues: {hmrc.dialogues.length}</span>
+        <span>Error: {hmrc.error || 'none'}</span>
+      </div>
+
       {/* Header */}
       <header style={{
         background: 'linear-gradient(135deg, #1e293b, #0f172a)',
