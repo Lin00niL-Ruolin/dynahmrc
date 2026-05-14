@@ -10,19 +10,11 @@ const CANVAS_W = 800;
 const CANVAS_H = 600;
 
 const COLORS = {
-  bg: '#0f172a',
-  grid: '#1e293b',
-  furniture: '#334155',
-  container_closed: '#475569',
-  container_open: '#1e3a5f',
-  item: '#f59e0b',
-  item_placed: '#22c55e',
-  label: '#94a3b8',
-  text: '#e2e8f0',
-  accent: '#22d3ee',
-  leader: '#fbbf24',
-  stand_pose: '#22d3ee',
-  zone: 'rgba(34, 211, 238, 0.08)',
+  bg: '#0f172a', grid: '#1e293b', furniture: '#334155',
+  container_closed: '#475569', container_open: '#1e3a5f',
+  item: '#f59e0b', item_placed: '#22c55e', label: '#94a3b8',
+  text: '#e2e8f0', accent: '#22d3ee', leader: '#fbbf24',
+  stand_pose: '#22d3ee', zone: 'rgba(34, 211, 238, 0.08)',
 };
 
 const ROBOT_STYLE: Record<string, { color: string; shape: 'circle' | 'diamond' | 'hexagon' | 'square' }> = {
@@ -32,17 +24,41 @@ const ROBOT_STYLE: Record<string, { color: string; shape: 'circle' | 'diamond' |
   Lucy:   { color: '#ec4899', shape: 'diamond' },
 };
 
-/** Track position history per robot across state updates */
 const posHistory: Record<string, Array<[number, number]>> = {};
+
+// Smoothed robot positions for animation
+let animatedPositions: Record<string, { x: number; y: number; targetX: number; targetY: number }> = {};
+let lastStateVersion = 0;
 
 export function SimulationView({ state, style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
-  const animFrameRef = useRef<number>(0);
-  const [hoveredObj, setHoveredObj] = useState<string | null>(null);
+  const animRef = useRef(0);
+  const lastRenderRef = useRef(0);
 
-  // Track position history
-  if (state?.robots) {
+  const toCanvas = useCallback((x: number, y: number): [number, number] => {
+    return [40 + (x / 10) * (CANVAS_W - 80), 40 + (y / 10) * (CANVAS_H - 80)];
+  }, []);
+
+  const scale = useCallback((val: number) => val * 40, []);
+
+  // Update animation targets when new state arrives
+  useEffect(() => {
+    if (!state?.robots) return;
+    const version = state.step + (state.leader ? 100 : 0);
+    if (version <= lastStateVersion) return;
+    lastStateVersion = version;
+
+    for (const [name, robot] of Object.entries(state.robots)) {
+      if (!animatedPositions[name]) {
+        animatedPositions[name] = { x: robot.posX, y: robot.posY, targetX: robot.posX, targetY: robot.posY };
+      } else {
+        animatedPositions[name].targetX = robot.posX;
+        animatedPositions[name].targetY = robot.posY;
+      }
+    }
+
+    // Track position history
     for (const [name, robot] of Object.entries(state.robots)) {
       if (!posHistory[name]) posHistory[name] = [];
       const last = posHistory[name][posHistory[name].length - 1];
@@ -51,231 +67,9 @@ export function SimulationView({ state, style }: Props) {
         if (posHistory[name].length > 20) posHistory[name].shift();
       }
     }
-  }
+  }, [state]);
 
-  // World ↔ Canvas coordinate transform
-  const toCanvas = useCallback((x: number, y: number): [number, number] => {
-    return [40 + (x / 10) * (CANVAS_W - 80), 40 + (y / 10) * (CANVAS_H - 80)];
-  }, []);
-
-  const scale = useCallback((val: number) => val * 40, []);
-
-  // Draw static scene (furniture, items) - cached
-  const drawScene = useCallback((ctx: CanvasRenderingContext2D, scene: SimulationState['scene']) => {
-    if (!scene?.objects) return;
-
-    // Draw task zone indicator (center area where tray is)
-    const [zx, zy] = toCanvas(5, 5);
-    ctx.fillStyle = COLORS.zone;
-    ctx.beginPath();
-    ctx.arc(zx, zy, 60, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath();
-    ctx.arc(zx, zy, 60, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Draw restricted zones (if any)
-    const restrictedZones = (state as any).restrictedZones || [];
-    for (const zone of restrictedZones) {
-      const [zx2, zy2] = toCanvas(zone.x, zone.y);
-      const r = zone.radius * 40;
-      // Red semi-transparent zone
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
-      ctx.beginPath();
-      ctx.arc(zx2, zy2, r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.arc(zx2, zy2, r, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // Warning label
-      ctx.fillStyle = '#ef4444';
-      ctx.font = 'bold 10px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('⛔ RESTRICTED', zx2, zy2 - r - 6);
-    }
-
-    for (const obj of Object.values(scene.objects)) {
-      if (obj.category === 'furniture') {
-        const [cx, cy] = toCanvas(obj.posX, obj.posY);
-        const w = scale(obj.width);
-        const h = scale(obj.height);
-
-        if (obj.isContainer && obj.isOpen) {
-          ctx.fillStyle = COLORS.container_open;
-        } else if (obj.isContainer) {
-          ctx.fillStyle = COLORS.container_closed;
-        } else {
-          ctx.fillStyle = COLORS.furniture;
-        }
-
-        ctx.strokeStyle = '#64748b';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 4);
-        ctx.fill();
-        ctx.stroke();
-
-        // Label
-        ctx.fillStyle = COLORS.label;
-        ctx.font = '10px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(obj.name, cx, cy + h / 2 + 12);
-
-        // Container icon
-        if (obj.isContainer) {
-          ctx.fillStyle = obj.isOpen ? '#4ade80' : '#f87171';
-          ctx.font = '9px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(obj.isOpen ? '🔓' : '🔒', cx, cy - h / 2 - 8);
-        }
-
-        // Contents list for open containers
-        if (obj.isContainer && obj.isOpen && obj.contains.length > 0) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = '8px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(`[${obj.contains.join(', ')}]`, cx, cy);
-        }
-
-        // Stand pose indicator
-        if (obj.standPoseX != null && obj.standPoseY != null) {
-          const [sx, sy] = toCanvas(obj.standPoseX, obj.standPoseY);
-          ctx.fillStyle = COLORS.stand_pose;
-          ctx.globalAlpha = 0.4;
-          ctx.beginPath();
-          ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-      }
-    }
-
-    // Draw items
-    for (const obj of Object.values(scene.objects)) {
-      if (obj.category === 'item') {
-        const [cx, cy] = toCanvas(obj.posX, obj.posY);
-        // Item glowing effect
-        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 8);
-        grad.addColorStop(0, COLORS.item);
-        grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = COLORS.item;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fbbf24';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.fillStyle = COLORS.text;
-        ctx.font = '9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(obj.name, cx, cy + 14);
-      }
-    }
-  }, [toCanvas, scale]);
-
-  // Draw animated robots
-  const drawRobots = useCallback((ctx: CanvasRenderingContext2D, robots: SimulationState['robots'], leader: string | null) => {
-    if (!robots) return;
-
-    for (const robot of Object.values(robots)) {
-      const style = ROBOT_STYLE[robot.robotType] || ROBOT_STYLE.Alice;
-      const [rx, ry] = toCanvas(robot.posX, robot.posY);
-
-      // Path trail
-      const trail = posHistory[robot.name] || [];
-      if (trail.length > 1) {
-        ctx.strokeStyle = style.color + '40';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        for (const [px, py] of trail) {
-          const [cx, cy] = toCanvas(px, py);
-          ctx.lineTo(cx, cy);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Robot glow
-      const glow = ctx.createRadialGradient(rx, ry, 5, rx, ry, 22);
-      glow.addColorStop(0, style.color + '60');
-      glow.addColorStop(1, style.color + '00');
-      ctx.fillStyle = glow;
-      ctx.beginPath();
-      ctx.arc(rx, ry, 22, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Robot body
-      ctx.fillStyle = style.color;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-
-      if (style.shape === 'circle') {
-        ctx.beginPath();
-        ctx.arc(rx, ry, 14, 0, Math.PI * 2);
-      } else if (style.shape === 'square') {
-        ctx.beginPath();
-        ctx.roundRect(rx - 12, ry - 12, 24, 24, 4);
-      } else if (style.shape === 'diamond') {
-        ctx.beginPath();
-        ctx.moveTo(rx, ry - 14);
-        ctx.lineTo(rx + 14, ry);
-        ctx.lineTo(rx, ry + 14);
-        ctx.lineTo(rx - 14, ry);
-        ctx.closePath();
-      } else { // hexagon
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const angle = (Math.PI / 3) * i - Math.PI / 6;
-          const hx = rx + 14 * Math.cos(angle);
-          const hy = ry + 14 * Math.sin(angle);
-          i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
-        }
-        ctx.closePath();
-      }
-      ctx.fill();
-      ctx.stroke();
-
-      // Leader crown
-      if (robot.name === leader) {
-        ctx.font = '14px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('👑', rx, ry - 22);
-      }
-
-      // Robot name
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 10px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(robot.name, rx, ry + 4);
-
-      // Gripper indicator
-      if (robot.gripperOccupied && robot.graspingObject) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = '8px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`📦${robot.graspingObject}`, rx, ry - 36);
-      }
-    }
-  }, [toCanvas]);
-
-  // Main render loop
+  // Animation loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -287,19 +81,50 @@ export function SimulationView({ state, style }: Props) {
     canvas.height = CANVAS_H * dpr;
     ctx.scale(dpr, dpr);
 
-    // Clear
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    let running = true;
 
-    if (!state) {
-      ctx.fillStyle = '#475569';
-      ctx.font = '16px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Start a run to see simulation', CANVAS_W / 2, CANVAS_H / 2);
-      return;
-    }
+    const render = () => {
+      if (!running) return;
 
-    // Grid
+      // Interpolate positions
+      for (const name of Object.keys(animatedPositions)) {
+        const p = animatedPositions[name];
+        const dx = p.targetX - p.x;
+        const dy = p.targetY - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0.01) {
+          const speed = 0.12;
+          p.x += dx * speed;
+          p.y += dy * speed;
+        } else {
+          p.x = p.targetX;
+          p.y = p.targetY;
+        }
+      }
+
+      // Clear
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+      // Static elements
+      drawGrid(ctx);
+      if (state) drawScene(ctx, state, toCanvas, scale);
+      if (state) drawTrails(ctx, state, toCanvas);
+      drawRobots(ctx);
+      if (state) drawOverlays(ctx, state, toCanvas);
+
+      animRef.current = requestAnimationFrame(render);
+    };
+
+    render();
+    lastRenderRef.current = Date.now();
+
+    return () => { running = false; cancelAnimationFrame(animRef.current); };
+  }, [state, toCanvas, scale]);
+
+  // ===== DRAWING FUNCTIONS =====
+
+  function drawGrid(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = COLORS.grid;
     ctx.lineWidth = 0.5;
     for (let x = 0; x <= CANVAS_W; x += 40) {
@@ -308,69 +133,228 @@ export function SimulationView({ state, style }: Props) {
     for (let y = 0; y <= CANVAS_H; y += 40) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
     }
+  }
 
-    drawScene(ctx, state.scene);
-    drawRobots(ctx, state.robots, state.leader);
+  function drawScene(ctx: CanvasRenderingContext2D, s: SimulationState, toC: typeof toCanvas, sc: typeof scale) {
+    if (!s.scene?.objects) return;
 
-    // === Status panel ===
+    // Task zone
+    const [zx, zy] = toC(5, 5);
+    ctx.fillStyle = COLORS.zone;
+    ctx.beginPath(); ctx.arc(zx, zy, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.arc(zx, zy, 60, 0, Math.PI * 2); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Restricted zones
+    const restricted = (s as any).restrictedZones || [];
+    for (const zone of restricted) {
+      const [rzx, rzy] = toC(zone.x, zone.y);
+      const r = zone.radius * 40;
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+      ctx.beginPath(); ctx.arc(rzx, rzy, r, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.arc(rzx, rzy, r, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⛔ RESTRICTED', rzx, rzy - r - 6);
+    }
+
+    // Furniture
+    for (const obj of Object.values(s.scene.objects)) {
+      if (obj.category !== 'furniture') continue;
+      const [cx, cy] = toC(obj.posX, obj.posY);
+      const w = sc(obj.width);
+      const h = sc(obj.height);
+
+      ctx.fillStyle = obj.isContainer ? (obj.isOpen ? COLORS.container_open : COLORS.container_closed) : COLORS.furniture;
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      (ctx as any).roundRect(cx - w / 2, cy - h / 2, w, h, 4);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = COLORS.label;
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(obj.name, cx, cy + h / 2 + 12);
+
+      if (obj.isContainer) {
+        ctx.fillStyle = obj.isOpen ? '#4ade80' : '#f87171';
+        ctx.font = '9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(obj.isOpen ? '🔓' : '🔒', cx, cy - h / 2 - 8);
+      }
+      if (obj.isContainer && obj.isOpen && obj.contains.length > 0) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '8px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`[${obj.contains.join(', ')}]`, cx, cy);
+      }
+      if (obj.standPoseX != null && obj.standPoseY != null) {
+        const [sx, sy] = toC(obj.standPoseX, obj.standPoseY);
+        ctx.fillStyle = COLORS.stand_pose;
+        ctx.globalAlpha = 0.4;
+        ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Items
+    for (const obj of Object.values(s.scene.objects)) {
+      if (obj.category !== 'item') continue;
+      const [cx, cy] = toC(obj.posX, obj.posY);
+      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 8);
+      grad.addColorStop(0, COLORS.item);
+      grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = COLORS.item;
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.stroke();
+
+      ctx.fillStyle = COLORS.text;
+      ctx.font = '9px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(obj.name, cx, cy + 14);
+    }
+  }
+
+  function drawTrails(ctx: CanvasRenderingContext2D, s: SimulationState, toC: typeof toCanvas) {
+    if (!s.robots) return;
+    for (const robot of Object.values(s.robots)) {
+      const trail = posHistory[robot.name] || [];
+      if (trail.length < 2) continue;
+      const style = ROBOT_STYLE[robot.robotType] || ROBOT_STYLE.Alice;
+      ctx.strokeStyle = style.color + '40';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      for (const [px, py] of trail) {
+        const [cx, cy] = toC(px, py);
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  function drawRobots(ctx: CanvasRenderingContext2D) {
+    for (const [name, p] of Object.entries(animatedPositions)) {
+      const s = state?.robots?.[name];
+      if (!s) continue;
+      const style = ROBOT_STYLE[s.robotType] || ROBOT_STYLE.Alice;
+      const [rx, ry] = toCanvas(p.x, p.y);
+
+      // Glow
+      const glow = ctx.createRadialGradient(rx, ry, 5, rx, ry, 22);
+      glow.addColorStop(0, style.color + '60');
+      glow.addColorStop(1, style.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(rx, ry, 22, 0, Math.PI * 2); ctx.fill();
+
+      // Body
+      ctx.fillStyle = style.color;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+
+      switch (style.shape) {
+        case 'circle':
+          ctx.beginPath(); ctx.arc(rx, ry, 14, 0, Math.PI * 2); break;
+        case 'square':
+          ctx.beginPath(); (ctx as any).roundRect(rx - 12, ry - 12, 24, 24, 4); break;
+        case 'diamond':
+          ctx.beginPath();
+          ctx.moveTo(rx, ry - 14); ctx.lineTo(rx + 14, ry);
+          ctx.lineTo(rx, ry + 14); ctx.lineTo(rx - 14, ry);
+          ctx.closePath(); break;
+        default: // hexagon
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 6;
+            i === 0 ? ctx.moveTo(rx + 14 * Math.cos(a), ry + 14 * Math.sin(a))
+                    : ctx.lineTo(rx + 14 * Math.cos(a), ry + 14 * Math.sin(a));
+          }
+          ctx.closePath(); break;
+      }
+      ctx.fill(); ctx.stroke();
+
+      if (s.name === state?.leader) {
+        ctx.font = '14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👑', rx, ry - 22);
+      }
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.name, rx, ry + 4);
+
+      if (s.gripperOccupied && s.graspingObject) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '8px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`📦${s.graspingObject}`, rx, ry - 36);
+      }
+    }
+  }
+
+  function drawOverlays(ctx: CanvasRenderingContext2D, s: SimulationState, toC: typeof toCanvas) {
+    // Top-left status panel
     const px = 10, py = 10, pw = 200, ph = 88;
     ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-    ctx.beginPath();
-    ctx.roundRect(px, py, pw, ph, 6);
-    ctx.fill();
+    ctx.beginPath(); (ctx as any).roundRect(px, py, pw, ph, 6); ctx.fill();
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(px, py, pw, ph, 6);
-    ctx.stroke();
+    ctx.beginPath(); (ctx as any).roundRect(px, py, pw, ph, 6); ctx.stroke();
 
     ctx.fillStyle = COLORS.text;
     ctx.font = '12px Inter, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`Step ${state.step}`, px + 10, py + 18);
+    ctx.fillText(`Step ${s.step}`, px + 10, py + 18);
     ctx.fillStyle = COLORS.label;
-    ctx.fillText(state.taskProgress || '', px + 10, py + 36);
-
-    if (state.leader) {
+    ctx.fillText(s.taskProgress || '', px + 10, py + 36);
+    if (s.leader) {
       ctx.fillStyle = COLORS.leader;
-      ctx.fillText(`👑 Leader: ${state.leader}`, px + 10, py + 54);
+      ctx.fillText(`👑 Leader: ${s.leader}`, px + 10, py + 54);
     }
-
     ctx.fillStyle = COLORS.label;
     ctx.font = '10px Inter, sans-serif';
-    ctx.fillText(`Dialogue: ${state.dialogues?.length || 0} msgs`, px + 10, py + 72);
+    ctx.fillText(`Dialogues: ${s.dialogues?.length || 0}`, px + 10, py + 72);
 
-    // === Legend ===
+    // Legend
     const lx = 10, ly = CANVAS_H - 100, lw = 180, lh = 90;
     ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-    ctx.beginPath();
-    ctx.roundRect(lx, ly, lw, lh, 6);
-    ctx.fill();
+    ctx.beginPath(); (ctx as any).roundRect(lx, ly, lw, lh, 6); ctx.fill();
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(lx, ly, lw, lh, 6);
-    ctx.stroke();
+    ctx.beginPath(); (ctx as any).roundRect(lx, ly, lw, lh, 6); ctx.stroke();
 
     let textY = ly + 16;
     ctx.fillStyle = COLORS.label;
     ctx.font = '9px Inter, sans-serif';
     ctx.textAlign = 'left';
-
-    for (const [name, style] of Object.entries(ROBOT_STYLE)) {
-      ctx.fillStyle = style.color;
-      ctx.beginPath();
-      ctx.arc(lx + 10, textY, 5, 0, Math.PI * 2);
-      ctx.fill();
+    for (const [name, st] of Object.entries(ROBOT_STYLE)) {
+      ctx.fillStyle = st.color;
+      ctx.beginPath(); ctx.arc(lx + 10, textY, 5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = COLORS.text;
       ctx.fillText(name, lx + 22, textY + 4);
       textY += 16;
     }
-    if (state.leader) {
+    if (s.leader) {
       ctx.fillStyle = COLORS.leader;
-      ctx.fillText(`👑 ${state.leader}`, lx + 22, textY + 4);
+      ctx.fillText(`👑 ${s.leader}`, lx + 22, textY + 4);
     }
-  }, [state, drawScene, drawRobots]);
+  }
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -379,8 +363,10 @@ export function SimulationView({ state, style }: Props) {
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    for (const robot of Object.values(state.robots)) {
-      const [rx, ry] = toCanvas(robot.posX, robot.posY);
+    for (const [name, p] of Object.entries(animatedPositions)) {
+      const robot = state.robots[name];
+      if (!robot) continue;
+      const [rx, ry] = toCanvas(p.x, p.y);
       const dist = Math.sqrt((mx - rx) ** 2 + (my - ry) ** 2);
       if (dist < 16) {
         setTooltip({
