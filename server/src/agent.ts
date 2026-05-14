@@ -105,6 +105,8 @@ export class RobotAgent {
     plan: string,
     scene: SceneGraph,
     taskProgress: string,
+    taskTargets?: string[],
+    placedObjects?: string[],
   ): Promise<[string, RobotAction]> {
     const sceneGraphStr = this.sceneGraphToText(scene);
     const feedbackStr = this.feedbackToText();
@@ -132,6 +134,8 @@ export class RobotAgent {
       actionStr || 'No previous actions.',
       messageStr || 'No messages received.',
       taskProgress,
+      taskTargets || prompts.TASK_GOALS[this.taskType],
+      placedObjects || [],
     );
 
     const msgs: LLMMessage[] = [

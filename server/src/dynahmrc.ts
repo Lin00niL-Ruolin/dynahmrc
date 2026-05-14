@@ -213,7 +213,7 @@ export class DynaHMRCEngine {
         }
       }
 
-      const taskProgress = `Step ${this.stepCount}: Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects`;
+      const taskProgress = `Step ${this.stepCount}: Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects: [${this.sim.placedObjects.join(', ')}] Remaining: [${this.sim.taskTargets.filter(t => !this.sim.placedObjects.includes(t)).join(', ')}]`;
 
       // Run all robot actions in parallel
       const actionResults = await Promise.all(
@@ -225,6 +225,8 @@ export class DynaHMRCEngine {
             this.collaborationPlan,
             this.sim.scene,
             taskProgress,
+            this.sim.taskTargets,
+            this.sim.placedObjects,
           );
           return { name, agent, thoughts, action };
         })

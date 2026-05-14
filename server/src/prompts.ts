@@ -164,31 +164,35 @@ ${roleDescription}
 
 Task Objective and Context:
 1) The overall team task is: ${taskDescription}
-2) Ingredients are scattered in an unknown indoor environment. The scene graph shows furniture locations but not their contents.
+2) Ingredients are scattered in an unknown indoor environment. The scene graph shows furniture locations but not their contents. You must EXPLORE to find task items.
 3) Collaborate with teammates ${teammates}, who have different capabilities, to complete the task.
 4) ${leader} is the elected leader and proposed the collaboration plan: ${plan}
 
 Principles:
 ${principles}
 
-Available Actions:
-1. navigate(<target_object_name>) - Move to a target object's stand pose. Example: navigate(table_0)
-2. open(<container_name>) - Open a hinged container. Example: open(fridge)
-3. pick(<object_name>) - Pick up an object. Example: pick(apple)
-4. place(<object_name>, <target>) - Place held object. Example: place(apple, tray)
-5. move(<delta_x>, <delta_y>) - Adjust position. Example: move(0.5, -0.3)
-6. communicate(<message>, <recipient>) - Send message. Example: communicate(I found the apple at fridge, Alice)
-7. wait() - Wait one step.
+=== AVAILABLE ACTIONS ===
+1. navigate(<furniture_name>) - Move to furniture. Useful to get close to objects. Example: navigate(table_0)
+2. open(<container_name>) - Open container to see what's inside. Example: open(fridge)
+3. pick(<object_name>) - Pick up an item. Must be close (within 2m). Example: pick(apple)
+4. place(<object_name>, <target>) - Place held object at target. Use this to COMPLETE THE TASK. Example: place(apple, tray)
+5. move(<dx>, <dy>) - Adjust position slightly. Example: move(0.5, -0.3)
+6. communicate(<message>, <recipient>) - Share info with team. Example: communicate(I found apple at fridge!, Alice)
+7. wait() - Do nothing this step.
 
-IMPORTANT: You MUST output your action in the EXACT format above.
-Do NOT describe what you will do - just output the action directly.
-Bad: "I will navigate to the fridge to find the apple"
-Good: navigate(fridge)
+=== HOW TO MAKE PROGRESS ===
+STEP 1: Navigate to furniture where task items might be (table_0, table_1, fridge, cabinet, drawer)
+STEP 2: If the target is a container (fridge, cabinet, drawer), open it to check contents
+STEP 3: If a task item is within reach, pick() it up
+STEP 4: Navigate to tray (or target location) and place() the item
 
-Output Response Format (ONLY these two sections):
-Thoughts: [your reasoning here]
-Contents: [EXACTLY ONE action function call like: navigate(table_0)]
-CoT: Let's think step by step!
+=== CRITICAL OUTPUT RULE ===
+You MUST output your action in the EXACT format shown above.
+Do NOT explain what you will do - just output the function call.
+
+Output ONLY these two lines:
+Thoughts: [your reasoning]
+Contents: [EXACTLY ONE function call, e.g. navigate(table_0) or pick(apple) or place(apple, tray)]
 `;
 }
 
@@ -202,29 +206,36 @@ export function executionUser(
   actionHistory: string,
   receivedMessages: string,
   taskProgress: string,
+  taskTargets?: string[],
+  placedObjects?: string[],
 ): string {
+  const missing = taskTargets ? taskTargets.filter(t => !(placedObjects || []).includes(t)) : [];
+  
   return `
+=== CURRENT STATE ===
+Task Progress: ${taskProgress}
+Missing Items: ${missing.length > 0 ? missing.join(', ') : 'NONE - TASK COMPLETE'}
+
 Scene Graph:
 ${sceneGraph}
 
 Robot Status:
 - Current position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
 - Gripper: ${gripperStatus}
-- Grasping: ${graspingObject}
+${graspingObject !== 'nothing' ? `- Holding: ${graspingObject}` : ''}
 
-Feedback History (most recent):
+Recent Feedback:
 ${feedbackHistory}
 
-Action History (most recent):
+Recent Actions:
 ${actionHistory}
 
-Received Messages:
+Recent Messages:
 ${receivedMessages}
 
-Task Progress: ${taskProgress}
-
-REMEMBER: Output ONLY one action in the format: action_name(param1, param2)
-CoT: Let's think step by step!
+Output ONLY one action:
+Thoughts: [reasoning]
+Contents: [action(param, param)]
 `;
 }
 
