@@ -1,5 +1,5 @@
-import { useRef, useEffect, useState } from 'react';
-import type { SimulationState, SceneObject, RobotStatus } from '../types';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import type { SimulationState } from '../types';
 
 interface Props {
   state: SimulationState | null;
@@ -9,43 +9,262 @@ interface Props {
 const CANVAS_W = 800;
 const CANVAS_H = 600;
 
-const GRID_COLOR = '#1e293b';
-const BG_COLOR = '#0f172a';
-const FURNITURE_COLOR = '#334155';
-const ITEM_COLOR = '#f59e0b';
-const ROBOT_COLORS: Record<string, string> = {
-  Alice: '#3b82f6',
-  Bob: '#22c55e',
-  David: '#a855f7',
-  Lucy: '#ec4899',
+const COLORS = {
+  bg: '#0f172a',
+  grid: '#1e293b',
+  furniture: '#334155',
+  container_closed: '#475569',
+  container_open: '#1e3a5f',
+  item: '#f59e0b',
+  item_placed: '#22c55e',
+  label: '#94a3b8',
+  text: '#e2e8f0',
+  accent: '#22d3ee',
+  leader: '#fbbf24',
+  stand_pose: '#22d3ee',
+  zone: 'rgba(34, 211, 238, 0.08)',
 };
 
-const ROBOT_SHAPES: Record<string, string> = {
-  Alice: '⬡',
-  Bob: '⬢',
-  David: '⬠',
-  Lucy: '⟐',
+const ROBOT_STYLE: Record<string, { color: string; shape: 'circle' | 'diamond' | 'hexagon' | 'square' }> = {
+  Alice: { color: '#3b82f6', shape: 'circle' },
+  Bob:    { color: '#22c55e', shape: 'square' },
+  David:  { color: '#a855f7', shape: 'hexagon' },
+  Lucy:   { color: '#ec4899', shape: 'diamond' },
 };
+
+/** Track position history per robot across state updates */
+const posHistory: Record<string, Array<[number, number]>> = {};
 
 export function SimulationView({ state, style }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; text: string } | null>(null);
-  const [showGrid] = useState(true);
+  const animFrameRef = useRef<number>(0);
+  const [hoveredObj, setHoveredObj] = useState<string | null>(null);
 
+  // Track position history
+  if (state?.robots) {
+    for (const [name, robot] of Object.entries(state.robots)) {
+      if (!posHistory[name]) posHistory[name] = [];
+      const last = posHistory[name][posHistory[name].length - 1];
+      if (!last || last[0] !== robot.posX || last[1] !== robot.posY) {
+        posHistory[name].push([robot.posX, robot.posY]);
+        if (posHistory[name].length > 20) posHistory[name].shift();
+      }
+    }
+  }
+
+  // World ↔ Canvas coordinate transform
+  const toCanvas = useCallback((x: number, y: number): [number, number] => {
+    return [40 + (x / 10) * (CANVAS_W - 80), 40 + (y / 10) * (CANVAS_H - 80)];
+  }, []);
+
+  const scale = useCallback((val: number) => val * 40, []);
+
+  // Draw static scene (furniture, items) - cached
+  const drawScene = useCallback((ctx: CanvasRenderingContext2D, scene: SimulationState['scene']) => {
+    if (!scene?.objects) return;
+
+    // Draw task zone indicator (center area where tray is)
+    const [zx, zy] = toCanvas(5, 5);
+    ctx.fillStyle = COLORS.zone;
+    ctx.beginPath();
+    ctx.arc(zx, zy, 60, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(zx, zy, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    for (const obj of Object.values(scene.objects)) {
+      if (obj.category === 'furniture') {
+        const [cx, cy] = toCanvas(obj.posX, obj.posY);
+        const w = scale(obj.width);
+        const h = scale(obj.height);
+
+        if (obj.isContainer && obj.isOpen) {
+          ctx.fillStyle = COLORS.container_open;
+        } else if (obj.isContainer) {
+          ctx.fillStyle = COLORS.container_closed;
+        } else {
+          ctx.fillStyle = COLORS.furniture;
+        }
+
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = COLORS.label;
+        ctx.font = '10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(obj.name, cx, cy + h / 2 + 12);
+
+        // Container icon
+        if (obj.isContainer) {
+          ctx.fillStyle = obj.isOpen ? '#4ade80' : '#f87171';
+          ctx.font = '9px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(obj.isOpen ? '🔓' : '🔒', cx, cy - h / 2 - 8);
+        }
+
+        // Contents list for open containers
+        if (obj.isContainer && obj.isOpen && obj.contains.length > 0) {
+          ctx.fillStyle = '#fbbf24';
+          ctx.font = '8px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(`[${obj.contains.join(', ')}]`, cx, cy);
+        }
+
+        // Stand pose indicator
+        if (obj.standPoseX != null && obj.standPoseY != null) {
+          const [sx, sy] = toCanvas(obj.standPoseX, obj.standPoseY);
+          ctx.fillStyle = COLORS.stand_pose;
+          ctx.globalAlpha = 0.4;
+          ctx.beginPath();
+          ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // Draw items
+    for (const obj of Object.values(scene.objects)) {
+      if (obj.category === 'item') {
+        const [cx, cy] = toCanvas(obj.posX, obj.posY);
+        // Item glowing effect
+        const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 8);
+        grad.addColorStop(0, COLORS.item);
+        grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = COLORS.item;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = COLORS.text;
+        ctx.font = '9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(obj.name, cx, cy + 14);
+      }
+    }
+  }, [toCanvas, scale]);
+
+  // Draw animated robots
+  const drawRobots = useCallback((ctx: CanvasRenderingContext2D, robots: SimulationState['robots'], leader: string | null) => {
+    if (!robots) return;
+
+    for (const robot of Object.values(robots)) {
+      const style = ROBOT_STYLE[robot.robotType] || ROBOT_STYLE.Alice;
+      const [rx, ry] = toCanvas(robot.posX, robot.posY);
+
+      // Path trail
+      const trail = posHistory[robot.name] || [];
+      if (trail.length > 1) {
+        ctx.strokeStyle = style.color + '40';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        for (const [px, py] of trail) {
+          const [cx, cy] = toCanvas(px, py);
+          ctx.lineTo(cx, cy);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Robot glow
+      const glow = ctx.createRadialGradient(rx, ry, 5, rx, ry, 22);
+      glow.addColorStop(0, style.color + '60');
+      glow.addColorStop(1, style.color + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(rx, ry, 22, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Robot body
+      ctx.fillStyle = style.color;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+
+      if (style.shape === 'circle') {
+        ctx.beginPath();
+        ctx.arc(rx, ry, 14, 0, Math.PI * 2);
+      } else if (style.shape === 'square') {
+        ctx.beginPath();
+        ctx.roundRect(rx - 12, ry - 12, 24, 24, 4);
+      } else if (style.shape === 'diamond') {
+        ctx.beginPath();
+        ctx.moveTo(rx, ry - 14);
+        ctx.lineTo(rx + 14, ry);
+        ctx.lineTo(rx, ry + 14);
+        ctx.lineTo(rx - 14, ry);
+        ctx.closePath();
+      } else { // hexagon
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const hx = rx + 14 * Math.cos(angle);
+          const hy = ry + 14 * Math.sin(angle);
+          i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Leader crown
+      if (robot.name === leader) {
+        ctx.font = '14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👑', rx, ry - 22);
+      }
+
+      // Robot name
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(robot.name, rx, ry + 4);
+
+      // Gripper indicator
+      if (robot.gripperOccupied && robot.graspingObject) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.font = '8px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(`📦${robot.graspingObject}`, rx, ry - 36);
+      }
+    }
+  }, [toCanvas]);
+
+  // Main render loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set canvas size
     const dpr = window.devicePixelRatio || 1;
     canvas.width = CANVAS_W * dpr;
     canvas.height = CANVAS_H * dpr;
     ctx.scale(dpr, dpr);
 
     // Clear
-    ctx.fillStyle = BG_COLOR;
+    ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
     if (!state) {
@@ -57,198 +276,107 @@ export function SimulationView({ state, style }: Props) {
     }
 
     // Grid
-    if (showGrid) {
-      ctx.strokeStyle = GRID_COLOR;
-      ctx.lineWidth = 0.5;
-      for (let x = 0; x <= CANVAS_W; x += 40) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, CANVAS_H);
-        ctx.stroke();
-      }
-      for (let y = 0; y <= CANVAS_H; y += 40) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(CANVAS_W, y);
-        ctx.stroke();
-      }
+    ctx.strokeStyle = COLORS.grid;
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= CANVAS_W; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CANVAS_H); ctx.stroke();
+    }
+    for (let y = 0; y <= CANVAS_H; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(CANVAS_W, y); ctx.stroke();
     }
 
-    // Convert world to canvas coordinates
-    const toCanvas = (x: number, y: number): [number, number] => {
-      return [
-        40 + (x / 10) * (CANVAS_W - 80),
-        40 + (y / 10) * (CANVAS_H - 80),
-      ];
-    };
+    drawScene(ctx, state.scene);
+    drawRobots(ctx, state.robots, state.leader);
 
-    const scale = (val: number) => val * 40;
-
-    // Draw furniture
-    const scene = state.scene;
-    if (scene?.objects) {
-      for (const obj of Object.values(scene.objects)) {
-        if (obj.category === 'furniture') {
-          const [cx, cy] = toCanvas(obj.posX, obj.posY);
-          const w = scale(obj.width);
-          const h = scale(obj.height);
-
-          ctx.fillStyle = obj.isContainer && !obj.isOpen ? '#475569' : FURNITURE_COLOR;
-          ctx.strokeStyle = '#64748b';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath();
-          ctx.roundRect(cx - w / 2, cy - h / 2, w, h, 4);
-          ctx.fill();
-          ctx.stroke();
-
-          // Label
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '10px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(obj.name, cx, cy + h / 2 + 12);
-
-          // Container contents
-          if (obj.isOpen && obj.contains.length > 0) {
-            ctx.fillStyle = '#fbbf24';
-            ctx.font = '8px Inter, sans-serif';
-            ctx.fillText(`[${obj.contains.join(', ')}]`, cx, cy - h / 2 - 6);
-          }
-
-          // Stand pose indicator
-          if (obj.standPoseX != null && obj.standPoseY != null) {
-            const [sx, sy] = toCanvas(obj.standPoseX, obj.standPoseY);
-            ctx.fillStyle = '#22d3ee';
-            ctx.beginPath();
-            ctx.arc(sx, sy, 3, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      }
-
-      // Draw items
-      for (const obj of Object.values(scene.objects)) {
-        if (obj.category === 'item') {
-          const [cx, cy] = toCanvas(obj.posX, obj.posY);
-          ctx.fillStyle = ITEM_COLOR;
-          ctx.beginPath();
-          ctx.arc(cx, cy, 5, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = '9px Inter, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(obj.name, cx, cy + 14);
-        }
-      }
-    }
-
-    // Draw robots
-    if (state.robots) {
-      for (const robot of Object.values(state.robots)) {
-        const [rx, ry] = toCanvas(robot.posX, robot.posY);
-        const color = ROBOT_COLORS[robot.robotType] || '#3b82f6';
-
-        // Robot body
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(rx, ry, 14, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(rx, ry, 14, 0, Math.PI * 2);
-        ctx.stroke();
-
-        // Robot name
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 10px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(robot.name, rx, ry + 4);
-
-        // Gripper indicator
-        if (robot.gripperOccupied && robot.graspingObject) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.font = '8px Inter, sans-serif';
-          ctx.fillText(`📦${robot.graspingObject}`, rx, ry - 22);
-        }
-      }
-    }
-
-    // Legend
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(10, CANVAS_H - 90, 180, 80);
+    // === Status panel ===
+    const px = 10, py = 10, pw = 200, ph = 88;
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 6);
+    ctx.fill();
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 1;
-    ctx.strokeRect(10, CANVAS_H - 90, 180, 80);
+    ctx.beginPath();
+    ctx.roundRect(px, py, pw, ph, 6);
+    ctx.stroke();
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px Inter, sans-serif';
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '12px Inter, sans-serif';
     ctx.textAlign = 'left';
-    let ly = CANVAS_H - 78;
-    for (const [name, color] of Object.entries(ROBOT_COLORS)) {
-      ctx.fillStyle = color;
+    ctx.fillText(`Step ${state.step}`, px + 10, py + 18);
+    ctx.fillStyle = COLORS.label;
+    ctx.fillText(state.taskProgress || '', px + 10, py + 36);
+
+    if (state.leader) {
+      ctx.fillStyle = COLORS.leader;
+      ctx.fillText(`👑 Leader: ${state.leader}`, px + 10, py + 54);
+    }
+
+    ctx.fillStyle = COLORS.label;
+    ctx.font = '10px Inter, sans-serif';
+    ctx.fillText(`Dialogue: ${state.dialogues?.length || 0} msgs`, px + 10, py + 72);
+
+    // === Legend ===
+    const lx = 10, ly = CANVAS_H - 100, lw = 180, lh = 90;
+    ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, lw, lh, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, lw, lh, 6);
+    ctx.stroke();
+
+    let textY = ly + 16;
+    ctx.fillStyle = COLORS.label;
+    ctx.font = '9px Inter, sans-serif';
+    ctx.textAlign = 'left';
+
+    for (const [name, style] of Object.entries(ROBOT_STYLE)) {
+      ctx.fillStyle = style.color;
       ctx.beginPath();
-      ctx.arc(22, ly + 3, 5, 0, Math.PI * 2);
+      ctx.arc(lx + 10, textY, 5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#e2e8f0';
-      ctx.fillText(name, 34, ly + 7);
-      ly += 16;
+      ctx.fillStyle = COLORS.text;
+      ctx.fillText(name, lx + 22, textY + 4);
+      textY += 16;
     }
     if (state.leader) {
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillText(`👑 Leader: ${state.leader}`, 22, ly + 7);
+      ctx.fillStyle = COLORS.leader;
+      ctx.fillText(`👑 ${state.leader}`, lx + 22, textY + 4);
     }
-
-    // Status overlay
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-    ctx.fillRect(10, 10, 180, 40);
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = '11px Inter, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText(`Step: ${state.step}`, 20, 28);
-    ctx.fillText(state.taskProgress, 20, 44);
-
-  }, [state, showGrid]);
+  }, [state, drawScene, drawRobots]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !state) return;
+    if (!canvas || !state?.robots) return;
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    // Check robots
-    if (state.robots) {
-      const toCanvas = (x: number, y: number): [number, number] => {
-        return [40 + (x / 10) * (CANVAS_W - 80), 40 + (y / 10) * (CANVAS_H - 80)];
-      };
-      for (const robot of Object.values(state.robots)) {
-        const [rx, ry] = toCanvas(robot.posX, robot.posY);
-        const dist = Math.sqrt((mx - rx) ** 2 + (my - ry) ** 2);
-        if (dist < 16) {
-          setTooltip({
-            x: mx + 14,
-            y: my - 10,
-            text: `${robot.name} (${robot.robotType})\nPos: (${robot.posX.toFixed(1)}, ${robot.posY.toFixed(1)})\nGripper: ${robot.graspingObject || 'empty'}`,
-          });
-          return;
-        }
+    for (const robot of Object.values(state.robots)) {
+      const [rx, ry] = toCanvas(robot.posX, robot.posY);
+      const dist = Math.sqrt((mx - rx) ** 2 + (my - ry) ** 2);
+      if (dist < 16) {
+        setTooltip({
+          x: mx + 14, y: my - 10,
+          text: `${robot.name} (${robot.robotType})\nPos: (${robot.posX.toFixed(1)}, ${robot.posY.toFixed(1)})\nGripper: ${robot.graspingObject || 'empty'}`,
+        });
+        return;
       }
     }
     setTooltip(null);
   };
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      ...style,
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ...style }}>
       <div style={{
         padding: '8px 12px', background: '#1e293b',
         borderBottom: '1px solid #334155', fontSize: 13,
         color: '#94a3b8', fontWeight: 500,
       }}>
-        🎮 Simulation View
+        🎮 Simulation View {state?.leader ? `| Leader: ${state.leader}` : ''}
       </div>
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
