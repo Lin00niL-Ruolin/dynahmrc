@@ -1,0 +1,14 @@
+{
+  "name": "dynahmrc-demo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "server": "cd server && npx tsx src/index.ts",
+    "client": "cd frontend && npx vite",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "cd frontend && npx vite build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.0"
+  }
+}

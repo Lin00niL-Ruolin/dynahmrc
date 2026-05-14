@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DynaHMRC - Decentralized Heterogeneous Multi-Robot Collaboration</title>
+<style>
+:root {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
+  --bg-surface: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-blue: #3b82f6;
+  --accent-green: #22c55e;
+  --accent-orange: #f59e0b;
+  --accent-purple: #a855f7;
+  --accent-red: #ef4444;
+  --accent-cyan: #06b6d4;
+  --border-color: #334155;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Layout */
+.app-container { display: flex; flex-direction: column; height: 100vh; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1e3a5f, #1e293b);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  z-index: 10;
+  flex-shrink: 0;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.header-logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; color: white;
+}
+.header h1 { font-size: 18px; font-weight: 600; }
+.header-subtitle { font-size: 12px; color: var(--text-muted); }
+
+/* Main Content */
+.main-content { display: flex; flex: 1; overflow: hidden; }
+
+/* Left Panel - Simulation View */
+.sim-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border-color);
+  min-width: 0;
+}
+.panel-header {
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.panel-header h2 { font-size: 14px; font-weight: 600; }
+.panel-controls { display: flex; gap: 8px; align-items: center; }
+
+/* Canvas */
+.canvas-wrapper {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at center, #1a2332, #0f172a);
+}
+#simCanvas {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: #1a2332;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.canvas-overlay {
+  position: absolute;
+  top: 24px; left: 24px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.idle { background: var(--text-muted); }
+.status-dot.running { background: var(--accent-green); animation: pulse 1s infinite; }
+.status-dot.completed { background: var(--accent-blue); }
+.status-dot.error { background: var(--accent-red); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Right Panel - Chat/Logs */
+.chat-panel {
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.chat-tabs {
+  display: flex;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.chat-tab {
+  flex: 1;
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.chat-tab:hover { color: var(--text-primary); background: rgba(255,255,255,0.03); }
+.chat-tab.active {
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
+}
+.chat-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-content::-webkit-scrollbar { width: 6px; }
+.chat-content::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+/* Message Bubbles */
+.message {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  animation: fadeIn 0.3s ease;
+  flex-shrink: 0;
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.message.system { border-left: 3px solid var(--accent-blue); }
+.message.robot-0 { border-left: 3px solid var(--accent-cyan); }
+.message.robot-1 { border-left: 3px solid var(--accent-orange); }
+.message.robot-2 { border-left: 3px solid var(--accent-purple); }
+.message.robot-3 { border-left: 3px solid var(--accent-green); }
+.message-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.avatar-system { background: var(--accent-blue); }
+.avatar-r0 { background: var(--accent-cyan); }
+.avatar-r1 { background: var(--accent-orange); }
+.avatar-r2 { background: var(--accent-purple); }
+.avatar-r3 { background: var(--accent-green); }
+.message-body { flex: 1; min-width: 0; }
+.message-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.message-text { font-size: 13px; line-height: 1.5; color: var(--text-primary); word-break: break-word; }
+.message-time { font-size: 10px; color: var(--text-muted); margin-top: 4px; text-align: right; }
+
+/* Log panel */
+.log-entry {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  color: var(--text-secondary);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  animation: fadeIn 0.2s ease;
+  line-height: 1.5;
+}
+.log-entry .log-time { color: var(--text-muted); margin-right: 8px; }
+.log-entry .log-info { color: var(--accent-blue); }
+.log-entry .log-success { color: var(--accent-green); }
+.log-entry .log-warning { color: var(--accent-orange); }
+.log-entry .log-error { color: var(--accent-red); }
+.log-entry .log-robot-0 { color: var(--accent-cyan); }
+.log-entry .log-robot-1 { color: var(--accent-orange); }
+.log-entry .log-robot-2 { color: var(--accent-purple); }
+.log-entry .log-robot-3 { color: var(--accent-green); }
+
+/* Bottom Controls */
+.controls-bar {
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.controls-bar select, .controls-bar button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.controls-bar select:hover, .controls-bar button:hover {
+  border-color: var(--accent-blue);
+  background: rgba(59,130,246,0.1);
+}
+.controls-bar select:focus { outline: none; border-color: var(--accent-blue); }
+.btn-primary {
+  background: var(--accent-blue) !important;
+  border-color: var(--accent-blue) !important;
+  font-weight: 600;
+}
+.btn-primary:hover { background: #2563eb !important; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-success { background: var(--accent-green) !important; border-color: var(--accent-green) !important; font-weight: 600; }
+.btn-success:hover { background: #16a34a !important; }
+.btn-warning { background: var(--accent-orange) !important; border-color: var(--accent-orange) !important; font-weight: 600; }
+.btn-warning:hover { background: #d97706 !important; }
+.speed-control { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.speed-control label { font-size: 12px; color: var(--text-muted); }
+.speed-control input[type="range"] {
+  width: 80px;
+  accent-color: var(--accent-blue);
+}
+
+/* Stage Indicator */
+.stage-indicator {
+  display: flex;
+  gap: 4px;
+}
+.stage-step {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s;
+}
+.stage-step.active {
+  background: rgba(59,130,246,0.2);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+.stage-step.done {
+  background: rgba(34,197,94,0.15);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+/* Empty state */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 32px;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-state h3 { font-size: 16px; margin-bottom: 8px; color: var(--text-secondary); }
+.empty-state p { font-size: 13px; max-width: 280px; line-height: 1.6; }
+
+/* Results Modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 24px;
+}
+.modal h2 { font-size: 20px; margin-bottom: 16px; }
+.modal h3 { font-size: 14px; color: var(--text-secondary); margin-top: 16px; margin-bottom: 8px; }
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 12px 0;
+}
+.result-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+}
+.result-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.result-card .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+.result-card .value.success { color: var(--accent-green); }
+.result-card .value.fail { color: var(--accent-red); }
+.close-btn {
+  float: right;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.close-btn:hover { background: var(--border-color); }
+/* Robot info bar */
+.robot-bar {
+  display: flex;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-color);
+}
+.robot-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  font-size: 11px;
+}
+.robot-chip .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+.robot-chip .name { font-weight: 600; }
+.robot-chip .role { color: var(--text-muted); }
+.robot-chip .status { font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+.robot-chip .status.idle { color: var(--text-muted); background: rgba(100,116,139,0.2); }
+.robot-chip .status.busy { color: var(--accent-orange); background: rgba(245,158,11,0.15); }
+.robot-chip .status.done { color: var(--accent-green); background: rgba(34,197,94,0.15); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .main-content { flex-direction: column; }
+  .chat-panel { width: 100%; max-height: 40vh; }
+}
+
+/* Result highlight */
+.highlight-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-logo">D</div>
+      <div>
+        <h1>DynaHMRC</h1>
+        <div class="header-subtitle">Decentralized Heterogeneous Multi-Robot Collaboration</div>
+      </div>
+    </div>
+    <div class="stage-indicator" id="stageIndicator">
+      <span class="stage-step">① 自描述</span>
+      <span class="stage-step">② 竞标</span>
+      <span class="stage-step">③ 选举</span>
+      <span class="stage-step">④ 执行</span>
+      <span class="stage-step">⑤ 反思</span>
+    </div>
+  </header>
+
+  <!-- Robot bar -->
+  <div class="robot-bar" id="robotBar"></div>
+
+  <!-- Main -->
+  <div class="main-content">
+    <!-- Simulation panel -->
+    <div class="sim-panel">
+      <div class="panel-header">
+        <h2>🌐 仿真环境</h2>
+        <div class="panel-controls">
+          <span id="stepCounter" style="font-size:12px;color:var(--text-muted);">步 0</span>
+        </div>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="simCanvas"></canvas>
+        <div class="canvas-overlay" id="canvasOverlay">
+          <span class="status-badge">
+            <span class="status-dot idle" id="simStatusDot"></span>
+            <span id="simStatus">就绪</span>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat / Log panel -->
+    <div class="chat-panel">
+      <div class="chat-tabs">
+        <div class="chat-tab active" data-tab="chat" onclick="switchTab('chat')">💬 对话</div>
+        <div class="chat-tab" data-tab="log" onclick="switchTab('log')">📋 日志</div>
+      </div>
+      <div class="chat-content" id="chatContent">
+        <div class="empty-state" id="emptyChat">
+          <div class="icon">🤖</div>
+          <h3>选择一个任务开始仿真</h3>
+          <p>DynaHMRC 框架中，每个机器人作为角色感知的 LLM Agent 运行，通过四阶段闭环流程协作完成动态异构任务。</p>
+        </div>
+      </div>
+      <div class="chat-content" id="logContent" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-bar">
+    <select id="taskSelect">
+      <option value="static1">🧪 静态任务 1: 做三明治 (bacon + bread)</option>
+      <option value="static2">🧪 静态任务 2: 颜色匹配放置</option>
+      <option value="static3">🧪 静态任务 3: 装盘 (fork + book + soap)</option>
+      <option value="dynamic_cto">⚡ 动态 CTO: 改变任务顺序</option>
+      <option value="dynamic_irz">⚡ 动态 IRZ: 插入/删除物体</option>
+      <option value="dynamic_anc">⚡ 动态 ANC: 新增组件</option>
+      <option value="dynamic_rec">⚡ 动态 REC: 故障恢复</option>
+      <option value="real1">🌍 真实任务 1: 装篮 (dinosaur + bear)</option>
+      <option value="real2">🌍 真实任务 2: 装篮 (3个玩具)</option>
+    </select>
+    <button class="btn-primary" id="btnStart" onclick="startSimulation()">▶ 开始仿真</button>
+    <button class="btn-warning" id="btnPause" onclick="togglePause()" disabled>⏸ 暂停</button>
+    <button id="btnReset" onclick="resetSimulation()">↺ 重置</button>
+    <button class="btn-success" id="btnResults" onclick="showResults()" disabled>📊 结果</button>
+    <div class="speed-control">
+      <label>速度</label>
+      <input type="range" id="speedSlider" min="1" max="10" value="5">
+    </div>
+  </div>
+</div>
+
+<!-- Results Modal -->
+<div class="modal-overlay" id="resultsModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeResults()">✕ 关闭</button>
+    <h2>📊 仿真结果</h2>
+    <div id="resultsContent"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// DynaHMRC SIMULATION ENGINE
+// ============================================================
+
+// --- Robot definitions ---
+const ROBOTS = [
+  { id: 0, name: 'R-Mobile', emoji: '🤖', role: '移动基座', color: '#06b6d4', capabilities: ['navigate', 'transport'] },
+  { id: 1, name: 'R-Arm', emoji: '🦾', role: '机械臂', color: '#f59e0b', capabilities: ['pick', 'place', 'stack'] },
+  { id: 2, name: 'R-Drone', emoji: '🚁', role: '空中无人机', color: '#a855f7', capabilities: ['survey', 'monitor', 'transport_light'] },
+  { id: 3, name: 'R-Helper', emoji: '🔧', role: '辅助机器人', color: '#22c55e', capabilities: ['handle', 'organize', 'clean'] },
+];
+
+const ROBOT_NAMES = { 0: 'R-Mobile', 1: 'R-Arm', 2: 'R-Drone', 3: 'R-Helper' };
+
+// --- Task definitions ---
+const TASKS = {
+  static1: {
+    name: '静态任务 1: 做三明治',
+    description: '将 [bacon_0, bread_slice_0] 按顺序堆叠在砧板上',
+    objects: ['bacon_0', 'bread_slice_0'],
+    locations: ['shelf_A', 'shelf_B', 'cutting_board'],
+    required_skills: ['navigate', 'pick', 'place', 'stack'],
+    dynamic_type: null
+  },
+  static2: {
+    name: '静态任务 2: 颜色匹配',
+    description: '将 [green_cuboid_solid, purple_cube_solid] 放置到对应颜色面板上',
+    objects: ['green_cuboid', 'purple_cube'],
+    locations: ['green_panel', 'purple_panel', 'storage'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: null
+  },
+  static3: {
+    name: '静态任务 3: 装盘',
+    description: '将 [fork_0, book_0, soap] 放入托盘',
+    objects: ['fork_0', 'book_0', 'soap'],
+    locations: ['table', 'shelf', 'tray'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: null
+  },
+  dynamic_cto: {
+    name: '动态 CTO: 改变任务顺序',
+    description: '做三明治，但任务顺序动态变化: [bacon_0 → bread_slice_0 → (顺序改变)]',
+    objects: ['bacon_0', 'bread_slice_0'],
+    locations: ['shelf_A', 'shelf_B', 'cutting_board'],
+    required_skills: ['navigate', 'pick', 'place', 'stack'],
+    dynamic_type: 'cto'
+  },
+  dynamic_irz: {
+    name: '动态 IRZ: 插入/删除物体',
+    description: '做三明治，中间插入/删除了一个物体: [bread, cheese, ham → bread, ham]',
+    objects: ['bread_slice_0', 'cheese_0', 'ham_0'],
+    locations: ['shelf_A', 'shelf_B', 'shelf_C', 'cutting_board'],
+    required_skills: ['navigate', 'pick', 'place', 'stack'],
+    dynamic_type: 'irz'
+  },
+  dynamic_anc: {
+    name: '动态 ANC: 新增组件',
+    description: '装盘过程中增加了一个新物体: [book, apple → book, apple, (新增)]',
+    objects: ['book_0', 'apple_0', 'spoon_0'],
+    locations: ['table', 'shelf', 'tray'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: 'anc'
+  },
+  dynamic_rec: {
+    name: '动态 REC: 故障恢复',
+    description: '机器人执行中发生故障，需要恢复: [book, fork, toy_duck]',
+    objects: ['book_0', 'fork_0', 'toy_duck'],
+    locations: ['table', 'shelf', 'tray'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: 'rec'
+  },
+  real1: {
+    name: '真实任务 1: 装篮',
+    description: '将 [green_dinosaur, yellow_bear] 放入篮子',
+    objects: ['green_dinosaur', 'yellow_bear'],
+    locations: ['floor', 'table', 'basket'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: null
+  },
+  real2: {
+    name: '真实任务 2: 装篮',
+    description: '将 [yellow_toy, green_bear, blue_bear] 放入篮子',
+    objects: ['yellow_toy', 'green_bear', 'blue_bear'],
+    locations: ['floor', 'table', 'basket'],
+    required_skills: ['navigate', 'pick', 'place'],
+    dynamic_type: null
+  }
+};
+
+// --- Simulation state ---
+let sim = {
+  running: false,
+  paused: false,
+  finished: false,
+  task: null,
+  taskKey: '',
+  step: 0,
+  maxSteps: 0,
+  stage: 0,  // 0=idle, 1=self-desc, 2=bidding, 3=election, 4=execution, 5=reflection
+  messages: [],
+  logs: [],
+  robots: [],
+  leader: null,
+  assignments: {},
+  plan: [],
+  planIndex: 0,
+  executionHistory: [],
+  results: null,
+  timer: null,
+  speed: 5,
+};
+
+// Canvas
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+let canvasW, canvasH;
+let simObjects = [];
+
+// ============================================================
+// RENDERING
+// ============================================================
+
+function resizeCanvas() {
+  const wrapper = canvas.parentElement;
+  const rect = wrapper.getBoundingClientRect();
+  const size = Math.min(rect.width - 32, rect.height - 32);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvasW = size;
+  canvasH = size;
+  ctx.scale(dpr, dpr);
+  drawScene();
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+// Grid and environment constants
+const GRID_COLS = 10;
+const GRID_ROWS = 10;
+const CELL_SIZE = () => canvasW / GRID_COLS;
+
+const ENV_LAYOUT = {
+  // Static objects in the environment
+  objects: [
+    { id: 'shelf_A', type: 'shelf', x: 1, y: 1, label: 'A' },
+    { id: 'shelf_B', type: 'shelf', x: 1, y: 4, label: 'B' },
+    { id: 'shelf_C', type: 'shelf', x: 1, y: 7, label: 'C' },
+    { id: 'cutting_board', type: 'workstation', x: 5, y: 5, label: '砧板' },
+    { id: 'tray', type: 'workstation', x: 8, y: 5, label: '托盘' },
+    { id: 'green_panel', type: 'panel', x: 8, y: 2, label: '🟢', color: '#22c55e' },
+    { id: 'purple_panel', type: 'panel', x: 8, y: 8, label: '🟣', color: '#a855f7' },
+    { id: 'table', type: 'table', x: 3, y: 8, label: '桌' },
+    { id: 'floor', type: 'floor_area', x: 5, y: 8, label: '地面' },
+    { id: 'basket', type: 'workstation', x: 8, y: 3, label: '篮子' },
+    { id: 'storage', type: 'shelf', x: 1, y: 9, label: '库' },
+  ],
+  walls: [
+    // Border walls
+    { x1: 0, y1: 0, x2: 10, y2: 0 },
+    { x1: 0, y1: 9, x2: 10, y2: 9 },
+    { x1: 0, y1: 0, x2: 0, y2: 10 },
+    { x1: 9, y1: 0, x2: 9, y2: 10 },
+  ]
+};
+
+function getEnvironmentObjects() {
+  return ENV_LAYOUT.objects;
+}
+
+function drawScene() {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  const cs = CELL_SIZE();
+
+  // Draw grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < GRID_COLS; x++) {
+    for (let y = 0; y < GRID_ROWS; y++) {
+      ctx.strokeRect(x * cs, y * cs, cs, cs);
+    }
+  }
+
+  // Draw environment objects
+  for (const obj of ENV_LAYOUT.objects) {
+    const cx = obj.x * cs + cs / 2;
+    const cy = obj.y * cs + cs / 2;
+    ctx.save();
+
+    if (obj.type === 'shelf') {
+      ctx.fillStyle = '#3b3b4d';
+      ctx.fillRect(obj.x * cs + 2, obj.y * cs + 2, cs - 4, cs - 4);
+      ctx.strokeStyle = '#555';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(obj.x * cs + 2, obj.y * cs + 2, cs - 4, cs - 4);
+      // shelves
+      ctx.fillStyle = '#555';
+      ctx.fillRect(obj.x * cs + 4, obj.y * cs + cs/2 - 1, cs - 8, 2);
+    } else if (obj.type === 'workstation') {
+      ctx.fillStyle = '#2d3a4a';
+      ctx.fillRect(obj.x * cs + 3, obj.y * cs + 3, cs - 6, cs - 6);
+      ctx.strokeStyle = '#4a6a8a';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(obj.x * cs + 3, obj.y * cs + 3, cs - 6, cs - 6);
+    } else if (obj.type === 'panel') {
+      ctx.fillStyle = obj.color + '33';
+      ctx.fillRect(obj.x * cs + 2, obj.y * cs + 2, cs - 4, cs - 4);
+      ctx.strokeStyle = obj.color;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(obj.x * cs + 2, obj.y * cs + 2, cs - 4, cs - 4);
+    } else if (obj.type === 'table') {
+      ctx.fillStyle = '#3d3228';
+      ctx.beginPath();
+      ctx.roundRect(obj.x * cs + 2, obj.y * cs + cs/2, cs - 4, cs/2 - 2, 3);
+      ctx.fill();
+    } else if (obj.type === 'floor_area') {
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(obj.x * cs + 2, obj.y * cs + 2, cs - 4, cs - 4);
+    }
+
+    // Label
+    ctx.fillStyle = '#aaa';
+    ctx.font = `${Math.max(7, cs * 0.25)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(obj.label, cx, cy + cs/4);
+    ctx.restore();
+  }
+
+  // Draw task objects
+  for (const obj of simObjects) {
+    const cx = obj.x * cs + cs / 2;
+    const cy = obj.y * cs + cs / 2;
+    ctx.save();
+    ctx.shadowColor = obj.color + '66';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = obj.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `${Math.max(8, cs * 0.3)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(obj.emoji || '📦', cx, cy);
+    ctx.restore();
+  }
+
+  // Draw robots
+  for (const robot of sim.robots) {
+    if (!robot.pos) continue;
+    const cx = robot.pos.x * cs + cs / 2;
+    const cy = robot.pos.y * cs + cs / 2;
+    ctx.save();
+    ctx.shadowColor = robot.color + '88';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = robot.color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs * 0.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.max(9, cs * 0.32)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(robot.emoji, cx, cy);
+    // Name
+    ctx.font = `${Math.max(7, cs * 0.2)}px sans-serif`;
+    ctx.fillStyle = robot.color;
+    ctx.fillText(robot.name, cx, cy - cs * 0.35);
+    ctx.restore();
+  }
+}
+
+// Helper
+CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+  if (w < 2 * r) r = w / 2;
+  if (h < 2 * r) r = h / 2;
+  this.moveTo(x + r, y);
+  this.lineTo(x + w - r, y);
+  this.quadraticCurveTo(x + w, y, x + w, y + r);
+  this.lineTo(x + w, y + h - r);
+  this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  this.lineTo(x + r, y + h);
+  this.quadraticCurveTo(x, y + h, x, y + h - r);
+  this.lineTo(x, y + r);
+  this.quadraticCurveTo(x, y, x + r, y);
+  return this;
+};
+
+// ============================================================
+// MESSAGE / LOG SYSTEM
+// ============================================================
+
+function addMessage(robotId, text, type = 'normal') {
+  sim.messages.push({ robotId, text, type, time: Date.now() });
+  updateChatDisplay();
+}
+
+function addLog(text, level = 'info') {
+  sim.logs.push({ text, level, time: Date.now() });
+  updateLogDisplay();
+}
+
+function updateChatDisplay() {
+  const container = document.getElementById('chatContent');
+  const empty = document.getElementById('emptyChat');
+  if (empty) empty.style.display = 'none';
+
+  // Only show last 50 messages for performance
+  const recent = sim.messages.slice(-50);
+
+  container.innerHTML = recent.map(msg => {
+    const robot = ROBOTS[msg.robotId];
+    const cls = msg.robotId === -1 ? 'system' : `robot-${msg.robotId}`;
+    const avatarCls = msg.robotId === -1 ? 'avatar-system' : `avatar-r${msg.robotId}`;
+    const avatar = msg.robotId === -1 ? '🧠' : (robot ? robot.emoji : '🤖');
+    const sender = msg.robotId === -1 ? 'System' : (robot ? robot.name : `Robot ${msg.robotId}`);
+    const time = new Date(msg.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `<div class="message ${cls}">
+      <div class="message-avatar ${avatarCls}">${avatar}</div>
+      <div class="message-body">
+        <div class="message-sender">${sender}</div>
+        <div class="message-text">${msg.text}</div>
+        <div class="message-time">${time}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  container.scrollTop = container.scrollHeight;
+}
+
+function updateLogDisplay() {
+  const container = document.getElementById('logContent');
+  const recent = sim.logs.slice(-100);
+  container.innerHTML = recent.map(log => {
+    const time = new Date(log.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `<div class="log-entry"><span class="log-time">[${time}]</span><span class="log-${log.level}">${log.text}</span></div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+// ============================================================
+// ROBOT INITIALIZATION
+// ============================================================
+
+function initRobots(task) {
+  sim.robots = ROBOTS.map((r, i) => ({
+    ...r,
+    pos: { x: 1 + i * 2, y: 9 },
+    taskKnowledge: [],
+    memory: [],
+    status: 'idle',
+    actions: [],
+    bids: null,
+    vote: null,
+  }));
+  updateRobotBar();
+
+  // Place task objects in environment
+  simObjects = [];
+  const colors = ['#f97316', '#eab308', '#06b6d4', '#ec4899', '#8b5cf6', '#10b981'];
+  const emojis = ['🥓', '🍞', '🧀', '🥩', '🔧', '📘', '🧼', '🍎', '🥄', '🦕', '🧸'];
+  const placements = [[2,2], [2,5], [2,8], [3,3], [4,6], [3,7]];
+  task.objects.forEach((obj, i) => {
+    const p = placements[i % placements.length];
+    simObjects.push({
+      id: obj,
+      name: obj,
+      x: p[0],
+      y: p[1],
+      color: colors[i % colors.length],
+      emoji: emojis[i % emojis.length],
+      picked: false,
+      placed: false,
+      target: null,
+    });
+  });
+}
+
+function updateRobotBar() {
+  const bar = document.getElementById('robotBar');
+  bar.innerHTML = sim.robots.map(r => `
+    <div class="robot-chip">
+      <span class="dot" style="background:${r.color}"></span>
+      <span class="name">${r.emoji} ${r.name}</span>
+      <span class="role">${r.role}</span>
+      <span class="status ${r.status}">${r.status === 'idle' ? '待命' : r.status === 'busy' ? '工作中' : '完成'}</span>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// DYNAHMRC FOUR-STAGE PROTOCOL
+// ============================================================
+
+function updateStage(stage) {
+  sim.stage = stage;
+  const steps = document.querySelectorAll('.stage-step');
+  steps.forEach((s, i) => {
+    s.className = 'stage-step';
+    if (i < stage) s.classList.add('done');
+    else if (i === stage) s.classList.add('active');
+  });
+}
+
+function updateStatus(text, dotClass = 'running') {
+  document.getElementById('simStatus').textContent = text;
+  document.getElementById('simStatusDot').className = `status-dot ${dotClass}`;
+}
+
+// ============================================================
+// STAGE 1: Self-Description
+// ============================================================
+
+async function stageSelfDescription() {
+  updateStage(0);
+  updateStatus('自描述阶段...', 'running');
+  addMessage(-1, '📢 === 阶段 1: 自描述 (Self-Description) ===');
+  addLog('开始自描述阶段', 'info');
+
+  for (const robot of sim.robots) {
+    robot.status = 'busy';
+    updateRobotBar();
+    await delay(500);
+
+    const capStr = robot.capabilities.join(', ');
+    const msg = `我是 ${robot.emoji} ${robot.name}（${robot.role}），我的能力：[${capStr}]。${robot.capabilities.includes('navigate') ? '可以在环境中自由导航，' : ''}${robot.capabilities.includes('pick') ? '具备抓取能力，' : ''}${robot.capabilities.includes('place') ? '可以精确放置物体，' : ''}${robot.capabilities.includes('survey') ? '能够从空中进行环境监测。' : ''}`;
+    addMessage(robot.id, msg);
+    addLog(`${robot.name}: 完成自描述`, 'robot-'+robot.id);
+    await delay(600);
+  }
+}
+
+// ============================================================
+// STAGE 2: Task Allocation with Leadership Bidding
+// ============================================================
+
+async function stageBidding() {
+  updateStage(1);
+  updateStatus('竞标阶段...', 'running');
+  addMessage(-1, '📢 === 阶段 2: 任务分配与领导竞标 ===');
+  addLog('开始竞标阶段', 'info');
+
+  const task = sim.task;
+  const required = task.required_skills;
+
+  for (const robot of sim.robots) {
+    await delay(400);
+    const matchingSkills = robot.capabilities.filter(c => required.includes(c));
+    const score = matchingSkills.length / required.length;
+    const confidence = Math.round(score * 100);
+
+    robot.bids = {
+      score: score,
+      matchingSkills: matchingSkills,
+      confidence: confidence,
+    };
+
+    let bidMsg = `📋 我对当前任务的分析：任务需要 [${required.join(', ')}]，我拥有的匹配能力：[${matchingSkills.join(', ') || '无'}]，能力匹配度 ${Math.round(score * 100)}%。`;
+    if (score >= 0.5) {
+      bidMsg += ` 我愿意承担领导角色，领导力指数：${confidence}/100。`;
+    } else {
+      bidMsg += ` 我更适合作为执行成员参与协作。`;
+    }
+    addMessage(robot.id, bidMsg);
+    addLog(`${robot.name}: 竞标完成 (匹配度 ${confidence}%)`, 'robot-'+robot.id);
+  }
+}
+
+// ============================================================
+// STAGE 3: Leader Election
+// ============================================================
+
+async function stageElection() {
+  updateStage(2);
+  updateStatus('选举阶段...', 'running');
+  addMessage(-1, '📢 === 阶段 3: 领导者选举 (Leader Election) ===');
+  addLog('开始分布式选举', 'info');
+
+  // Distributed voting: each robot votes
+  const votes = {};
+  for (const robot of sim.robots) {
+    await delay(300);
+    const bids = sim.robots.map(r => ({ id: r.id, score: r.bids.score }));
+    const bestBid = bids.reduce((a, b) => a.score > b.score ? a : b);
+    robot.vote = bestBid.id;
+
+    const votedRobot = ROBOTS[bestBid.id];
+    const msg = `🗳️ 我投票给 ${votedRobot.emoji} ${votedRobot.name}（能力匹配度 ${Math.round(bestBid.score * 100)}%）。`;
+    addMessage(robot.id, msg);
+    addLog(`${robot.name}: 投票给 Robot ${bestBid.id}`, 'robot-'+robot.id);
+  }
+
+  // Tally
+  const tally = {};
+  for (const r of sim.robots) {
+    tally[r.vote] = (tally[r.vote] || 0) + 1;
+  }
+  const leaderId = Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
+  const leaderRobot = ROBOTS[parseInt(leaderId)];
+  sim.leader = parseInt(leaderId);
+
+  // Announce
+  await delay(400);
+  addMessage(-1, `🏆 选举结果：${leaderRobot.emoji} ${leaderRobot.name} 以 ${tally[leaderId]} 票当选为本任务领导者！`);
+  addLog(`领导者选举完成: ${leaderRobot.name}`, 'success');
+
+  // Leader formulates plan
+  await delay(600);
+  const leader = sim.robots[sim.leader];
+  leader.status = 'busy';
+  updateRobotBar();
+
+  const planItems = sim.task.objects.map((obj, i) => {
+    const picker = sim.robots.filter(r => r.capabilities.includes('pick'))[0];
+    const mover = sim.robots.filter(r => r.capabilities.includes('navigate'))[0];
+    return {
+      step: i + 1,
+      action: 'transport',
+      object: obj,
+      from: `shelf_${String.fromCharCode(65 + i)}`,
+      to: sim.task.locations[sim.task.locations.length - 1],
+      picker: picker ? picker.id : 1,
+      mover: mover ? mover.id : 0,
+    };
+  });
+  sim.plan = planItems;
+
+  addMessage(sim.leader, `🧠 作为领导者，我制定以下协作计划：`);
+  for (const item of planItems) {
+    await delay(300);
+    const picker = ROBOTS[item.picker];
+    const mover = ROBOTS[item.mover];
+    addMessage(sim.leader, `  第${item.step}步: ${picker.emoji} ${picker.name} 抓取 ${item.object} → ${mover.emoji} ${mover.name} 运输至目标位置`);
+  }
+  addLog(`领导者 ${leaderRobot.name} 完成协作计划制定`, 'success');
+}
+
+// ============================================================
+// STAGE 4: Reflective Execution
+// ============================================================
+
+async function stageExecution() {
+  updateStage(3);
+  updateStatus('执行阶段...', 'running');
+  addMessage(-1, '📢 === 阶段 4: 反射式执行 (Reflective Execution) ===');
+  addLog('开始执行阶段', 'info');
+
+  const totalSteps = sim.plan.length;
+  sim.maxSteps = totalSteps;
+
+  for (let i = 0; i < totalSteps; i++) {
+    if (sim.paused) await waitForResume();
+    if (!sim.running) return;
+
+    const item = sim.plan[i];
+    sim.step = i + 1;
+    document.getElementById('stepCounter').textContent = `步 ${sim.step}/${totalSteps}`;
+
+    const picker = sim.robots[item.picker];
+    const mover = sim.robots[item.mover];
+    const obj = simObjects.find(o => o.id === item.object);
+
+    if (!obj) continue;
+
+    picker.status = 'busy';
+    mover.status = 'busy';
+    updateRobotBar();
+
+    // Phase A: Navigate to object
+    await delay(800);
+    addMessage(picker.id, `📍 正在导航到 ${item.object} 的位置...`);
+    mover.pos = { x: 2 + i * 2, y: 2 + i };
+    drawScene();
+
+    await delay(600);
+    obj.picked = true;
+    obj.x = mover.pos.x + 1;
+    obj.y = mover.pos.y;
+    drawScene();
+
+    addMessage(picker.id, `✅ 成功抓取 ${item.object}！`);
+    addLog(`${picker.name}: 抓取 ${item.object} 成功`, 'robot-'+picker.id);
+
+    // Phase B: Transport
+    await delay(500);
+    addMessage(mover.id, `🚚 正在运输 ${item.object} 到目标位置 ${item.to}...`);
+    mover.pos = { x: 7, y: 4 + i };
+    obj.x = mover.pos.x + 1;
+    obj.y = mover.pos.y;
+    drawScene();
+
+    await delay(600);
+
+    // Phase C: Place
+    addMessage(picker.id, `📦 正在将 ${item.object} 放置到 ${item.to}`);
+    obj.placed = true;
+    obj.x = 7;
+    obj.y = 5;
+    drawScene();
+
+    await delay(400);
+
+    // Dynamic task handling
+    if (handleDynamicEvent(i)) {
+      // Dynamic event occurred, log it
+      addLog(`⚡ 动态事件已处理 (${sim.task.dynamic_type})`, 'warning');
+    }
+
+    // Self-reflection after each step
+    addMessage(picker.id, `🔄 [自反思] 第${i+1}步完成：成功将 ${item.object} 运输并放置。任务进度 ${Math.round((i+1)/totalSteps*100)}%。${
+      i === totalSteps - 1 ? '任务即将完成。' : '继续执行下一步。'
+    }`);
+
+    picker.status = 'idle';
+    mover.status = 'idle';
+    updateRobotBar();
+    drawScene();
+
+    sim.executionHistory.push({
+      step: i + 1,
+      action: `transport ${item.object}`,
+      picker: picker.id,
+      mover: mover.id,
+      status: 'success',
+    });
+
+    await delay(300);
+  }
+}
+
+// ============================================================
+// DYNAMIC EVENT HANDLING
+// ============================================================
+
+function handleDynamicEvent(step) {
+  const task = sim.task;
+  if (!task.dynamic_type) return false;
+
+  let eventMsg = '';
+
+  switch (task.dynamic_type) {
+    case 'cto':  // Change Task Order
+      if (step === 1) {
+        eventMsg = '⚡ 动态事件：任务顺序改变！原来应先放 bread_slice_0，现在改为先放 bacon_0！';
+        addMessage(-1, eventMsg);
+        addLog('CTO: 任务顺序动态改变', 'warning');
+        // Swap plan order
+        [sim.plan[0], sim.plan[1]] = [sim.plan[1], sim.plan[0]];
+        return true;
+      }
+      break;
+    case 'irz':  // Insert / Remove
+      if (step === 1) {
+        eventMsg = '⚡ 动态事件：物体 cheese_0 已从任务列表中移除！调整计划中...';
+        addMessage(-1, eventMsg);
+        addLog('IRZ: 移除 cheese_0', 'warning');
+        sim.plan = sim.plan.filter(p => p.object !== 'cheese_0');
+        sim.maxSteps = sim.plan.length;
+        return true;
+      }
+      break;
+    case 'anc':  // Add New Component
+      if (step === 1) {
+        eventMsg = '⚡ 动态事件：新增任务物体 spoon_0！需要将其也放入托盘。';
+        addMessage(-1, eventMsg);
+        addLog('ANC: 新增 spoon_0', 'warning');
+        sim.plan.push({
+          step: sim.plan.length + 1,
+          action: 'transport',
+          object: 'spoon_0',
+          from: 'shelf_C',
+          to: 'tray',
+          picker: 1,
+          mover: 0,
+        });
+        sim.maxSteps = sim.plan.length;
+        return true;
+      }
+      break;
+    case 'rec':  // Recovery
+      if (step === 1) {
+        eventMsg = '⚡ 动态事件：机器人 R-Mobile 检测到执行错误！物体 fork_0 掉落，需要恢复操作...';
+        addMessage(-1, eventMsg);
+        addLog('REC: 机器人故障 - fork_0 掉落', 'error');
+        // Leader reassigns
+        addMessage(sim.leader, `🔄 [故障恢复] 检测到执行异常。正在重新分配任务... R-Arm 重新抓取 fork_0。`);
+        return true;
+      }
+      break;
+  }
+  return false;
+}
+
+// ============================================================
+// STAGE 5: Self-Reflection
+// ============================================================
+
+async function stageReflection() {
+  updateStage(4);
+  updateStatus('反思总结阶段...', 'running');
+  addMessage(-1, '📢 === 阶段 5: 自我反思与总结 (Self-Reflection) ===');
+  addLog('开始反思总结阶段', 'info');
+
+  await delay(600);
+  // Leader summarizes
+  const leader = sim.robots[sim.leader];
+  addMessage(sim.leader, `📊 [全局总结] 任务 "${sim.task.name}" 已执行完毕。总步骤 ${sim.executionHistory.length} 步，全部成功完成。`);
+  await delay(500);
+
+  for (const robot of sim.robots) {
+    await delay(400);
+    const completedSteps = sim.executionHistory.filter(e => e.picker === robot.id || e.mover === robot.id).length;
+    addMessage(robot.id, `📝 [自反思] 我在本次协作中参与了 ${completedSteps} 个步骤。${
+      robot.id === sim.leader ? '作为领导者，我成功协调了团队分工并处理了动态变化。' : '作为团队成员，我有效执行了分配的任务。'
+    } 协作模式有效，建议保持当前策略。`);
+    robot.status = 'done';
+    updateRobotBar();
+  }
+
+  addMessage(-1, '✅ DynaHMRC 四阶段闭环流程全部完成！任务成功！');
+  addLog('仿真完成！', 'success');
+  updateStatus('✅ 完成', 'completed');
+
+  // Calculate results
+  sim.results = {
+    task: sim.task.name,
+    totalSteps: sim.executionHistory.length,
+    successRate: 1.0,
+    communicationRounds: sim.messages.filter(m => m.robotId !== -1).length,
+    actionSteps: sim.executionHistory.length,
+    totalTime: sim.executionHistory.length * 3,  // simulated time units
+    leader: ROBOTS[sim.leader].name,
+    teamSize: sim.robots.length,
+    dynamicEvents: sim.task.dynamic_type ? 1 : 0,
+    stages: ['自描述', '竞标', '选举', '执行', '反思'],
+  };
+
+  sim.finished = true;
+  document.getElementById('btnResults').disabled = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStart').textContent = '▶ 仿真完成';
+}
+
+// ============================================================
+// MAIN SIMULATION LOOP
+// ============================================================
+
+async function runSimulation() {
+  sim.running = true;
+  sim.paused = false;
+  sim.finished = false;
+  sim.messages = [];
+  sim.logs = [];
+  sim.step = 0;
+  sim.executionHistory = [];
+  sim.planIndex = 0;
+  sim.leader = null;
+  sim.results = null;
+
+  document.getElementById('chatContent').innerHTML = '';
+  document.getElementById('logContent').innerHTML = '';
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnStart').textContent = '⏳ 仿真中...';
+  document.getElementById('btnPause').disabled = false;
+  document.getElementById('btnPause').textContent = '⏸ 暂停';
+  document.getElementById('btnResults').disabled = true;
+
+  try {
+    // Stage 1: Self-Description
+    await stageSelfDescription();
+    if (!sim.running) return;
+
+    // Stage 2: Bidding
+    await stageBidding();
+    if (!sim.running) return;
+
+    // Stage 3: Election
+    await stageElection();
+    if (!sim.running) return;
+
+    // Stage 4: Execution
+    await stageExecution();
+    if (!sim.running) return;
+
+    // Stage 5: Reflection
+    await stageReflection();
+
+  } catch (e) {
+    console.error(e);
+    addLog('仿真出错: ' + e.message, 'error');
+    updateStatus('❌ 错误', 'error');
+  } finally {
+    sim.running = false;
+    if (!sim.finished) {
+      document.getElementById('btnStart').disabled = false;
+      document.getElementById('btnStart').textContent = '▶ 重新仿真';
+    }
+    document.getElementById('btnPause').disabled = true;
+  }
+}
+
+// ============================================================
+// UI CONTROLS
+// ============================================================
+
+function delay(ms) {
+  const speed = parseInt(document.getElementById('speedSlider').value);
+  const adjusted = Math.max(50, Math.floor(ms / (speed * 0.7)));
+  return new Promise(r => {
+    sim.timer = setTimeout(r, adjusted);
+  });
+}
+
+function waitForResume() {
+  return new Promise(resolve => {
+    const check = () => {
+      if (!sim.paused) resolve();
+      else setTimeout(check, 100);
+    };
+    check();
+  });
+}
+
+function startSimulation() {
+  const key = document.getElementById('taskSelect').value;
+  sim.task = TASKS[key];
+  sim.taskKey = key;
+
+  addLog(`选择任务: ${sim.task.name}`, 'info');
+  addMessage(-1, `🎯 任务启动：${sim.task.description}`);
+  addMessage(-1, `🤖 团队组成：${ROBOTS.map(r => r.emoji + r.name).join(' ')}`);
+
+  initRobots(sim.task);
+  drawScene();
+
+  // Reset stage indicator
+  updateStage(0);
+
+  runSimulation();
+}
+
+function togglePause() {
+  sim.paused = !sim.paused;
+  document.getElementById('btnPause').textContent = sim.paused ? '▶ 继续' : '⏸ 暂停';
+  addLog(sim.paused ? '仿真已暂停' : '仿真继续', 'warning');
+}
+
+function resetSimulation() {
+  sim.running = false;
+  sim.paused = false;
+  sim.finished = false;
+  if (sim.timer) clearTimeout(sim.timer);
+  sim.robots = ROBOTS.map(r => ({ ...r, pos: { x: 1 + r.id * 2, y: 9 }, status: 'idle', memory: [], bids: null, vote: null }));
+  simObjects = [];
+  sim.messages = [];
+  sim.logs = [];
+  sim.executionHistory = [];
+  sim.step = 0;
+  sim.leader = null;
+  sim.results = null;
+
+  document.getElementById('chatContent').innerHTML = `<div class="empty-state" id="emptyChat"><div class="icon">🤖</div><h3>选择一个任务开始仿真</h3><p>DynaHMRC 框架中，每个机器人作为角色感知的 LLM Agent 运行，通过四阶段闭环流程协作完成动态异构任务。</p></div>`;
+  document.getElementById('logContent').innerHTML = '';
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnStart').textContent = '▶ 开始仿真';
+  document.getElementById('btnPause').disabled = true;
+  document.getElementById('btnResults').disabled = true;
+  updateStage(0);
+  updateStatus('就绪', 'idle');
+  document.getElementById('stepCounter').textContent = '步 0';
+  drawScene();
+  updateRobotBar();
+}
+
+function showResults() {
+  if (!sim.results) return;
+  const r = sim.results;
+  const modal = document.getElementById('resultsModal');
+  const content = document.getElementById('resultsContent');
+
+  const execSteps = sim.executionHistory.map(e => {
+    const picker = ROBOTS[e.picker];
+    const mover = ROBOTS[e.mover];
+    return `<div class="log-entry">
+      <span class="log-time">步 ${e.step}</span>
+      <span class="log-success">${picker.emoji}${picker.name} → ${mover.emoji}${mover.name} : ${e.action}</span>
+      <span class="log-info">[${e.status}]</span>
+    </div>`;
+  }).join('');
+
+  content.innerHTML = `
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="label">任务</div>
+        <div class="value" style="font-size:14px">${r.task}</div>
+      </div>
+      <div class="result-card">
+        <div class="label">领导者</div>
+        <div class="value" style="font-size:14px;color:var(--accent-blue)">${r.leader}</div>
+      </div>
+      <div class="result-card">
+        <div class="label">团队规模</div>
+        <div class="value success">${r.teamSize} 台机器人</div>
+      </div>
+      <div class="result-card">
+        <div class="label">成功率</div>
+        <div class="value success">${(r.successRate * 100).toFixed(0)}%</div>
+      </div>
+      <div class="result-card">
+        <div class="label">执行步骤</div>
+        <div class="value">${r.actionSteps} 步</div>
+      </div>
+      <div class="result-card">
+        <div class="label">通信轮次</div>
+        <div class="value">${r.communicationRounds} 次</div>
+      </div>
+      <div class="result-card">
+        <div class="label">动态事件</div>
+        <div class="value" style="color:var(--accent-orange)">${r.dynamicEvents} 次</div>
+      </div>
+      <div class="result-card">
+        <div class="label">总耗时</div>
+        <div class="value">${r.totalTime} TU</div>
+      </div>
+    </div>
+    <h3>执行过程</h3>
+    <div style="max-height:200px;overflow-y:auto;background:var(--bg-primary);border-radius:8px;padding:8px;">
+      ${execSteps}
+    </div>
+    <h3>四阶段统计</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+      ${r.stages.map((s, i) => `
+        <span style="padding:4px 12px;border-radius:6px;font-size:12px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--accent-blue)">
+          ${i+1}. ${s} ✓
+        </span>
+      `).join('')}
+    </div>
+  `;
+
+  modal.classList.add('show');
+}
+
+function closeResults() {
+  document.getElementById('resultsModal').classList.remove('show');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.chat-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.chat-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('chatContent').style.display = tab === 'chat' ? 'flex' : 'none';
+  document.getElementById('logContent').style.display = tab === 'log' ? 'flex' : 'none';
+}
+
+// ============================================================
+// INIT
+// ============================================================
+
+window.addEventListener('load', () => {
+  resizeCanvas();
+  updateRobotBar();
+});
+
+</script>
+</body>
+</html>
