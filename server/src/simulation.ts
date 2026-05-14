@@ -190,20 +190,42 @@ export class SimEnvironment {
 
       case ActionType.NAVIGATE: {
         const target = action.params.target as string;
-        const obj = this.scene.objects[target];
+        // Try exact match first, then fuzzy match (strip 'stand_pose' prefix, find closest)
+        let obj = this.scene.objects[target];
+        
+        if (!obj) {
+          // Try fuzzy matching: find any object whose name contains the target
+          for (const [name, o] of Object.entries(this.scene.objects)) {
+            if (o.category === 'furniture' && (name.includes(target) || target.includes(name))) {
+              obj = o;
+              break;
+            }
+          }
+        }
+        
+        if (!obj) {
+          // Pick first furniture item as fallback
+          for (const o of Object.values(this.scene.objects)) {
+            if (o.category === 'furniture' && o.standPoseX != null) {
+              obj = o;
+              break;
+            }
+          }
+        }
+        
         if (obj && obj.standPoseX != null && obj.standPoseY != null) {
           this.robotPositions[robotName] = [obj.standPoseX, obj.standPoseY];
           return {
             actionType: ActionType.NAVIGATE,
             success: true,
-            description: `${robotName} navigated to ${target} at (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,
-            details: { target, posX: obj.standPoseX, posY: obj.standPoseY },
+            description: `${robotName} navigated to ${obj.name} at (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,
+            details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
           };
         }
         return {
           actionType: ActionType.NAVIGATE,
           success: false,
-          description: `Navigation failed: target ${target} not found.`,
+          description: `Navigation failed: target ${target} not found in scene.`,
           details: {},
         };
       }

@@ -230,36 +230,40 @@ export class RobotAgent {
     for (const line of content.split('\n')) {
       const trimmed = line.trim().toLowerCase();
       for (const at of Object.values(ActionType)) {
-        if (trimmed.startsWith(at) && trimmed.includes('(') && trimmed.endsWith(')')) {
-          const paramsStr = trimmed.substring(trimmed.indexOf('(') + 1, trimmed.lastIndexOf(')'));
-          const paramsList = paramsStr.split(',').map(p => p.trim().replace(/['"]/g, ''));
-          action.actionType = at;
+        if (!trimmed.startsWith(at)) continue;
+        // Find the first '(' and last ')' in the line
+        const openParen = trimmed.indexOf('(');
+        const closeParen = trimmed.lastIndexOf(')');
+        if (openParen < 0 || closeParen < openParen) continue;
 
-          switch (at) {
-            case ActionType.NAVIGATE:
-              action.params = { target: paramsList[0] };
-              break;
-            case ActionType.OPEN:
-              action.params = { container: paramsList[0] };
-              break;
-            case ActionType.PICK:
-              action.params = { object: paramsList[0] };
-              break;
-            case ActionType.PLACE:
-              action.params = { object: paramsList[0], target: paramsList[1] || 'tray' };
-              break;
-            case ActionType.MOVE:
-              action.params = {
-                dx: parseFloat(paramsList[0]) || 0.1,
-                dy: parseFloat(paramsList[1]) || 0.1,
-              };
-              break;
-            case ActionType.COMMUNICATE:
-              action.params = { content: paramsList[0] || '', recipient: paramsList[1] || '*' };
-              break;
-          }
-          break;
+        const paramsStr = trimmed.substring(openParen + 1, closeParen);
+        const paramsList = paramsStr.split(',').map(p => p.trim().replace(/['"]/g, ''));
+        action.actionType = at;
+
+        switch (at) {
+          case ActionType.NAVIGATE:
+            action.params = { target: paramsList[0] };
+            break;
+          case ActionType.OPEN:
+            action.params = { container: paramsList[0] };
+            break;
+          case ActionType.PICK:
+            action.params = { object: paramsList[0] };
+            break;
+          case ActionType.PLACE:
+            action.params = { object: paramsList[0], target: paramsList[1] || 'tray' };
+            break;
+          case ActionType.MOVE:
+            action.params = {
+              dx: parseFloat(paramsList[0]) || 0.1,
+              dy: parseFloat(paramsList[1]) || 0.1,
+            };
+            break;
+          case ActionType.COMMUNICATE:
+            action.params = { content: paramsList[0] || '', recipient: paramsList[1] || '*' };
+            break;
         }
+        break;
       }
     }
     return action;

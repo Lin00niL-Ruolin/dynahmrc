@@ -108,19 +108,18 @@ export class DynaHMRCEngine {
     await this.emitState();
 
     const teammates = this.robotConfigs.map(([name]) => name);
-    for (const [name, rtype] of this.robotConfigs) {
-      const agent = this.agents[name];
-      const [thoughts, content] = await agent.selfDescribe(teammates);
-      await this.emitDialogue({
-        stage: DynaHMRCStage.SELF_DESCRIPTION,
-        robotName: name,
-        robotType: rtype,
-        thoughts,
-        content,
-        timestamp: Date.now(),
-      });
-      await this.sleep(300);
+    // Run all self-descriptions in parallel
+    const results = await Promise.all(
+      this.robotConfigs.map(async ([name, rtype]) => {
+        const agent = this.agents[name];
+        const [thoughts, content] = await agent.selfDescribe(teammates);
+        return { stage: DynaHMRCStage.SELF_DESCRIPTION, robotName: name, robotType: rtype, thoughts, content, timestamp: Date.now() };
+      })
+    );
+    for (const r of results) {
+      await this.emitDialogue(r);
     }
+    await this.sleep(200);
   }
 
   private async stageTaskAllocation(): Promise<void> {
@@ -132,19 +131,18 @@ export class DynaHMRCEngine {
     );
     const allIntroductions = introTexts.join('\n\n');
 
-    for (const [name, rtype] of this.robotConfigs) {
-      const agent = this.agents[name];
-      const [thoughts, content] = await agent.proposePlanAndCampaign(allIntroductions);
-      await this.emitDialogue({
-        stage: DynaHMRCStage.TASK_ALLOCATION_BIDDING,
-        robotName: name,
-        robotType: rtype,
-        thoughts,
-        content,
-        timestamp: Date.now(),
-      });
-      await this.sleep(300);
+    // Run all proposals in parallel
+    const results = await Promise.all(
+      this.robotConfigs.map(async ([name, rtype]) => {
+        const agent = this.agents[name];
+        const [thoughts, content] = await agent.proposePlanAndCampaign(allIntroductions);
+        return { stage: DynaHMRCStage.TASK_ALLOCATION_BIDDING, robotName: name, robotType: rtype, thoughts, content, timestamp: Date.now() };
+      })
+    );
+    for (const r of results) {
+      await this.emitDialogue(r);
     }
+    await this.sleep(200);
   }
 
   private async stageLeaderElection(): Promise<void> {
@@ -156,20 +154,19 @@ export class DynaHMRCEngine {
     );
     const allPlans = plansTexts.join('\n\n');
 
+    // Run all votes in parallel
+    const voteResults = await Promise.all(
+      this.robotConfigs.map(async ([name, rtype]) => {
+        const agent = this.agents[name];
+        const [thoughts, content, vote] = await agent.voteLeader(allPlans);
+        return { stage: DynaHMRCStage.LEADER_ELECTION, robotName: name, robotType: rtype, thoughts, content, vote, timestamp: Date.now() };
+      })
+    );
+
     const votes: Record<string, string> = {};
-    for (const [name, rtype] of this.robotConfigs) {
-      const agent = this.agents[name];
-      const [thoughts, content, vote] = await agent.voteLeader(allPlans);
-      votes[name] = vote;
-      await this.emitDialogue({
-        stage: DynaHMRCStage.LEADER_ELECTION,
-        robotName: name,
-        robotType: rtype,
-        thoughts,
-        content,
-        timestamp: Date.now(),
-      });
-      await this.sleep(300);
+    for (const r of voteResults) {
+      votes[r.robotName] = r.vote;
+      await this.emitDialogue(r);
     }
 
     const voteCounts: Record<string, number> = {};
@@ -218,15 +215,25 @@ export class DynaHMRCEngine {
 
       const taskProgress = `Step ${this.stepCount}: Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects`;
 
-      for (const name of agentNames) {
-        if (!this.running) break;
-        const agent = this.agents[name];
-        const [thoughts, action] = await agent.act(
-          this.leader || 'Alice',
-          this.collaborationPlan,
-          this.sim.scene,
-          taskProgress,
-        );
+      // Run all robot actions in parallel
+      const actionResults = await Promise.all(
+        agentNames.map(async (name) => {
+          if (!this.running) return null;
+          const agent = this.agents[name];
+          const [thoughts, action] = await agent.act(
+            this.leader || 'Alice',
+            this.collaborationPlan,
+            this.sim.scene,
+            taskProgress,
+          );
+          return { name, agent, thoughts, action };
+        })
+      );
+
+      // Apply actions to simulation sequentially (to avoid conflicts)
+      for (const result of actionResults) {
+        if (!result || !this.running) break;
+        const { name, agent, thoughts, action } = result;
 
         const feedback = this.sim.step(action);
         agent.addFeedback(feedback);
@@ -256,8 +263,6 @@ export class DynaHMRCEngine {
             }
           }
         }
-
-        await this.sleep(300);
       }
 
       // Periodic reflection every 5 steps
@@ -296,11 +301,17 @@ export class DynaHMRCEngine {
 
     const reflections: Record<string, { summary: string; plan: string }> = {};
 
-    for (const name of agentNames) {
-      const agent = this.agents[name];
-      const [thoughts, summary, plan] = await agent.reflect(taskStatus, '', false);
-      reflections[name] = { summary, plan };
+    // Run all reflections in parallel
+    const reflectionResults = await Promise.all(
+      agentNames.map(async (name) => {
+        const agent = this.agents[name];
+        const [thoughts, summary, plan] = await agent.reflect(taskStatus, '', false);
+        return { name, agent, thoughts, summary, plan };
+      })
+    );
 
+    for (const { name, agent, thoughts, summary, plan } of reflectionResults) {
+      reflections[name] = { summary, plan };
       await this.emitDialogue({
         stage: DynaHMRCStage.EXECUTION_REFLECTION,
         robotName: name,
