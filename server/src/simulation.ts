@@ -87,6 +87,9 @@ export class SimEnvironment {
         ['bookshelf', 8, 3, 1.0, 0.6, true, 'close'],
         ['tv_stand', 8, 7, 1.2, 0.6, false],
         ['coffee_table', 5, 5, 1.0, 0.8, false],
+        ['desk', 4, 8, 1.0, 0.6, false],
+        ['bed', 2, 7, 1.5, 1.0, false],
+        ['wardrobe', 1, 8, 0.8, 0.6, true, 'close'],
         ['tray', 5, 5, 0.4, 0.4, false],
       ];
       for (const f of furniture) {
@@ -190,13 +193,12 @@ export class SimEnvironment {
 
       case ActionType.NAVIGATE: {
         const target = action.params.target as string;
-        // Try exact match first, then fuzzy match (strip 'stand_pose' prefix, find closest)
         let obj = this.scene.objects[target];
         
+        // Fuzzy match
         if (!obj) {
-          // Try fuzzy matching: find any object whose name contains the target
-          for (const [name, o] of Object.entries(this.scene.objects)) {
-            if (o.category === 'furniture' && (name.includes(target) || target.includes(name))) {
+          for (const [, o] of Object.entries(this.scene.objects)) {
+            if (o.category === 'furniture' && (o.name.includes(target) || target.includes(o.name))) {
               obj = o;
               break;
             }
@@ -204,7 +206,6 @@ export class SimEnvironment {
         }
         
         if (!obj) {
-          // Pick first furniture item as fallback
           for (const o of Object.values(this.scene.objects)) {
             if (o.category === 'furniture' && o.standPoseX != null) {
               obj = o;
@@ -214,18 +215,19 @@ export class SimEnvironment {
         }
         
         if (obj && obj.standPoseX != null && obj.standPoseY != null) {
+          const oldPos = [...this.robotPositions[robotName]];
           this.robotPositions[robotName] = [obj.standPoseX, obj.standPoseY];
+          const distTraveled = Math.sqrt((oldPos[0]-obj.standPoseX)**2 + (oldPos[1]-obj.standPoseY)**2);
           return {
             actionType: ActionType.NAVIGATE,
             success: true,
-            description: `${robotName} navigated to ${obj.name} at (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,
-            details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
+            description: `Navigation Success: ${robotName} completed global path planning and arrived at ${obj.name} stand_pose. Traveled ${distTraveled.toFixed(2)}m. Position: (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,            details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
           };
         }
         return {
           actionType: ActionType.NAVIGATE,
           success: false,
-          description: `Navigation failed: target ${target} not found in scene.`,
+          description: `Navigation Failed: The target ${target} is either invalid (does not exist in scene graph) or exceeds map boundaries. Valid navigation targets: ${Object.values(this.scene.objects).filter(o=>o.standPoseX!=null).map(o=>o.name).join(', ')}.`,
           details: {},
         };
       }
@@ -238,22 +240,22 @@ export class SimEnvironment {
             return {
               actionType: ActionType.OPEN,
               success: true,
-              description: `${container} is already open. Contains: ${obj.contains.join(', ')}`,
-              details: {},
+              description: `Open Success: ${container} is already in open state. Contents inside: [${obj.contains.join(', ')}].`,
+              details: { state: 'already_open', contents: obj.contains },
             };
           }
           obj.isOpen = true;
           return {
             actionType: ActionType.OPEN,
             success: true,
-            description: `${robotName} opened ${container}. Found: ${obj.contains.join(', ')}`,
-            details: { container, contents: obj.contains },
+            description: `Open Success: ${robotName} successfully opened ${container}. Items discovered inside: [${obj.contains.join(', ')}]. This information has been added to team knowledge.`,
+            details: { container, contents: obj.contains, state: 'opened' },
           };
         }
         return {
           actionType: ActionType.OPEN,
           success: false,
-          description: `Failed to open ${container}: not a container.`,
+          description: `Open Failed: ${container} is either not a container, already in open state, or positioned beyond the robot's operational range.`,
           details: {},
         };
       }
@@ -261,14 +263,16 @@ export class SimEnvironment {
       case ActionType.PICK: {
         const objName = action.params.object as string;
         const obj = this.scene.objects[objName];
+        
         if (!obj) {
           return {
             actionType: ActionType.PICK,
             success: false,
-            description: `Pick failed: ${objName} not found.`,
-            details: {},
+            description: `Pick failed: target ${objName} does not exist in the scene graph. Valid targets are: ${Object.values(this.scene.objects).filter(o=>o.category==='item').map(o=>o.name).join(', ')}`,
+            details: { error_code: 'INVALID_TARGET' },
           };
         }
+        
         const dx = pos[0] - obj.posX;
         const dy = pos[1] - obj.posY;
         const dist = Math.sqrt(dx * dx + dy * dy);
@@ -277,55 +281,77 @@ export class SimEnvironment {
           return {
             actionType: ActionType.PICK,
             success: false,
-            description: `Pick failed: already holding ${gripper}.`,
-            details: {},
+            description: `Pick failed: gripper is already occupied with ${gripper}. The ${gripper} must be placed first before picking ${objName}.`,
+            details: { error_code: 'GRIPPER_OCCUPIED', current_object: gripper },
           };
         }
+        
         if (dist > 2.0) {
           return {
             actionType: ActionType.PICK,
             success: false,
-            description: `Pick failed: ${objName} too far (dist=${dist.toFixed(2)}).`,
-            details: { distance: dist },
+            description: `Pick failed: ${objName} is out of reach (distance=${dist.toFixed(2)}m, max reach=2.0m). Try navigating closer first. Relative distance: dx=${dx.toFixed(2)}m, dy=${dy.toFixed(2)}m.`,
+            details: { error_code: 'OUT_OF_REACH', distance: dist, dx, dy },
           };
         }
+        
         this.robotGrippers[robotName] = objName;
         return {
           actionType: ActionType.PICK,
           success: true,
-          description: `${robotName} picked up ${objName}.`,
-          details: {},
+          description: `Pick Success: ${robotName} successfully picked up ${objName} at (${obj.posX.toFixed(1)}, ${obj.posY.toFixed(1)}). The object is now held in the gripper.`,
+          details: { object: objName, posX: obj.posX, posY: obj.posY },
         };
       }
 
       case ActionType.PLACE: {
         const objName = action.params.object as string;
         const target = action.params.target as string;
+        
+        if (!gripper) {
+          return {
+            actionType: ActionType.PLACE,
+            success: false,
+            description: `Place Failed: Gripper is empty. Cannot place ${objName} because nothing is being held. Current gripper status: empty.`,
+            details: { error_code: 'EMPTY_GRIPPER' },
+          };
+        }
         if (gripper !== objName) {
           return {
             actionType: ActionType.PLACE,
             success: false,
-            description: `Place failed: not holding ${objName}. Holding: ${gripper}`,
-            details: {},
+            description: `Place Failed: Object mismatch. Currently holding ${gripper}, but attempting to place ${objName}. Please place ${gripper} first.`,
+            details: { error_code: 'OBJECT_MISMATCH', holding: gripper, requested: objName },
           };
         }
+        
         this.robotGrippers[robotName] = null;
         if (this.scene.objects[objName]) {
           this.scene.objects[objName].posX = pos[0] + 0.3;
           this.scene.objects[objName].posY = pos[1];
         }
+        
         if (this.taskTargets.includes(objName) && !this.placedObjects.includes(objName)) {
           this.placedObjects.push(objName);
         }
-        if (this.placedObjects.length === this.taskTargets.length &&
-            [...this.placedObjects].sort().join() === [...this.taskTargets].sort().join()) {
+        
+        const allPlaced = this.placedObjects.length === this.taskTargets.length &&
+          [...this.placedObjects].sort().join() === [...this.taskTargets].sort().join();
+        if (allPlaced) {
           this.taskCompleted = true;
+          return {
+            actionType: ActionType.PLACE,
+            success: true,
+            description: `Place Success: ${robotName} placed ${objName} at ${target}. ✅ TASK COMPLETE! All ${this.taskTargets.length}/${this.taskTargets.length} objects have been placed successfully.`,
+            details: { placed: this.placedObjects, completed: true },
+          };
         }
+        
         return {
           actionType: ActionType.PLACE,
           success: true,
-          description: `${robotName} placed ${objName} at ${target}. Progress: ${this.placedObjects.length}/${this.taskTargets.length}`,
-          details: { placed: this.placedObjects, completed: this.taskCompleted },
+            description: `Place Success: ${robotName} placed ${objName} at ${target}. Task progress: ${this.placedObjects.length}/${this.taskTargets.length} objects placed. Remaining: ${this.taskTargets.filter(t => !this.placedObjects.includes(t)).join(', ')}.`,
+          details: { placed: this.placedObjects, completed: false, remaining: this.taskTargets.filter(t => !this.placedObjects.includes(t)) },
         };
       }
 

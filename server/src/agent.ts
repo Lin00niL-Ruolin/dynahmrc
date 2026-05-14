@@ -227,44 +227,58 @@ export class RobotAgent {
       timestamp: Date.now(),
     };
 
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim().toLowerCase();
-      for (const at of Object.values(ActionType)) {
-        if (!trimmed.startsWith(at)) continue;
-        // Find the first '(' and last ')' in the line
-        const openParen = trimmed.indexOf('(');
-        const closeParen = trimmed.lastIndexOf(')');
-        if (openParen < 0 || closeParen < openParen) continue;
-
-        const paramsStr = trimmed.substring(openParen + 1, closeParen);
-        const paramsList = paramsStr.split(',').map(p => p.trim().replace(/['"]/g, ''));
-        action.actionType = at;
-
-        switch (at) {
-          case ActionType.NAVIGATE:
-            action.params = { target: paramsList[0] };
-            break;
-          case ActionType.OPEN:
-            action.params = { container: paramsList[0] };
-            break;
-          case ActionType.PICK:
-            action.params = { object: paramsList[0] };
-            break;
-          case ActionType.PLACE:
-            action.params = { object: paramsList[0], target: paramsList[1] || 'tray' };
-            break;
-          case ActionType.MOVE:
-            action.params = {
-              dx: parseFloat(paramsList[0]) || 0.1,
-              dy: parseFloat(paramsList[1]) || 0.1,
-            };
-            break;
-          case ActionType.COMMUNICATE:
-            action.params = { content: paramsList[0] || '', recipient: paramsList[1] || '*' };
-            break;
-        }
-        break;
+    const allText = content;
+    
+    // Search ALL text for action patterns, not just by line
+    // Match patterns like: action_name(param1, param2)
+    for (const at of Object.values(ActionType)) {
+      // Create regex to find the action anywhere in text
+      // Look for: actionName( or actionName ( or Contents: actionName(
+      const regex = new RegExp(`(?:^|\\s|[:\"]+)${at}\\s*\\(`, 'i');
+      const match = allText.match(regex);
+      if (!match) continue;
+      
+      const startIdx = allText.indexOf(match[0]) + match[0].length - 1;
+      // Find matching closing paren
+      let depth = 1;
+      let endIdx = startIdx + 1;
+      while (depth > 0 && endIdx < allText.length) {
+        if (allText[endIdx] === '(') depth++;
+        else if (allText[endIdx] === ')') depth--;
+        if (depth > 0) endIdx++;
       }
+      
+      if (depth !== 0) continue;
+      
+      const paramsStr = allText.substring(startIdx + 1, endIdx).trim();
+      // Split by comma, handling quoted strings
+      const paramsList = paramsStr.split(',').map(p => p.trim().replace(/['"\`]/g, ''));
+      action.actionType = at;
+
+      switch (at) {
+        case ActionType.NAVIGATE:
+          action.params = { target: paramsList[0] };
+          break;
+        case ActionType.OPEN:
+          action.params = { container: paramsList[0] };
+          break;
+        case ActionType.PICK:
+          action.params = { object: paramsList[0] };
+          break;
+        case ActionType.PLACE:
+          action.params = { object: paramsList[0], target: paramsList[1] || 'tray' };
+          break;
+        case ActionType.MOVE:
+          action.params = {
+            dx: parseFloat(paramsList[0]) || 0.1,
+            dy: parseFloat(paramsList[1]) || 0.1,
+          };
+          break;
+        case ActionType.COMMUNICATE:
+          action.params = { content: paramsList[0] || '', recipient: paramsList[1] || '*' };
+          break;
+      }
+      break;
     }
     return action;
   }

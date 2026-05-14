@@ -171,11 +171,23 @@ Task Objective and Context:
 Principles:
 ${principles}
 
-${ATOMIC_ACTIONS}
+Available Actions:
+1. navigate(<target_object_name>) - Move to a target object's stand pose. Example: navigate(table_0)
+2. open(<container_name>) - Open a hinged container. Example: open(fridge)
+3. pick(<object_name>) - Pick up an object. Example: pick(apple)
+4. place(<object_name>, <target>) - Place held object. Example: place(apple, tray)
+5. move(<delta_x>, <delta_y>) - Adjust position. Example: move(0.5, -0.3)
+6. communicate(<message>, <recipient>) - Send message. Example: communicate(I found the apple at fridge, Alice)
+7. wait() - Wait one step.
 
-Output Response Format:
-1) Thoughts: think step by step to analyze the problem;
-2) Contents: choose and execute only one action from the action functions above.
+IMPORTANT: You MUST output your action in the EXACT format above.
+Do NOT describe what you will do - just output the action directly.
+Bad: "I will navigate to the fridge to find the apple"
+Good: navigate(fridge)
+
+Output Response Format (ONLY these two sections):
+Thoughts: [your reasoning here]
+Contents: [EXACTLY ONE action function call like: navigate(table_0)]
 CoT: Let's think step by step!
 `;
 }
@@ -211,6 +223,7 @@ ${receivedMessages}
 
 Task Progress: ${taskProgress}
 
+REMEMBER: Output ONLY one action in the format: action_name(param1, param2)
 CoT: Let's think step by step!
 `;
 }
