@@ -215,13 +215,30 @@ export class SimEnvironment {
         }
         
         if (obj && obj.standPoseX != null && obj.standPoseY != null) {
+          // Check if destination is in a restricted zone
+          const inRestricted = this.restrictedZones.some(z => {
+            const dx = obj!.standPoseX! - z.x;
+            const dy = obj!.standPoseY! - z.y;
+            return Math.sqrt(dx*dx + dy*dy) < z.radius;
+          });
+          
+          if (inRestricted) {
+            return {
+              actionType: ActionType.NAVIGATE,
+              success: false,
+              description: `Navigation Failed: ${obj.name} is inside a RESTRICTED ZONE. Cannot navigate there. Choose a different target outside the restricted area.`,
+              details: { error_code: 'RESTRICTED_ZONE', restricted: true },
+            };
+          }
+          
           const oldPos = [...this.robotPositions[robotName]];
           this.robotPositions[robotName] = [obj.standPoseX, obj.standPoseY];
           const distTraveled = Math.sqrt((oldPos[0]-obj.standPoseX)**2 + (oldPos[1]-obj.standPoseY)**2);
           return {
             actionType: ActionType.NAVIGATE,
             success: true,
-            description: `Navigation Success: ${robotName} completed global path planning and arrived at ${obj.name} stand_pose. Traveled ${distTraveled.toFixed(2)}m. Position: (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,            details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
+            description: `Navigation Success: ${robotName} completed global path planning and arrived at ${obj.name} stand_pose. Traveled ${distTraveled.toFixed(2)}m. Position: (${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)}).`,
+            details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
           };
         }
         return {
@@ -416,23 +433,53 @@ export class SimEnvironment {
       actions: [],
       taskProgress: `Placed ${this.placedObjects.length}/${this.taskTargets.length} objects`,
       taskCompleted: this.taskCompleted,
-    };
+      restrictedZones: this.restrictedZones,
+    } as any;
   }
 
-  enableDynamicVariation(varType: string): void {
+  enableDynamicVariation(varType: string): string {
+    let msg = '';
     if (varType === 'goal_change') {
       if (this.taskTargets.length > 0) {
         const old = this.taskTargets[this.taskTargets.length - 1];
-        this.taskTargets[this.taskTargets.length - 1] = 'phone';
-        console.log(`[DYNAMIC] Task goal changed: ${old} -> phone`);
+        const newTarget = 'toothpaste';
+        this.taskTargets[this.taskTargets.length - 1] = newTarget;
+        
+        // Also add the new target object to scene if not present
+        if (!this.scene.objects[newTarget]) {
+          this.scene.objects[newTarget] = {
+            name: newTarget, category: 'item',
+            posX: 7, posY: 3, width: 0.2, height: 0.2,
+            isContainer: false, isOpen: false, contains: [],
+            standPoseX: null, standPoseY: null,
+          };
+        }
+        
+        msg = `🚨 DYNAMIC: Task goal CHANGED! Old goal "${old}" replaced with new goal "${newTarget}". All robots must adapt their plan to find and place the ${newTarget}! Current progress: ${this.placedObjects.length}/${this.taskTargets.length} objects.`;
+        console.log(`[DYNAMIC] Goal changed: ${old} -> ${newTarget}`);
+      } else {
+        msg = 'Goal change requested but no targets exist.';
       }
     } else if (varType === 'restricted_zone') {
-      this.restrictedZones.push({ x: 3, y: 3, radius: 1.5 });
-      console.log('[DYNAMIC] Restricted zone activated at (3, 3)');
+      // Mark area near cabinets as restricted
+      const zoneObj = this.scene.objects['cabinet'] || this.scene.objects['bookshelf'];
+      if (zoneObj) {
+        const zx = zoneObj.posX;
+        const zy = zoneObj.posY;
+        this.restrictedZones.push({ x: zx, y: zy, radius: 1.5 });
+        msg = `🚨 DYNAMIC: RESTRICTED ZONE activated at (${zx}, ${zy}) radius 1.5m! Robots cannot navigate into this area. Use caution and find alternative routes.`;
+        console.log(`[DYNAMIC] Restricted zone at (${zx}, ${zy})`);
+      } else {
+        this.restrictedZones.push({ x: 3, y: 3, radius: 1.5 });
+        msg = '🚨 DYNAMIC: RESTRICTED ZONE activated at (3, 3)! Avoid this area.';
+      }
     } else if (varType === 'team_change') {
       console.log('[DYNAMIC] Team change requested');
+      msg = '🔄 DYNAMIC: Team composition change detected.';
     } else if (varType === 'action_constraint') {
       console.log('[DYNAMIC] Action constraint applied');
+      msg = '🔧 DYNAMIC: Action constraint applied - some actions temporarily unavailable.';
     }
+    return msg;
   }
 }

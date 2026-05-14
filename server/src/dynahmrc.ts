@@ -23,7 +23,7 @@ export class DynaHMRCEngine {
   paused = false;
   private onUpdate: UpdateCallback | null = null;
   dynamicVariations: string[] = [];
-  dynamicStep = 10;
+  dynamicStep = 3;
 
   agents: Record<string, RobotAgent> = {};
   sim: SimEnvironment;
@@ -198,16 +198,16 @@ export class DynaHMRCEngine {
 
       this.stepCount++;
 
-      // Dynamic variations
+      // Dynamic variations - trigger at configured step
       for (const varType of this.dynamicVariations) {
         if (this.stepCount === this.dynamicStep) {
-          this.sim.enableDynamicVariation(varType);
+          const msg = this.sim.enableDynamicVariation(varType);
           await this.emitDialogue({
             stage: DynaHMRCStage.EXECUTION_REFLECTION,
             robotName: '[SYSTEM]',
             robotType: RobotType.ALICE,
             thoughts: '',
-            content: `[Dynamic Variation] Applying: ${varType}`,
+            content: msg,
             timestamp: Date.now(),
           });
         }

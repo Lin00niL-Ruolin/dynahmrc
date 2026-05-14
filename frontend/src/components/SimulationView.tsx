@@ -77,6 +77,30 @@ export function SimulationView({ state, style }: Props) {
     ctx.arc(zx, zy, 60, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
+    
+    // Draw restricted zones (if any)
+    const restrictedZones = (state as any).restrictedZones || [];
+    for (const zone of restrictedZones) {
+      const [zx2, zy2] = toCanvas(zone.x, zone.y);
+      const r = zone.radius * 40;
+      // Red semi-transparent zone
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.12)';
+      ctx.beginPath();
+      ctx.arc(zx2, zy2, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.arc(zx2, zy2, r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Warning label
+      ctx.fillStyle = '#ef4444';
+      ctx.font = 'bold 10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('⛔ RESTRICTED', zx2, zy2 - r - 6);
+    }
 
     for (const obj of Object.values(scene.objects)) {
       if (obj.category === 'furniture') {

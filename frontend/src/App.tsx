@@ -114,20 +114,62 @@ export default function App() {
 
 function StatusPanel({ state }: { state: any }) {
   if (!state) return null;
+  
+  const robotEmojis: Record<string, string> = {
+    Alice: '🦾', Bob: '🦿', David: '🚗', Lucy: '🚁',
+  };
+  
   return (
     <div style={{
       background: '#1e293b', borderRadius: 8, padding: 12,
       border: '1px solid #334155', fontSize: 13,
     }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>Status</h3>
+      <h3 style={{ margin: '0 0 8px', fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>📊 Status</h3>
+      
+      {/* Progress bar */}
+      {state.taskProgress && (
+        <div style={{ marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{state.taskProgress}</div>
+          <div style={{
+            height: 4, background: '#0f172a', borderRadius: 2, overflow: 'hidden',
+          }}>
+            <div style={{
+              height: '100%', background: '#22c55e', borderRadius: 2,
+              transition: 'width 0.3s',
+              width: state.taskCompleted ? '100%' : '0%',
+            }} />
+          </div>
+        </div>
+      )}
+      
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Row label="Step" value={`${state.step}`} />
-        <Row label="Stage" value={state.stage?.replace(/_/g, ' ') || '-'} />
-        <Row label="Leader" value={state.leader || '-'} />
-        <Row label="Progress" value={state.taskProgress || '-'} />
-        <Row label="Completed" value={state.taskCompleted ? '✅' : '⏳'} />
+        <Row label="Stage" value={state.stage?.replace(/_/g, ' → ').replace(/(^| )/g, m => m.toUpperCase()) || '-'} />
+        <Row label="Leader" value={state.leader ? `👑 ${state.leader}` : '-'} />
         <Row label="Actions" value={`${state.actions?.length || 0}`} />
+        <Row label="Completed" value={state.taskCompleted ? '✅ Yes' : '⏳ Running'} />
       </div>
+      
+      {/* Robot status list */}
+      {state.robots && Object.keys(state.robots).length > 0 && (
+        <div style={{ marginTop: 8, borderTop: '1px solid #334155', paddingTop: 8 }}>
+          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>🤖 Robots</div>
+          {Object.values(state.robots as any[]).map((r: any) => (
+            <div key={r.name} style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '2px 0', fontSize: 11,
+            }}>
+              <span>{robotEmojis[r.robotType] || '🤖'}</span>
+              <span style={{ color: '#e2e8f0', fontWeight: r.name === state.leader ? 600 : 400 }}>
+                {r.name}{r.name === state.leader ? ' 👑' : ''}
+              </span>
+              <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: 10 }}>
+                {r.graspingObject ? `📦${r.graspingObject}` : '🟢'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
