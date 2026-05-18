@@ -89,7 +89,7 @@
     },
     {
         "obj_name": "sink",
-        "model_path": "Asset/Scene/Object/Kitchen_world_models/Sink/102379/mobility.urdf",
+        "model_path": "Asset/Scene/Object/bath_sink/lavandino.urdf",
         "object_position": [9, 6, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
