@@ -130,7 +130,7 @@ export class SimEnvironment {
       // Furniture definitions
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
         ['fridge', 1, 1, 0.8, 0.8, true, 'close'],
-        ['oven', 3, 0.5, 1.2, 0.6, false],
+        ['counter', 3, 0.5, 1.4, 0.6, false],
         ['cabinet_small', 5, 1, 0.6, 0.6, true, 'close'],
         ['table1', 2.5, 4, 1.0, 0.6, false],
         ['chair1', 2.5, 3.2, 0.3, 0.3, false],
@@ -138,7 +138,7 @@ export class SimEnvironment {
         ['chair2', 2.5, 6.8, 0.3, 0.3, false],
         ['bookshelf', 8, 1, 0.8, 0.6, true, 'open'],
         ['table_center', 7, 2, 1.0, 0.6, false],
-        ['chair_left', 6.5, 2.3, 0.3, 0.3, false],
+        ['chair_left', 6.2, 2.3, 0.3, 0.3, false],
         ['chair_right', 7.5, 2.3, 0.3, 0.3, false],
         ['sink', 9, 6, 0.6, 0.6, false],
         ['tray', 3, 0.8, 0.4, 0.4, false],
