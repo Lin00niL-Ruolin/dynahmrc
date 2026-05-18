@@ -8,6 +8,7 @@ interface Props {
 }
 
 export function ConfigPanel({ config, onRun, running }: Props) {
+  void config; // used by parent for config endpoint
   const [taskType, setTaskType] = useState('pack_objects');
   const [layout, setLayout] = useState('kitchen');
   const [selectedRobots, setSelectedRobots] = useState(['Alice', 'Bob', 'David', 'Lucy']);
@@ -56,6 +57,7 @@ export function ConfigPanel({ config, onRun, running }: Props) {
           style={selectStyle}>
           <option value="kitchen">Kitchen</option>
           <option value="living_room">Living Room</option>
+          <option value="scene1">场景一 (10m×8m)</option>
         </select>
       </div>
 

@@ -156,7 +156,7 @@ function StatusPanel({ state }: { state: any }) {
       
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <Row label="Step" value={`${state.step}`} />
-        <Row label="Stage" value={state.stage?.replace(/_/g, ' → ').replace(/(^| )/g, m => m.toUpperCase()) || '-'} />
+        <Row label="Stage" value={state.stage?.replace(/_/g, ' → ').replace(/(^| )/g, (m: string) => m.toUpperCase()) || '-'} />
         <Row label="Leader" value={state.leader ? `👑 ${state.leader}` : '-'} />
         <Row label="Actions" value={`${state.actions?.length || 0}`} />
         <Row label="Completed" value={state.taskCompleted ? '✅ Yes' : '⏳ Running'} />

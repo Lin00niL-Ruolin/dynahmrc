@@ -1,0 +1,106 @@
+[
+    {
+        "obj_name": "floor",
+        "model_path": "Asset/Scene/Object/Plane/woodPlane/plane.urdf",
+        "object_position": [5, 4, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": [10, 8, 1],
+        "fixed_base": true
+    },
+    {
+        "obj_name": "fridge",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Fridge/12036/mobility.urdf",
+        "object_position": [1, 1, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "stove",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Oven/101943/mobility.urdf",
+        "object_position": [3, 0.5, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "cabinet_small",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/CabinetLower/35059/mobility.urdf",
+        "object_position": [5, 1, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "table1",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/28164/mobility.urdf",
+        "object_position": [2.5, 4, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "chair1",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
+        "object_position": [2.5, 3.2, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "table2",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/23782/mobility.urdf",
+        "object_position": [2.5, 6, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "chair2",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
+        "object_position": [2.5, 6.8, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "bookshelf",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/CabinetTall/46456/mobility.urdf",
+        "object_position": [8, 1, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "table_center",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/32932/mobility.urdf",
+        "object_position": [7, 2, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "chair_left",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
+        "object_position": [6.5, 2.3, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "chair_right",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
+        "object_position": [7.5, 2.3, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "sink",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Sink/102379/mobility.urdf",
+        "object_position": [9, 6, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    }
+]

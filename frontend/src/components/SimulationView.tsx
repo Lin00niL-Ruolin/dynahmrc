@@ -36,9 +36,11 @@ export function SimulationView({ state, style }: Props) {
   const animRef = useRef(0);
   const lastRenderRef = useRef(0);
 
-  const toCanvas = useCallback((x: number, y: number): [number, number] => {
-    return [40 + (x / 10) * (CANVAS_W - 80), 40 + (y / 10) * (CANVAS_H - 80)];
-  }, []);
+  const toCanvas = (x: number, y: number): [number, number] => {
+    const rw = state?.roomWidth ?? 10;
+    const rh = state?.roomHeight ?? 10;
+    return [40 + (x / rw) * (CANVAS_W - 80), 40 + (y / rh) * (CANVAS_H - 80)];
+  };
 
   const scale = useCallback((val: number) => val * 40, []);
 
@@ -120,7 +122,7 @@ export function SimulationView({ state, style }: Props) {
     lastRenderRef.current = Date.now();
 
     return () => { running = false; cancelAnimationFrame(animRef.current); };
-  }, [state, toCanvas, scale]);
+  }, [state]);
 
   // ===== DRAWING FUNCTIONS =====
 
@@ -166,9 +168,25 @@ export function SimulationView({ state, style }: Props) {
       ctx.fillText('⛔ RESTRICTED', rzx, rzy - r - 6);
     }
 
+    // Walls (name starts with 'wall_')
+    for (const obj of Object.values(s.scene.objects)) {
+      if (obj.category !== 'furniture') continue;
+      if (!obj.name.startsWith('wall_')) continue;
+      const [cx, cy] = toC(obj.posX, obj.posY);
+      const w = sc(obj.width);
+      const h = sc(obj.height);
+
+      ctx.fillStyle = '#475569';
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+      ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+    }
+
     // Furniture
     for (const obj of Object.values(s.scene.objects)) {
       if (obj.category !== 'furniture') continue;
+      if (obj.name.startsWith('wall_')) continue;
       const [cx, cy] = toC(obj.posX, obj.posY);
       const w = sc(obj.width);
       const h = sc(obj.height);
@@ -308,7 +326,7 @@ export function SimulationView({ state, style }: Props) {
     }
   }
 
-  function drawOverlays(ctx: CanvasRenderingContext2D, s: SimulationState, toC: typeof toCanvas) {
+  function drawOverlays(ctx: CanvasRenderingContext2D, s: SimulationState, _toC: typeof toCanvas) {
     // Top-left status panel
     const px = 10, py = 10, pw = 200, ph = 88;
     ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';

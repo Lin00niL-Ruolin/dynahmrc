@@ -109,6 +109,9 @@ export interface SimulationState {
   actions: RobotAction[];
   taskProgress: string;
   taskCompleted: boolean;
+  roomWidth?: number;
+  roomHeight?: number;
+  restrictedZones?: Array<{ x: number; y: number; radius: number }>;
 }
 
 export interface WSMessage {

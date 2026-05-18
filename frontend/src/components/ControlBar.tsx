@@ -62,7 +62,7 @@ function ControlButton({ label, onClick, disabled, color }: {
       onClick={onClick}
       disabled={disabled}
       style={{
-        flex: 1, padding: '8px 4px', borderRadius: 6, border: 'none',
+        flex: 1, padding: '8px 4px', borderRadius: 6,
         background: disabled ? '#1e293b' : `${color}20`,
         color: disabled ? '#475569' : color,
         cursor: disabled ? 'not-allowed' : 'pointer',

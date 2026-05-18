@@ -19,10 +19,17 @@ export class SimEnvironment {
   taskCompleted = false;
 
   private layoutName: string;
+  roomWidth = 10;
+  roomHeight = 8;
 
   constructor(layoutName = 'kitchen') {
     this.layoutName = layoutName;
     this.scene = this.buildScene(layoutName);
+    // Set room dimensions based on layout
+    if (layoutName === 'scene1') {
+      this.roomWidth = 10;
+      this.roomHeight = 8;
+    }
   }
 
   reset(
@@ -39,7 +46,22 @@ export class SimEnvironment {
     this.taskCompleted = false;
 
     if (robots) {
-      const startPositions: Array<[number, number]> = [[4, 4], [4, 6], [6, 4], [6, 6]];
+      let startPositions: Array<[number, number]>;
+      if (this.layoutName === 'scene1') {
+        // Scene1 robot positions: Alice(4,7), Bob(2.5,6), David(7,7), Lucy(8,2)
+        const scene1Positions: Record<string, [number, number]> = {
+          'Alice': [4, 7],
+          'Bob': [2.5, 6],
+          'David': [7, 7],
+          'Lucy': [8, 2],
+        };
+        startPositions = [];
+        for (const [name] of robots) {
+          startPositions.push(scene1Positions[name] || [5, 5]);
+        }
+      } else {
+        startPositions = [[4, 4], [4, 6], [6, 4], [6, 6]];
+      }
       for (let i = 0; i < robots.length; i++) {
         const [name, rtype] = robots[i];
         const pos = startPositions[i % startPositions.length];
@@ -103,6 +125,54 @@ export class SimEnvironment {
           standPoseY: f[2],
         };
       }
+    } else if (layoutName === 'scene1') {
+      // Scene 1: 10m x 8m room with internal walls
+      // Furniture definitions
+      const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
+        ['fridge', 1, 1, 0.8, 0.8, true, 'close'],
+        ['stove', 3, 0.5, 1.2, 0.6, false],
+        ['cabinet_small', 5, 1, 0.6, 0.6, true, 'close'],
+        ['table1', 2.5, 4, 1.0, 0.6, false],
+        ['chair1', 2.5, 3.2, 0.3, 0.3, false],
+        ['table2', 2.5, 6, 1.0, 0.6, false],
+        ['chair2', 2.5, 6.8, 0.3, 0.3, false],
+        ['bookshelf', 8, 1, 0.8, 0.6, true, 'open'],
+        ['table_center', 7, 2, 1.0, 0.6, false],
+        ['chair_left', 6.5, 2.3, 0.3, 0.3, false],
+        ['chair_right', 7.5, 2.3, 0.3, 0.3, false],
+        ['sink', 9, 6, 0.6, 0.6, false],
+        ['tray', 3, 0.8, 0.4, 0.4, false],
+      ];
+      for (const f of furniture) {
+        // Walls (name starts with 'wall_') have no standPose (can't navigate to walls)
+        const isWall = f[0].startsWith('wall_');
+        objects[f[0]] = {
+          name: f[0], category: 'furniture',
+          posX: f[1], posY: f[2], width: f[3], height: f[4],
+          isContainer: f[5],
+          isOpen: f[6] === 'open',
+          contains: f[7] || [],
+          standPoseX: isWall ? null : f[1] + 0.5,
+          standPoseY: isWall ? null : f[2],
+        };
+      }
+
+      // Internal walls (rendered as furniture but no standPose)
+      const walls: Array<[string, number, number, number, number]> = [
+        // Horizontal wall: from (7,4) to (10,4), center at (8.5, 4), 3m wide, 0.15m thick
+        ['wall_inner_h', 8.5, 4, 3.0, 0.15],
+        // Vertical wall: from (6,0) to (6,5), center at (6, 2.5), 0.15m wide, 5m tall
+        ['wall_inner_v', 6, 2.5, 0.15, 5.0],
+      ];
+      for (const w of walls) {
+        objects[w[0]] = {
+          name: w[0], category: 'furniture',
+          posX: w[1], posY: w[2], width: w[3], height: w[4],
+          isContainer: false, isOpen: false, contains: [],
+          standPoseX: null,
+          standPoseY: null,
+        };
+      }
     } else {
       const furniture: Array<[string, number, number, number, number, boolean, string?]> = [
         ['table_0', 4, 4, 1.5, 1.0, false],
@@ -140,38 +210,77 @@ export class SimEnvironment {
       }
     };
 
-    if (taskType === 'pack_objects') {
-      addItem('bowl', 3.5, 5.5, 'table_0');
-      addItem('fork', 6.5, 5.5, 'table_1');
-      addItem('soap', 5, 8, 'cabinet');
-      addItem('apple', 1, 3, 'fridge');
-    } else if (taskType === 'sort_solids') {
-      addItem('red_cube', 3.5, 5.5, 'table_0');
-      addItem('blue_sphere', 6.5, 5.5, 'table_1');
-      addItem('green_cylinder', 5, 8, 'cabinet');
-    } else if (taskType === 'make_sandwich') {
-      addItem('bread_bottom', 3.5, 5.5, 'table_0');
-      addItem('lettuce', 1, 3, 'fridge');
-      addItem('tomato', 5, 8, 'cabinet');
-      addItem('cheese', 6.5, 5.5, 'table_1');
-      addItem('ham', 3.5, 4.5, 'table_0');
-      addItem('bread_top', 6.5, 4.5, 'table_1');
-    }
+    if (this.layoutName === 'scene1') {
+      // Scene 1 item placements
+      if (taskType === 'pack_objects') {
+        addItem('bowl', 2.5, 4, 'table1');
+        addItem('fork', 7, 2, 'table_center');
+        addItem('soap', 5, 1, 'cabinet_small');
+        addItem('apple', 1, 1, 'fridge');
+      } else if (taskType === 'sort_solids') {
+        addItem('red_cube', 2.5, 4, 'table1');
+        addItem('blue_sphere', 7, 2, 'table_center');
+        addItem('green_cylinder', 5, 1, 'cabinet_small');
+      } else if (taskType === 'make_sandwich') {
+        addItem('bread_bottom', 2.5, 4, 'table1');
+        addItem('lettuce', 1, 1, 'fridge');
+        addItem('tomato', 5, 1, 'cabinet_small');
+        addItem('cheese', 7, 2, 'table_center');
+        addItem('ham', 2.5, 3.8, 'table1');
+        addItem('bread_top', 7, 1.8, 'table_center');
+      }
 
-    // Distractor items
-    const distractors: Array<[string, number, number]> = [
-      ['phone', 2, 2],
-      ['book', 7, 3],
-      ['toy_duck', 8, 8],
-    ];
-    for (const [name, x, y] of distractors) {
-      if (!this.scene.objects[name]) {
-        this.scene.objects[name] = {
-          name, category: 'item',
-          posX: x, posY: y, width: 0.2, height: 0.2,
-          isContainer: false, isOpen: false, contains: [],
-          standPoseX: null, standPoseY: null,
-        };
+      // Scene 1 distractors
+      const distractors: Array<[string, number, number]> = [
+        ['phone', 9, 6.5],
+        ['book', 8, 1.5],
+        ['toy_duck', 4, 1],
+      ];
+      for (const [name, x, y] of distractors) {
+        if (!this.scene.objects[name]) {
+          this.scene.objects[name] = {
+            name, category: 'item',
+            posX: x, posY: y, width: 0.2, height: 0.2,
+            isContainer: false, isOpen: false, contains: [],
+            standPoseX: null, standPoseY: null,
+          };
+        }
+      }
+    } else {
+      // Original layouts
+      if (taskType === 'pack_objects') {
+        addItem('bowl', 3.5, 5.5, 'table_0');
+        addItem('fork', 6.5, 5.5, 'table_1');
+        addItem('soap', 5, 8, 'cabinet');
+        addItem('apple', 1, 3, 'fridge');
+      } else if (taskType === 'sort_solids') {
+        addItem('red_cube', 3.5, 5.5, 'table_0');
+        addItem('blue_sphere', 6.5, 5.5, 'table_1');
+        addItem('green_cylinder', 5, 8, 'cabinet');
+      } else if (taskType === 'make_sandwich') {
+        addItem('bread_bottom', 3.5, 5.5, 'table_0');
+        addItem('lettuce', 1, 3, 'fridge');
+        addItem('tomato', 5, 8, 'cabinet');
+        addItem('cheese', 6.5, 5.5, 'table_1');
+        addItem('ham', 3.5, 4.5, 'table_0');
+        addItem('bread_top', 6.5, 4.5, 'table_1');
+      }
+
+      // Distractor items (original)
+      const distractors: Array<[string, number, number]> = [
+        ['phone', 2, 2],
+        ['book', 7, 3],
+        ['toy_duck', 8, 8],
+      ];
+      for (const [name, x, y] of distractors) {
+        if (!this.scene.objects[name]) {
+          this.scene.objects[name] = {
+            name, category: 'item',
+            posX: x, posY: y, width: 0.2, height: 0.2,
+            isContainer: false, isOpen: false, contains: [],
+            standPoseX: null, standPoseY: null,
+          };
+        }
       }
     }
   }
@@ -433,6 +542,8 @@ export class SimEnvironment {
       actions: [],
       taskProgress: `Placed ${this.placedObjects.length}/${this.taskTargets.length} objects`,
       taskCompleted: this.taskCompleted,
+      roomWidth: this.roomWidth,
+      roomHeight: this.roomHeight,
       restrictedZones: this.restrictedZones,
     } as any;
   }

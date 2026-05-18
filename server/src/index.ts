@@ -31,6 +31,7 @@ app.get('/api/config', (_req, res) => {
     layouts: [
       { id: 'kitchen', name: 'Kitchen', desc: 'Kitchen with fridge, cabinet, tables' },
       { id: 'living_room', name: 'Living Room', desc: 'Living room with sofa, bookshelf, TV stand' },
+      { id: 'scene1', name: '场景一', desc: '10m×8m 房间，含冰箱、灶台、橱柜、书架、桌子、洗手池' },
     ],
     robotTypes: [
       { id: 'Alice', name: 'Alice (Mobile Manipulation)', desc: 'Wheeled chassis + arm, can navigate, open, pick, place' },
