@@ -8,9 +8,17 @@
         "fixed_base": true
     },
     {
-        "obj_name": "counter",
-        "model_path": "Asset/Scene/Object/Kitchen_world_models/KitchenCounter/32052/mobility.urdf",
+        "obj_name": "oven",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Oven/101943/mobility.urdf",
         "object_position": [3, 0.5, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "cabinet_right",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/CabinetUpper/46889/mobility.urdf",
+        "object_position": [4, 0.5, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
         "fixed_base": true
