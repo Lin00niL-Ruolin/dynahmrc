@@ -94,5 +94,13 @@
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
         "fixed_base": true
+    },
+    {
+        "obj_name": "toilet",
+        "model_path": "Asset/Scene/Object/bath_toilet/bath_toilet.urdf",
+        "object_position": [9, 4.5, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
     }
 ]

@@ -141,6 +141,7 @@ export class SimEnvironment {
         ['chair_left', 6.2, 2.3, 0.3, 0.3, false],
         ['chair_right', 7.5, 2.3, 0.3, 0.3, false],
         ['sink', 9, 6, 0.6, 0.6, false],
+        ['toilet', 9, 4.5, 0.6, 0.6, false],
         ['tray', 3, 0.8, 0.4, 0.4, false],
       ];
       for (const f of furniture) {

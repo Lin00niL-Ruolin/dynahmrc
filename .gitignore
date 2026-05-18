@@ -5,3 +5,6 @@ dist/
 .vite/
 server/.env
 server/dist/
+bestman-service/scenes/models/*/*.obj
+bestman-service/scenes/models/*/*.mtl
+bestman-service/scenes/models/*/*.urdf
