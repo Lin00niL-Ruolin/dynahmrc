@@ -11,7 +11,7 @@
   垂直墙: (6,0) → (6,5)  在 x=6 处，y 从 0 到 5
 
 家具：
-  冰箱 (1,1)、灶台 (3,0.5)、小橱柜 (5,1)
+  冰箱 (1,1)、烤箱 (3,0.5)、小橱柜 (5,1)
   table1(2.5,4)+chair1、table2(2.5,6)+chair2(+固定臂)
   移动臂 (4,7)、书架 (8,1)+无人机、桌子(7,2)+两椅子、洗手池(9,6)
 """
@@ -32,6 +32,7 @@ WALL_T = 0.15   # 墙厚度
 # 颜色定义
 COLOR_WALL = [0.92, 0.92, 0.95, 1.0]       # 米白色墙
 COLOR_INNER_WALL = [0.7, 0.7, 0.72, 1.0]   # 灰色内墙
+COLOR_FLOOR = [0.85, 0.75, 0.65, 1.0]      # 木色地板
 
 
 def resolve_asset_path(relative_path):
@@ -60,6 +61,25 @@ def create_wall(client, wall_name, x, y, z, size, color=COLOR_WALL, rpy=(0, 0, 0
     )
     setattr(client, wall_name, body_id)
     return body_id
+
+
+def create_floor(client):
+    """创建 10m × 8m 的木色地板（比默认 plane 高一点避免闪烁）"""
+    floor_z = 0.01  # 略高于默认 plane
+    
+    col_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=[ROOM_X/2, ROOM_Y/2, 0.01])
+    vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=[ROOM_X/2, ROOM_Y/2, 0.01],
+                                  rgbaColor=COLOR_FLOOR)
+    floor_id = p.createMultiBody(
+        baseMass=0,
+        baseCollisionShapeIndex=col_id,
+        baseVisualShapeIndex=vis_id,
+        basePosition=[ROOM_X/2, ROOM_Y/2, floor_z],
+        baseOrientation=[0, 0, 0, 1]
+    )
+    setattr(client, "floor_10x8", floor_id)
+    print(f"[场景] ✅ 地板已创建: 10m × 8m, 位置({ROOM_X/2}, {ROOM_Y/2}, {floor_z})")
+    return floor_id
 
 
 def setup_scene1(client, scene_json_path=None):
@@ -99,7 +119,7 @@ def setup_scene1(client, scene_json_path=None):
     print("\n--- 搭建内部隔墙 ---")
     
     # 水平内墙: (7,4) → (10,4)，3m 长
-    inner_wall_h_len = 3.0  # x=7 to x=10
+    inner_wall_h_len = 3.0
     create_wall(client, "wall_inner_h", 
                 7 + inner_wall_h_len/2, 4, ROOM_H/2,
                 [inner_wall_h_len, WALL_T, ROOM_H],
@@ -107,14 +127,18 @@ def setup_scene1(client, scene_json_path=None):
     print(f"[场景] ✅ 水平内墙: (7,4) → (10,4) 长度={inner_wall_h_len}m")
     
     # 垂直内墙: (6,0) → (6,5)，5m 长
-    inner_wall_v_len = 5.0  # y=0 to y=5
+    inner_wall_v_len = 5.0
     create_wall(client, "wall_inner_v",
                 6, inner_wall_v_len/2, ROOM_H/2,
                 [WALL_T, inner_wall_v_len, ROOM_H],
                 color=COLOR_INNER_WALL)
     print(f"[场景] ✅ 垂直内墙: (6,0) → (6,5) 长度={inner_wall_v_len}m")
 
-    # 3. 加载场景 JSON (URDF 家具)
+    # 3. 创建地板 (覆盖默认 plane，10m×8m)
+    print("\n--- 创建地板 ---")
+    create_floor(client)
+
+    # 4. 加载场景 JSON (URDF 家具)
     if scene_json_path is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         scene_json_path = os.path.join(script_dir, "scene1.json")
@@ -155,7 +179,7 @@ def setup_scene1(client, scene_json_path=None):
                         scale=scale,
                         fixed_base=fixed
                     )
-                    print(f"  ✓ {obj_name}")
+                    print(f"  ✓ {obj_name} @ ({pos[0]}, {pos[1]}, {pos[2]})")
                     loaded += 1
                 except Exception as e:
                     print(f"  ✗ {obj.get('obj_name', '?')}: {e}")
@@ -166,7 +190,7 @@ def setup_scene1(client, scene_json_path=None):
     else:
         print(f"[场景] ⚠️ 场景文件未找到: {scene_json_path}")
 
-    # 4. 运行几步让物理引擎稳定
+    # 5. 运行几步让物理引擎稳定
     for _ in range(50):
         p.stepSimulation()
     
