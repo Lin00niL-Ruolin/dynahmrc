@@ -41,7 +41,7 @@
     },
     {
         "obj_name": "table2",
-        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/23782/mobility.urdf",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/28164/mobility.urdf",
         "object_position": [2.5, 6, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
@@ -51,7 +51,7 @@
         "obj_name": "chair2",
         "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
         "object_position": [2.5, 6.8, 0],
-        "object_orientation": [0, 0, 0],
+        "object_orientation": [0, 0, "math.pi"],
         "scale": 1.0,
         "fixed_base": true
     },
@@ -65,7 +65,7 @@
     },
     {
         "obj_name": "table_center",
-        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/32932/mobility.urdf",
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/DiningTable/28164/mobility.urdf",
         "object_position": [7, 2, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
@@ -75,7 +75,7 @@
         "obj_name": "chair_left",
         "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
         "object_position": [6.2, 2.3, 0],
-        "object_orientation": [0, 0, 0],
+        "object_orientation": [0, 0, "-math.pi/2"],
         "scale": 1.0,
         "fixed_base": true
     },
@@ -83,7 +83,7 @@
         "obj_name": "chair_right",
         "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
         "object_position": [7.5, 2.3, 0],
-        "object_orientation": [0, 0, 0],
+        "object_orientation": [0, 0, "math.pi/2"],
         "scale": 1.0,
         "fixed_base": true
     },
