@@ -63,38 +63,6 @@ def create_wall(client, wall_name, x, y, z, size, color=COLOR_WALL, rpy=(0, 0, 0
     return body_id
 
 
-def remove_default_plane():
-    """移除 Client.__init__ 加载的默认灰色 plane.urdf"""
-    for i in range(p.getNumBodies()):
-        body_id = p.getBodyUniqueId(i)
-        info = p.getBodyInfo(body_id)
-        name = info[1].decode('utf-8') if isinstance(info[1], bytes) else info[1]
-        if 'plane' in name.lower():
-            p.removeBody(body_id)
-            print(f"[场景] ✅ 已移除默认灰色平面: {name} (ID={body_id})")
-            return body_id
-    print("[场景] ⚠️ 未找到默认平面")
-    return None
-
-
-def create_floor(client):
-    """创建 10m × 8m 的木色地板（替换默认灰色 plane）"""
-    floor_z = 0.0
-
-    col_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=[ROOM_X / 2, ROOM_Y / 2, 0.05])
-    vis_id = p.createVisualShape(p.GEOM_BOX, halfExtents=[ROOM_X / 2, ROOM_Y / 2, 0.05],
-                                  rgbaColor=COLOR_FLOOR)
-    floor_id = p.createMultiBody(
-        baseMass=0,
-        baseCollisionShapeIndex=col_id,
-        baseVisualShapeIndex=vis_id,
-        basePosition=[ROOM_X / 2, ROOM_Y / 2, floor_z],
-        baseOrientation=[0, 0, 0, 1]
-    )
-    setattr(client, "floor_10x8", floor_id)
-    print(f"[场景] ✅ 木色地板已创建: 10m × 8m, z={floor_z}")
-    return floor_id
-
 
 def setup_scene1(client, scene_json_path=None):
     """
@@ -107,10 +75,6 @@ def setup_scene1(client, scene_json_path=None):
     print("\n" + "=" * 60)
     print("  场景1 搭建开始 (10m × 8m)")
     print("=" * 60)
-
-    # 0. 移除默认灰色平面
-    print("\n--- 移除默认平面 ---")
-    remove_default_plane()
 
     # 1. 创建房间墙壁
     print("\n--- 搭建房间结构 ---")
@@ -152,11 +116,7 @@ def setup_scene1(client, scene_json_path=None):
                 color=COLOR_INNER_WALL)
     print(f"[场景] ✅ 垂直内墙: (6,0) → (6,5) 长度={inner_wall_v_len}m")
 
-    # 3. 创建地板
-    print("\n--- 创建地板 ---")
-    create_floor(client)
-
-    # 4. 加载场景 JSON (URDF 家具)
+    # 3. 加载场景 JSON (URDF 家具) （地板由 scene1.json 的 woodPlane 提供）
     if scene_json_path is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         scene_json_path = os.path.join(script_dir, "scene1.json")

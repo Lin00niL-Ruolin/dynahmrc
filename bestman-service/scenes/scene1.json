@@ -1,5 +1,13 @@
 [
     {
+        "obj_name": "floor",
+        "model_path": "Asset/Scene/Object/Plane/woodPlane/plane.urdf",
+        "object_position": [0, 0, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": true
+    },
+    {
         "obj_name": "fridge",
         "model_path": "Asset/Scene/Object/Kitchen_world_models/Fridge/12036/mobility.urdf",
         "object_position": [1, 1, 0],
