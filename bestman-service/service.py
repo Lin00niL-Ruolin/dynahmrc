@@ -12,6 +12,7 @@ import yaml
 from typing import Dict, List, Optional, Any
 from enum import Enum
 from dataclasses import dataclass
+from types import SimpleNamespace
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,19 +71,23 @@ app.add_middleware(
 
 # ============ 配置加载 ============
 
-def load_yaml_config(config_path: str) -> Any:
-    """加载 YAML 配置文件"""
+def load_yaml_config(config_path: str) -> SimpleNamespace:
+    """加载 YAML 配置文件并转换为对象（支持属性访问）"""
+    def dict_to_namespace(d):
+        if isinstance(d, dict):
+            return SimpleNamespace(**{k: dict_to_namespace(v) for k, v in d.items()})
+        return d
+
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
-            cfg = yaml.safe_load(f)
-        return cfg
+            cfg_dict = yaml.safe_load(f)
+        return dict_to_namespace(cfg_dict)
     else:
-        # 尝试在 BestMan 目录找
         bm_path = os.path.join(bestman_dir, config_path)
         if os.path.exists(bm_path):
             with open(bm_path, 'r') as f:
-                cfg = yaml.safe_load(f)
-            return cfg
+                cfg_dict = yaml.safe_load(f)
+            return dict_to_namespace(cfg_dict)
     raise FileNotFoundError(f"Config not found: {config_path}")
 
 
@@ -131,11 +136,11 @@ def initialize(req: InitRequest):
         config_path = os.path.join(bestman_dir, req.config_path)
         cfg = load_yaml_config(config_path)
         
-        # 覆盖配置
-        cfg.enable_GUI = req.gui
+        # 覆盖 GUI 设置
+        cfg.Client.enable_GUI = req.gui
         
-        # 创建 Client
-        client = Client(cfg)
+        # 创建 Client（传入 cfg.Client 子对象）
+        client = Client(cfg.Client)
         state.client = client
         state.is_initialized = True
         

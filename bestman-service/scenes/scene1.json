@@ -37,7 +37,7 @@
         "object_position": [2.5, 3.2, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
-        "fixed_base": false
+        "fixed_base": true
     },
     {
         "obj_name": "table2",
@@ -53,7 +53,7 @@
         "object_position": [2.5, 6.8, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
-        "fixed_base": false
+        "fixed_base": true
     },
     {
         "obj_name": "bookshelf",
@@ -77,7 +77,7 @@
         "object_position": [6.5, 2.3, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
-        "fixed_base": false
+        "fixed_base": true
     },
     {
         "obj_name": "chair_right",
@@ -85,7 +85,7 @@
         "object_position": [7.5, 2.3, 0],
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
-        "fixed_base": false
+        "fixed_base": true
     },
     {
         "obj_name": "sink",
