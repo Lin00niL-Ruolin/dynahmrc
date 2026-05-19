@@ -48,12 +48,12 @@ export class SimEnvironment {
     if (robots) {
       let startPositions: Array<[number, number]>;
       if (this.layoutName === 'scene1') {
-        // Scene1 robot positions: Alice(4,7), Bob(2.5,6), David(7,7), Lucy(8,2)
+        // Scene1 robot positions matching 3D BestMan scene: Alice(6,6), Bob(8.5,5.5), David(4,6), Lucy(3,2)
         const scene1Positions: Record<string, [number, number]> = {
-          'Alice': [4, 7],
-          'Bob': [2.5, 6],
-          'David': [7, 7],
-          'Lucy': [8, 2],
+          'Alice': [6, 6],
+          'Bob': [8.5, 5.5],
+          'David': [4, 6],
+          'Lucy': [3, 2],
         };
         startPositions = [];
         for (const [name] of robots) {
@@ -126,24 +126,34 @@ export class SimEnvironment {
         };
       }
     } else if (layoutName === 'scene1') {
-      // Scene 1: 10m x 8m room with internal walls
-      // Furniture definitions
+      // Scene 1: 10m x 8m room matching 3D BestMan scene1 layout
+      // Internal walls: vertical at x=5 from y=0 to y=5, horizontal at y=4 from x=0 to x=3, vertical at x=5 from y=7 to y=8
+      // Furniture definitions matching scene1.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
-        ['fridge', 1, 1, 0.8, 0.8, true, 'close'],
-        ['oven', 3, 0.5, 0.8, 0.6, false],
-        ['cabinet_right', 4, 0.5, 0.6, 0.6, true, 'close'],
-        ['cabinet_small', 5, 1, 0.6, 0.6, true, 'close'],
-        ['table1', 2.5, 4, 1.0, 0.6, false],
-        ['chair1', 2.5, 3.2, 0.3, 0.3, false],
-        ['table2', 2.5, 6, 1.0, 0.6, false],
-        ['chair2', 2.5, 6.8, 0.3, 0.3, false],
-        ['bookshelf', 8, 1, 0.8, 0.6, true, 'open'],
-        ['table_center', 7, 2, 1.0, 0.6, false],
-        ['chair_left', 6.2, 2.3, 0.3, 0.3, false],
-        ['chair_right', 7.5, 2.3, 0.3, 0.3, false],
-        ['sink', 9, 6, 0.6, 0.6, false],
-        ['toilet', 9, 4.5, 0.6, 0.6, false],
-        ['tray', 3, 0.8, 0.4, 0.4, false],
+        // Kitchen area (bottom-right, x=5..10, y=0..4)
+        ['fridge', 9.7, 0.5, 0.8, 0.8, true, 'close'],
+        ['counter_elementA', 7.7, 0.5, 0.8, 0.6, false],
+        ['counter_elementB', 6.2, 0.5, 0.8, 0.6, false],
+        ['dishwasher', 8.9, 0.5, 0.6, 0.6, false],
+        ['microwave', 8.4, 0.3, 0.6, 0.6, true, 'close'],
+        // Dining table (center-left, x=0..5, y=0..4)
+        ['table_dining', 3, 2, 1.0, 0.6, false],
+        ['chair_bottom', 3, 1, 0.3, 0.3, false],
+        ['chair_top', 3, 3, 0.3, 0.3, false],
+        // Bookshelves (far left wall)
+        ['bookshelf_1', 0.5, 0.5, 0.8, 0.6, true, 'open'],
+        ['bookshelf_2', 0.5, 1.5, 0.8, 0.6, true, 'open'],
+        ['bookshelf_3', 0.5, 2.5, 0.8, 0.6, true, 'open'],
+        // Bob's table area (top-right, x=5..10, y=4..8)
+        ['table_bob', 8.5, 5.5, 1.0, 0.6, false],
+        ['table_extra', 8.5, 4, 1.0, 0.6, false],
+        ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
+        ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
+        // Cutting board on Bob's table (8.5, 5.8)
+        ['cutting_board', 8.5, 5.8, 0.4, 0.4, false],
+        // Bathroom area (top-left, x=0..5, y=4..8)
+        ['toilet', 1.5, 7, 0.6, 0.6, false],
+        ['bathtub', 1.0, 7, 0.6, 0.6, false],
       ];
       for (const f of furniture) {
         // Walls (name starts with 'wall_') have no standPose (can't navigate to walls)
@@ -159,12 +169,14 @@ export class SimEnvironment {
         };
       }
 
-      // Internal walls (rendered as furniture but no standPose)
+      // Internal walls matching 3D BestMan scene1 layout
       const walls: Array<[string, number, number, number, number]> = [
-        // Horizontal wall: from (7,4) to (10,4), center at (8.5, 4), 3m wide, 0.15m thick
-        ['wall_inner_h', 8.5, 4, 3.0, 0.15],
-        // Vertical wall: from (6,0) to (6,5), center at (6, 2.5), 0.15m wide, 5m tall
-        ['wall_inner_v', 6, 2.5, 0.15, 5.0],
+        // Vertical wall: from (5,0) to (5,5), center at (5, 2.5)
+        ['wall_inner_v1', 5, 2.5, 0.15, 5.0],
+        // Horizontal wall: from (0,4) to (3,4), center at (1.5, 4)
+        ['wall_inner_h1', 1.5, 4, 3.0, 0.15],
+        // Vertical short wall: from (5,7) to (5,8), center at (5, 7.5)
+        ['wall_inner_v2', 5, 7.5, 0.15, 1.0],
       ];
       for (const w of walls) {
         objects[w[0]] = {
@@ -213,30 +225,30 @@ export class SimEnvironment {
     };
 
     if (this.layoutName === 'scene1') {
-      // Scene 1 item placements
+      // Scene 1 item placements (matching 3D BestMan scene)
       if (taskType === 'pack_objects') {
-        addItem('bowl', 2.5, 4, 'table1');
-        addItem('fork', 7, 2, 'table_center');
-        addItem('soap', 5, 1, 'cabinet_small');
-        addItem('apple', 1, 1, 'fridge');
+        addItem('bowl', 8.5, 5.8, 'cutting_board');
+        addItem('fork', 9.7, 0.5, 'fridge');
+        addItem('soap', 6.2, 0.5, 'counter_elementB');
+        addItem('apple', 3, 2, 'table_dining');
       } else if (taskType === 'sort_solids') {
-        addItem('red_cube', 2.5, 4, 'table1');
-        addItem('blue_sphere', 7, 2, 'table_center');
-        addItem('green_cylinder', 5, 1, 'cabinet_small');
+        addItem('red_cube', 8.5, 5.8, 'cutting_board');
+        addItem('blue_sphere', 3, 2, 'table_dining');
+        addItem('green_cylinder', 7.7, 0.5, 'counter_elementA');
       } else if (taskType === 'make_sandwich') {
-        addItem('bread_bottom', 2.5, 4, 'table1');
-        addItem('lettuce', 1, 1, 'fridge');
-        addItem('tomato', 5, 1, 'cabinet_small');
-        addItem('cheese', 7, 2, 'table_center');
-        addItem('ham', 2.5, 3.8, 'table1');
-        addItem('bread_top', 7, 1.8, 'table_center');
+        addItem('bread_bottom', 8.5, 5.8, 'cutting_board');
+        addItem('lettuce', 9.7, 0.5, 'fridge');
+        addItem('tomato', 7.7, 0.5, 'counter_elementA');
+        addItem('cheese', 3, 2, 'table_dining');
+        addItem('ham', 8.45, 5.78, 'table_bob');
+        addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 
-      // Scene 1 distractors
+      // Scene 1 distractors (placed at logical 3D scene locations)
       const distractors: Array<[string, number, number]> = [
-        ['phone', 9, 6.5],
-        ['book', 8, 1.5],
-        ['toy_duck', 4, 1],
+        ['phone', 8.9, 0.5],
+        ['book', 0.5, 0.5],
+        ['toy_duck', 1.5, 7],
       ];
       for (const [name, x, y] of distractors) {
         if (!this.scene.objects[name]) {

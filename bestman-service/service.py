@@ -153,9 +153,70 @@ def initialize(req: InitRequest):
         else:
             raise ValueError(f"Unknown scene: {req.scene}")
         
+        # === 初始化机器人 ===
+        print("\n[BestMan Service] 加载机器人...")
+        try:
+            # Bob: 固定臂 (UR5e 在桌上)
+            bob_id = client.load_object(
+                obj_name="bob",
+                model_path='Asset/Robot/mobile_manipulator/arm/universal/urdf/ur5e_vacuum_long.urdf',
+                object_position=[8.5, 5.5, 0.828],
+                object_orientation=[0, 0, 0],
+                fixed_base=True
+            )
+            state.robots['bob'] = bob_id
+            print(f"[机器人] ✅ Bob (固定臂) @ (8.5, 5.5, 0.828)")
+        except Exception as e:
+            print(f"[机器人] ⚠️ Bob: {e}")
+        
+        try:
+            # Alice: 移动机械臂 (Segbot底盘)
+            alice_id = client.load_object(
+                obj_name="alice",
+                model_path='Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf',
+                object_position=[6.0, 6.0, 0.0],
+                object_orientation=[0, 0, 0],
+                fixed_base=True
+            )
+            state.robots['alice'] = alice_id
+            print(f"[机器人] ✅ Alice (移动底盘) @ (6, 6)")
+        except Exception as e:
+            print(f"[机器人] ⚠️ Alice: {e}")
+        
+        try:
+            # David: 移动机器人
+            david_id = client.load_object(
+                obj_name="david",
+                model_path='Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf',
+                object_position=[4.0, 6.0, 0.0],
+                object_orientation=[0, 0, 0],
+                fixed_base=True
+            )
+            state.robots['david'] = david_id
+            print(f"[机器人] ✅ David (移动) @ (4, 6)")
+        except Exception as e:
+            print(f"[机器人] ⚠️ David: {e}")
+        
+        try:
+            # Lucy: 无人机 (无模型，苹果占位)
+            lucy_id = client.load_object(
+                obj_name="lucy",
+                model_path='Asset/Scene/Object/URDF_models/food_apple/model.urdf',
+                object_position=[3.0, 2.0, 1.5],
+                object_orientation=[0, 0, 0],
+                fixed_base=False
+            )
+            state.robots['lucy'] = lucy_id
+            print(f"[机器人] ✅ Lucy (无人机-苹果占位) @ (3, 2, 1.5)")
+        except Exception as e:
+            print(f"[机器人] ⚠️ Lucy: {e}")
+        
+        client.run(30)
+        
         return {
             "message": f"Scene '{req.scene}' initialized successfully",
             "gui": req.gui,
+            "robots": list(state.robots.keys()),
         }
     
     except Exception as e:
