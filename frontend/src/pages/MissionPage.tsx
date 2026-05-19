@@ -232,6 +232,9 @@ export function MissionPage({ hmrc, onBack }: Props) {
 
           {/* Status Panel */}
           <StatusPanel state={hmrc.state} />
+
+          {/* BestMan 3D Panel */}
+          <BestMan3DPanel runId={hmrc.runId} dialogues={hmrc.dialogues} />
         </aside>
       </div>
     </div>
@@ -351,6 +354,114 @@ function StatRow({ label, value }: { label: string; value: string }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ color: '#94a3b8', fontSize: 12 }}>{label}</span>
       <span style={{ color: '#e2e8f0', fontWeight: 500, fontSize: 12 }}>{value}</span>
+    </div>
+  );
+}
+
+function BestMan3DPanel({ runId, dialogues }: { runId: string | null; dialogues: any[] }) {
+  const [bestmanStatus, setBestmanStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [forwarding, setForwarding] = useState(false);
+
+  const checkBestMan = async () => {
+    setBestmanStatus('connecting');
+    try {
+      const res = await fetch('http://localhost:5001/status');
+      if (res.ok) {
+        setBestmanStatus('connected');
+      } else {
+        setBestmanStatus('error');
+      }
+    } catch {
+      setBestmanStatus('error');
+    }
+  };
+
+  const startBestMan = async () => {
+    setBestmanStatus('connecting');
+    try {
+      // Init BestMan scene
+      const initRes = await fetch('http://localhost:5001/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scene: 'scene1', gui: true, config_path: 'Config/default.yaml' }),
+      });
+      if (initRes.ok) {
+        setBestmanStatus('connected');
+        setForwarding(true);
+      } else {
+        setBestmanStatus('error');
+      }
+    } catch {
+      setBestmanStatus('error');
+    }
+  };
+
+  return (
+    <div style={{
+      background: '#1e293b', borderRadius: 8, padding: 12,
+      border: '1px solid #334155', fontSize: 13,
+    }}>
+      <h3 style={{ margin: '0 0 8px', fontSize: 13, color: '#cbd5e1', fontWeight: 500 }}>
+        🎮 BestMan 3D
+      </h3>
+
+      {/* Status */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: bestmanStatus === 'connected' ? '#22c55e'
+            : bestmanStatus === 'connecting' ? '#f59e0b'
+            : bestmanStatus === 'error' ? '#ef4444' : '#475569',
+        }} />
+        <span style={{ fontSize: 12, color: '#94a3b8' }}>
+          {bestmanStatus === 'connected' ? '3D Ready'
+            : bestmanStatus === 'connecting' ? 'Connecting...'
+            : bestmanStatus === 'error' ? 'Offline'
+            : 'Not started'}
+        </span>
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: 6, flexDirection: 'column' }}>
+        <button onClick={checkBestMan} style={{
+          padding: '6px 12px', fontSize: 12, borderRadius: 6,
+          border: '1px solid #334155', background: '#0f172a',
+          color: '#94a3b8', cursor: 'pointer',
+        }}>
+          🔍 Check Connection
+        </button>
+
+        {bestmanStatus === 'connected' ? (
+          <div style={{
+            padding: '6px 10px', borderRadius: 6,
+            background: '#064e3b', border: '1px solid #22c55e40',
+            fontSize: 11, color: '#4ade80', textAlign: 'center',
+          }}>
+            ✅ BestMan ready
+            {forwarding && <div style={{ marginTop: 4, color: '#94a3b8', fontSize: 10 }}>
+              Forwarding actions to 3D...
+            </div>}
+          </div>
+        ) : (
+          <button onClick={startBestMan} style={{
+            padding: '8px 12px', fontSize: 12, fontWeight: 600, borderRadius: 6,
+            border: 'none', background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            color: '#fff', cursor: 'pointer',
+          }}>
+            🚀 Launch 3D Simulation
+          </button>
+        )}
+      </div>
+
+      {/* Instructions */}
+      {bestmanStatus !== 'connected' && (
+        <div style={{ marginTop: 8, fontSize: 10, color: '#475569', lineHeight: 1.5 }}>
+          Open BestMan service first:
+          <code style={{ display: 'block', marginTop: 4, padding: 4, background: '#0f172a', borderRadius: 4 }}>
+            cd bestman-service &amp;&amp; \&#10;python service.py
+          </code>
+        </div>
+      )}
     </div>
   );
 }
