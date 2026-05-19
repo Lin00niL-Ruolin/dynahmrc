@@ -45,7 +45,7 @@ class DynaHMRCBridge:
         self.robot_grippers: Dict[str, Optional[str]] = {}
 
     def _parse_action_from_dialogue(self, content: str) -> Optional[Dict]:
-        """Parse an action from dialogue content like 'Action: navigate(table_bob)\n...'."""
+        """Parse an action from dialogue content like 'Action: navigate({"target":"fridge"})\n...'."""
         m = re.match(r"Action:\s*(\w+)\((.*)\)", content)
         if not m:
             return None
@@ -53,29 +53,30 @@ class DynaHMRCBridge:
         action_type = m.group(1)
         params_str = m.group(2)
 
-        # Parse params: either simple string or JSON-like
-        params = {}
-        if action_type in ("navigate", "open", "pick"):
-            # Single param
-            params = {"target": params_str.strip()}
-        elif action_type == "place":
-            parts = [p.strip() for p in params_str.split(",")]
-            if len(parts) >= 2:
-                params = {"object": parts[0], "target": parts[1]}
-            else:
-                params = {"object": params_str.strip(), "target": ""}
-        elif action_type == "move":
-            parts = [p.strip() for p in params_str.split(",")]
-            if len(parts) >= 2:
-                params = {"dx": float(parts[0]), "dy": float(parts[1])}
-        elif action_type == "communicate":
-            parts = [p.strip() for p in params_str.rsplit(",", 1)]
-            if len(parts) >= 2:
-                params = {"content": parts[0].strip('"'), "recipient": parts[1]}
-            else:
-                params = {"content": params_str.strip(), "recipient": "*"}
-        elif action_type == "wait":
+        # Try parsing params as JSON (the engine emits JSON params)
+        try:
+            params = json.loads(params_str)
+        except (json.JSONDecodeError, ValueError):
+            # Fall back to simple string parsing
             params = {}
+            if action_type in ("navigate", "open", "pick"):
+                params = {"target": params_str.strip()}
+            elif action_type == "place":
+                parts = [p.strip() for p in params_str.split(",")]
+                if len(parts) >= 2:
+                    params = {"object": parts[0], "target": parts[1]}
+                else:
+                    params = {"object": params_str.strip(), "target": ""}
+            elif action_type == "move":
+                parts = [p.strip() for p in params_str.split(",")]
+                if len(parts) >= 2:
+                    params = {"dx": float(parts[0]), "dy": float(parts[1])}
+            elif action_type == "communicate":
+                parts = [p.strip() for p in params_str.rsplit(",", 1)]
+                if len(parts) >= 2:
+                    params = {"content": parts[0].strip('"'), "recipient": parts[1]}
+                else:
+                    params = {"content": params_str.strip(), "recipient": "*"}
 
         return {"action_type": action_type, "params": params}
 
