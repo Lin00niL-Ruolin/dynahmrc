@@ -1,196 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useDynaHMRC } from './hooks/useDynaHMRC';
-import { ConfigPanel } from './components/ConfigPanel';
-import { DialoguePanel } from './components/DialoguePanel';
-import { SimulationView } from './components/SimulationView';
-import { ControlBar } from './components/ControlBar';
-import type { AppConfig } from './types';
+import { LandingPage } from './pages/LandingPage';
+import { MissionPage } from './pages/MissionPage';
+import { SplashPage } from './pages/SplashPage';
+
+type Page = 'splash' | 'landing' | 'mission';
+
+// 全局动画 CSS
+const styleTag = document.createElement('style');
+styleTag.textContent = `
+  @keyframes floatDown {
+    0% { transform: translateY(-10px) scale(1); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 0.5; }
+    100% { transform: translateY(100vh) scale(0.3); opacity: 0; }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+`;
+document.head.appendChild(styleTag);
 
 export default function App() {
   const hmrc = useDynaHMRC();
-  const [config, setConfig] = useState<AppConfig | null>(null);
-  const [activeView, setActiveView] = useState<'both' | 'dialogue' | 'simulation'>('both');
+  const [page, setPage] = useState<Page>('splash');
+  const [runId, setRunId] = useState<string | null>(null);
+  const [landingKey, setLandingKey] = useState(0);
 
-  useEffect(() => {
-    hmrc.loadConfig().then(setConfig);
-  }, []);
-
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#0f172a',
-      color: '#e2e8f0',
-      fontFamily: "'Inter', system-ui, sans-serif",
-    }}>
-      {/* Debug Bar */}
-      <div style={{
-        background: '#1e293b', borderBottom: '1px solid #334155',
-        padding: '4px 16px', fontSize: 11, color: '#64748b',
-        display: 'flex', gap: 16, fontFamily: 'monospace',
-      }}>
-        <span>🔍 DEBUG: {hmrc.connected ? '✅ WS Connected' : '❌ WS Disconnected'}</span>
-        <span>Run: {hmrc.runId || 'none'}</span>
-        <span>Dialogues: {hmrc.dialogues.length}</span>
-        <span>Error: {hmrc.error || 'none'}</span>
-      </div>
-
-      {/* Header */}
-      <header style={{
-        background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-        borderBottom: '1px solid #334155',
-        padding: '16px 24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 28 }}>🤖</span>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: '#f1f5f9' }}>
-              DynaHMRC Demo
-            </h1>
-            <p style={{ margin: 0, fontSize: 12, color: '#94a3b8' }}>
-              Decentralized Heterogeneous Multi-Robot Collaboration
-            </p>
-          </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 13,
-            color: hmrc.connected ? '#4ade80' : '#f87171',
-          }}>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: hmrc.connected ? '#4ade80' : '#f87171',
-              display: 'inline-block',
-            }} />
-            {hmrc.connected ? `Connected${hmrc.runId ? ` (${hmrc.runId})` : ''}` : 'Disconnected'}
-          </span>
-          <button onClick={() => setActiveView(
-            activeView === 'both' ? 'dialogue' : activeView === 'dialogue' ? 'simulation' : 'both'
-          )} style={{
-            background: '#334155', color: '#e2e8f0', border: 'none',
-            padding: '6px 12px', borderRadius: 6, cursor: 'pointer',
-            fontSize: 12,
-          }}>
-            {activeView === 'both' ? 'Split' : activeView === 'dialogue' ? 'Show Sim' : 'Show Dialogue'}
-          </button>
-        </div>
-      </header>
-
-      <div style={{ display: 'flex', gap: 0, height: 'calc(100vh - 72px)' }}>
-        {/* Left Sidebar - Config & Controls */}
-        <aside style={{
-          width: 280, minWidth: 280,
-          borderRight: '1px solid #334155',
-          overflowY: 'auto',
-          padding: 16,
-          display: 'flex', flexDirection: 'column', gap: 16,
-        }}>
-          <ConfigPanel config={config} onRun={hmrc.createRun} running={!!hmrc.state?.step && !hmrc.state?.taskCompleted} />
-          <ControlBar
-            state={hmrc.state}
-            onStart={hmrc.start}
-            onPause={hmrc.pause}
-            onResume={hmrc.resume}
-            onStop={hmrc.stop}
-            running={hmrc.state?.step !== undefined && !hmrc.state?.taskCompleted}
-          />
-          <StatusPanel state={hmrc.state} />
-        </aside>
-
-        {/* Main Content */}
-        <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          {(activeView === 'both' || activeView === 'dialogue') && (
-            <DialoguePanel
-              dialogues={hmrc.dialogues}
-              style={{ flex: activeView === 'both' ? 1 : undefined,
-                       width: activeView === 'dialogue' ? '100%' : undefined }}
-            />
-          )}
-          {(activeView === 'both' || activeView === 'simulation') && (
-            <SimulationView
-              state={hmrc.state}
-              style={{ flex: activeView === 'both' ? 1 : undefined,
-                       width: activeView === 'simulation' ? '100%' : undefined }}
-            />
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function StatusPanel({ state }: { state: any }) {
-  if (!state) return null;
-  
-  const robotEmojis: Record<string, string> = {
-    Alice: '🦾', Bob: '🦿', David: '🚗', Lucy: '🚁',
+  const handleStartMission = (newRunId: string) => {
+    setRunId(newRunId);
+    setPage('mission');
   };
-  
+
+  const handleBack = () => {
+    setRunId(null);
+    setPage('landing');
+    setLandingKey(k => k + 1);
+  };
+
   return (
     <div style={{
-      background: '#1e293b', borderRadius: 8, padding: 12,
-      border: '1px solid #334155', fontSize: 13,
+      width: '100%',
+      maxWidth: '100%',
+      background: '#0f172a',
+      minHeight: '100vh',
     }}>
-      <h3 style={{ margin: '0 0 8px', fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>📊 Status</h3>
-      
-      {/* Progress bar */}
-      {state.taskProgress && (
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{state.taskProgress}</div>
-          <div style={{
-            height: 4, background: '#0f172a', borderRadius: 2, overflow: 'hidden',
-          }}>
-            <div style={{
-              height: '100%', background: '#22c55e', borderRadius: 2,
-              transition: 'width 0.3s',
-              width: state.taskCompleted ? '100%' : '0%',
-            }} />
-          </div>
-        </div>
+      {page === 'splash' && (
+        <SplashPage onEnter={() => setPage('landing')} />
       )}
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <Row label="Step" value={`${state.step}`} />
-        <Row label="Stage" value={state.stage?.replace(/_/g, ' → ').replace(/(^| )/g, (m: string) => m.toUpperCase()) || '-'} />
-        <Row label="Leader" value={state.leader ? `👑 ${state.leader}` : '-'} />
-        <Row label="Actions" value={`${state.actions?.length || 0}`} />
-        <Row label="Completed" value={state.taskCompleted ? '✅ Yes' : '⏳ Running'} />
-      </div>
-      
-      {/* Robot status list */}
-      {state.robots && Object.keys(state.robots).length > 0 && (
-        <div style={{ marginTop: 8, borderTop: '1px solid #334155', paddingTop: 8 }}>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>🤖 Robots</div>
-          {Object.values(state.robots as any[]).map((r: any) => (
-            <div key={r.name} style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '2px 0', fontSize: 11,
-            }}>
-              <span>{robotEmojis[r.robotType] || '🤖'}</span>
-              <span style={{ color: '#e2e8f0', fontWeight: r.name === state.leader ? 600 : 400 }}>
-                {r.name}{r.name === state.leader ? ' 👑' : ''}
-              </span>
-              <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: 10 }}>
-                {r.graspingObject ? `📦${r.graspingObject}` : '🟢'}
-              </span>
-            </div>
-          ))}
-        </div>
+      {page === 'landing' && (
+        <LandingPage key={landingKey} hmrc={hmrc} onStartMission={handleStartMission} />
       )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-      <span style={{ color: '#64748b' }}>{label}</span>
-      <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{value}</span>
+      {page === 'mission' && (
+        <MissionPage key={runId} hmrc={hmrc} onBack={handleBack} />
+      )}
     </div>
   );
 }
