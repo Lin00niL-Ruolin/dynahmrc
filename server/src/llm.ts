@@ -59,29 +59,35 @@ export class DeepSeekClient {
     try {
       const lines = raw.split('\n');
       for (const line of lines) {
-        const stripped = line.trim().toLowerCase();
+        // 去掉行首编号，如 "1) Thoughts:" → "Thoughts:", "2. Contents:" → "Contents:"
+        const clean = line.trim().replace(/^[\d\.\]\)\s]+/, '').toLowerCase();
+        const original = line.trim();
 
-        if (stripped.startsWith('thoughts') || stripped.startsWith('thought')) {
+        if (clean.startsWith('thoughts') || clean.startsWith('thought')) {
           inThoughts = true;
           inContents = false;
-          const colonIdx = line.indexOf(':');
+          // 找第一个冒号截取
+          const colonIdx = original.indexOf(':');
           if (colonIdx >= 0) {
-            thoughts += line.substring(colonIdx + 1).trim() + '\n';
+            thoughts += original.substring(colonIdx + 1).trim() + '\n';
+          } else {
+            inThoughts = true;
           }
           continue;
         }
 
-        if (stripped.startsWith('contents') || stripped.startsWith('content') ||
-            stripped.startsWith('reasons') || stripped.startsWith('leader') ||
-            stripped.startsWith('summaries') || stripped.startsWith('plans')) {
+        if (clean.startsWith('contents') || clean.startsWith('content') ||
+            clean.startsWith('reasons') || clean.startsWith('leader') ||
+            clean.startsWith('summaries') || clean.startsWith('plans') ||
+            clean.startsWith('summary') || clean.startsWith('plan')) {
           inContents = true;
           inThoughts = false;
-          content += line + '\n';
+          content += original + '\n';
           continue;
         }
 
-        if (inThoughts) thoughts += line + '\n';
-        else if (inContents) content += line + '\n';
+        if (inThoughts) thoughts += original + '\n';
+        else if (inContents) content += original + '\n';
       }
 
       if (!thoughts && !content) {

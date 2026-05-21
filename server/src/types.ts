@@ -27,6 +27,7 @@ export enum DynaHMRCStage {
   LEADER_ELECTION = 'leader_election',
   EXECUTION_REFLECTION = 'execution_reflection',
   COMPLETED = 'completed',
+  STOPPED = 'stopped',
 }
 
 export interface LLMMessage {

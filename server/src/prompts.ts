@@ -307,9 +307,9 @@ ${capabilities}
 Summarize your experiences and propose future plans.
 
 Output Response Format:
-1) Thoughts: think step by step to analyze the problem.
-2) Summaries: summary, analysis of past, current task status.
-3) Plans: plan for your subsequent tasks.
+Thoughts: think step by step to analyze the problem.
+Summary: summary, analysis of past, current task status.
+Plan: plan for your subsequent tasks.
 CoT: Let's think step by step!
 `;
 }
@@ -334,8 +334,8 @@ export function reflectionLeaderUser(name: string, teamReflections: string): str
 ${teamReflections}
 
 Output Response Format:
-1) Thoughts: think step by step to analyze the problem.
-2) Contents: output the latest heterogeneous robots plan.
+Thoughts: think step by step to analyze the problem.
+Contents: output the latest heterogeneous robots plan.
 CoT: Let's think step by step!
 `;
 }

@@ -346,7 +346,10 @@ export class DynaHMRCEngine {
 
   pause(): void { this.paused = true; }
   resume(): void { this.paused = false; }
-  stop(): void { this.running = false; }
+  stop(): void {
+    this.running = false;
+    this.stage = DynaHMRCStage.STOPPED;
+  }
 
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
