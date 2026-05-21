@@ -15,9 +15,9 @@ export function useDynaHMRC() {
       wsRef.current.close();
     }
 
-    // Use Vite dev server proxy for WebSocket (works with tunnels like localtunnel)
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws/${id}`;
+    // 通过当前 host 连接（后端也提供了前端静态文件，同端口）
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/${id}`;
 
     console.log('[WS] Connecting to:', wsUrl);
     const ws = new WebSocket(wsUrl);

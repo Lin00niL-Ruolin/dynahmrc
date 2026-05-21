@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createServer } from 'http';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { WebSocketServer, WebSocket } from 'ws';
 import { DynaHMRCEngine } from './dynahmrc.js';
 import { RobotType, WSMessage } from './types.js';
@@ -187,6 +192,14 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => {
     connections.delete(ws);
   });
+});
+
+// === Serve static frontend (SPA fallback) ===
+const distDir = path.join(__dirname, '../../frontend/dist');
+app.use(express.static(distDir));
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/ws')) return next();
+  res.sendFile(path.join(distDir, 'index.html'));
 });
 
 // === Start ===
