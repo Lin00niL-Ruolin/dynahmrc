@@ -201,11 +201,11 @@ def setup_scene1(client, scene_json_path=None):
     else:
         print("[场景] ⚠️ 未找到 scene1.json，仅创建了四面墙")
 
-    # 6. 固定机械臂 (xArm6) 在 table_new_2 (8.5, 5.8) 上
+    # 6. 固定机械臂 (UR5e) 在 table_new_2 (8.5, 5.8) 上
     print("\n--- 固定机械臂 ---")
-    arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
+    bob_arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
     tx, ty = 8.5, 5.8
-    table_top_z = 0.833
+    table_top_z = 0.86
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
@@ -214,21 +214,22 @@ def setup_scene1(client, scene_json_path=None):
         os.chdir(bestman_dir)
 
         bob_id = client.load_object(
-            obj_name="bob", model_path=arm_path,
+            obj_name="bob", model_path=bob_arm_path,
             object_position=[tx, ty, table_top_z],
             object_orientation=[0, 0, 0],
             scale=1.0, fixed_base=True
         )
         setattr(client, "bob_arm", bob_id)
-        print(f"[机器人] ✅ Bob 固定臂 (xArm6) @ ({tx}, {ty}) 桌面上")
+        print(f"[机器人] ✅ Bob 固定臂 (UR5e) @ ({tx}, {ty}) 桌面上")
         os.chdir(cwd)
     except Exception as e:
         print(f"[机器人] ⚠️ Bob: {e}")
 
-    # 7. 移动操作机械臂在 (7, 8)
+    # 7. 移动操作机械臂在 (7, 7)
     print("\n--- 移动操作机械臂 ---")
     segbot_path = 'Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf'
-    rx, ry = 7, 8
+    new_arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
+    rx, ry = 6.5, 7
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
@@ -241,24 +242,78 @@ def setup_scene1(client, scene_json_path=None):
             obj_name="new_robot", model_path=segbot_path,
             object_position=[rx, ry, 0],
             object_orientation=[0, 0, 0],
-            scale=1.0, fixed_base=False
+            scale=1.0, fixed_base=True
         )
         setattr(client, "new_robot_base", base_id)
         print(f"  ✓ 底座 @ ({rx}, {ry})")
 
-        # xArm6 arm on top
+        # xArm6 arm on top of segbot (height 1.02 matching scene3)
+        arm_z = 1.02
         arm_id = client.load_object(
-            obj_name="new_robot_arm", model_path=arm_path,
-            object_position=[rx, ry, 0.833],
+            obj_name="new_robot_arm", model_path=new_arm_path,
+            object_position=[rx, ry, arm_z],
             object_orientation=[0, 0, 0],
             scale=1.0, fixed_base=True
         )
         setattr(client, "new_robot_arm", arm_id)
-        print(f"  ✓ xArm6 机械臂 @ ({rx}, {ry}, 0.833)")
+        print(f"  ✓ xArm6 机械臂 @ ({rx}, {ry}, {arm_z})")
+
+        # 固定约束：将机械臂固定在底座上
+        num_joints = p.getNumJoints(base_id)
+        for i in range(num_joints):
+            info = p.getJointInfo(base_id, i)
+            child_name = info[12].decode('utf-8') if isinstance(info[12], bytes) else info[12]
+            if 'plate' in child_name.lower():
+                p.createConstraint(
+                    parentBodyUniqueId=base_id, parentLinkIndex=i,
+                    childBodyUniqueId=arm_id, childLinkIndex=-1,
+                    jointType=p.JOINT_FIXED, jointAxis=[0,0,0],
+                    parentFramePosition=[0,0,0.05], childFramePosition=[0,0,0],
+                )
+                print(f"  ✓ 约束: arm → {child_name}")
+
         print(f"[机器人] ✅ 移动操作机械臂 @ ({rx}, {ry})")
         os.chdir(cwd)
     except Exception as e:
         print(f"[机器人] ⚠️ 移动操作臂: {e}")
+
+    # 8. 场景装饰物品 (面包片、培根等)
+    print("\n--- 装饰物品 ---")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+    bestman_dir = os.path.join(workspace_dir, 'BestMan')
+    cwd = os.getcwd()
+    os.chdir(bestman_dir)
+
+    try:
+        # 面包片 on table_new_1 (8.5, 4)
+        bread_id = client.load_object(
+            obj_name="bread_0",
+            model_path='Asset/Scene/Object/URDF_models/food_bread/model.urdf',
+            object_position=[8.55, 4, 0.86],
+            object_orientation=[0, 0, 0.2],
+            scale=1.0, fixed_base=True
+        )
+        setattr(client, "bread_0", bread_id)
+        print(f"  ✓ 面包片 @ (8.55, 4, 0.86)")
+    except Exception as e:
+        print(f"  ⚠️ 面包片: {e}")
+
+    try:
+        # 培根 on table_new_2 (8.5, 5.8)
+        bacon_id = client.load_object(
+            obj_name="bacon_0",
+            model_path='Asset/Scene/Object/Kitchen_world_models/MeatTurkeyLeg/00001/mobility.urdf',
+            object_position=[8.5, 5.8, 0.86],
+            object_orientation=[0, 0, -0.3],
+            scale=1.0, fixed_base=True
+        )
+        setattr(client, "bacon_0", bacon_id)
+        print(f"  ✓ 培根 @ (8.5, 5.8, 0.86)")
+    except Exception as e:
+        print(f"  ⚠️ 培根: {e}")
+
+    os.chdir(cwd)
 
     for _ in range(50):
         p.stepSimulation()
