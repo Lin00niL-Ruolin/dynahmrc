@@ -7,6 +7,12 @@ interface Props {
   running: boolean;
 }
 
+const layoutRobotDefaults: Record<string, string[]> = {
+  scene1: ['Alice', 'Bob', 'David', 'Lucy'],
+  kitchen: ['Alice', 'Bob', 'David', 'Lucy'],
+  living_room: ['Alice', 'Bob', 'David', 'Lucy'],
+};
+
 export function ConfigPanel({ config, onRun, running }: Props) {
   void config; // used by parent for config endpoint
   const [taskType, setTaskType] = useState('pack_objects');
@@ -53,7 +59,13 @@ export function ConfigPanel({ config, onRun, running }: Props) {
       {/* Layout */}
       <div style={{ marginBottom: 12 }}>
         <label style={{ color: '#94a3b8', display: 'block', marginBottom: 4 }}>Layout</label>
-        <select value={layout} onChange={e => setLayout(e.target.value)}
+        <select value={layout} onChange={e => {
+          const newLayout = e.target.value;
+          setLayout(newLayout);
+          if (layoutRobotDefaults[newLayout]) {
+            setSelectedRobots(layoutRobotDefaults[newLayout]);
+          }
+        }}
           style={selectStyle}>
           <option value="kitchen">Kitchen</option>
           <option value="living_room">Living Room</option>

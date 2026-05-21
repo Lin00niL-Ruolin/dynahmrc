@@ -1,7 +1,7 @@
 [
     {
         "model_path": "Asset/Scene/Object/Kitchen_world_models/elementA/urdf/kitchen_part_right_gen_convex.urdf",
-        "object_position": [7.7, 0.5, 1.477],
+        "object_position": [7.4, 0.5, 1.477],
         "object_orientation": [0, 0, "math.pi / 2"],
         "scale": 1.0,
         "obj_name": "elementA",
@@ -9,7 +9,7 @@
     },
     {
         "model_path": "Asset/Scene/Object/Kitchen_world_models/elementB/model.urdf",
-        "object_position": [6.2, 0.5, 0.55],
+        "object_position": [5.9, 0.5, 0.55],
         "object_orientation": [0, 0, "math.pi"],
         "scale": 1.1,
         "obj_name": "elementB1",
@@ -18,7 +18,7 @@
     
     {
         "model_path": "Asset/Scene/Object/Kitchen_world_models/Dishwasher/2085/mobility.urdf",
-        "object_position": [8.9, 0.5, 0.35],
+        "object_position": [8.6, 0.5, 0.35],
         "object_orientation": [0, 0, "math.pi / 2 * 3"],
         "scale": 0.75,
         "obj_name": "elementC",
@@ -26,7 +26,7 @@
     },
     {
         "model_path": "Asset/Scene/Object/Kitchen_world_models/Microwave/7128/mobility.urdf",
-        "object_position": [8.4, 0.3, 1.1],
+        "object_position": [8.1, 0.3, 1.1],
         "object_orientation": [0, 0, "math.pi / 2 * 3"],
         "scale": 0.5,
         "obj_name": "microwave",
@@ -34,7 +34,7 @@
     },
     {
         "model_path": "Asset/Scene/Object/Kitchen_world_models/Fridge/10144/mobility.urdf",
-        "object_position": [9.7, 0.5, 1.055],
+        "object_position": [9.4, 0.5, 1.055],
         "object_orientation": [0, 0, "math.pi / 2 * 3"],
         "scale": 1.1,
         "obj_name": "fridge",
@@ -83,15 +83,15 @@
     {
         "obj_name": "cutting_board",
         "model_path": "Asset/Scene/Object/URDF_models/plate/model.urdf",
-        "object_position": [8.5, 5.8, 0.833],
+        "object_position": [8.5, 5.1, 0.833],
         "object_orientation": [0, 0, 0],
-        "scale": 1.0,
+        "scale": 1.3,
         "fixed_base": true
     },
     {
         "obj_name": "bread_0",
         "model_path": "Asset/Scene/Object/URDF_models/food_bread/model.urdf",
-        "object_position": [8.55, 5.82, 0.86],
+        "object_position": [8.55, 5.1, 0.86],
         "object_orientation": [0, 0, 0.2],
         "scale": 1.0,
         "fixed_base": true
@@ -125,7 +125,7 @@
         "obj_name": "bookshelf_2",
         "model_path": "Asset/Scene/Object/Kitchen_world_models/CabinetTall/46456/mobility.urdf",
         "object_position": [0.5, 1.5, 0.956],
-        "object_orientation": [0, 0, "0"],
+        "object_orientation": [0, 0, "math.pi"],
         "scale": 1.0,
         "fixed_base": true
     },
@@ -172,7 +172,7 @@
     {
         "obj_name": "toilet",
         "model_path": "Asset/Scene/Object/bath_toilet/bath_toilet.urdf",
-        "object_position": [1.5, 7, 0.5],
+        "object_position": [1, 7, 0.5],
         "object_orientation": [0, 0, 0],
         "scale": 1.8,
         "fixed_base": true

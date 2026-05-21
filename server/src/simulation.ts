@@ -136,11 +136,11 @@ export class SimEnvironment {
       // Furniture definitions matching scene1.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
         // Kitchen area (bottom-right, x=5..10, y=0..4)
-        ['fridge', 9.7, 0.5, 0.8, 0.8, true, 'close'],
-        ['counter_elementA', 7.7, 0.5, 0.8, 0.6, false],
-        ['counter_elementB', 6.2, 0.5, 0.8, 0.6, false],
-        ['dishwasher', 8.9, 0.5, 0.6, 0.6, false],
-        ['microwave', 8.4, 0.3, 0.6, 0.6, true, 'close'],
+        ['fridge', 9.4, 0.5, 0.8, 0.8, true, 'close'],
+        ['counter_elementA', 7.4, 0.5, 0.8, 0.6, false],
+        ['counter_elementB', 5.9, 0.5, 0.8, 0.6, false],
+        ['dishwasher', 8.6, 0.5, 0.6, 0.6, false],
+        ['microwave', 8.1, 0.3, 0.6, 0.6, true, 'close'],
         // Dining table (center-left, x=0..5, y=0..4)
         ['table_dining', 3, 2, 1.0, 0.6, false],
         ['chair_bottom', 3, 1, 0.3, 0.3, false],
@@ -155,7 +155,7 @@ export class SimEnvironment {
         ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         // Cutting board on Bob's table (8.5, 5.8)
-        ['cutting_board', 8.5, 5.8, 0.4, 0.4, false],
+        ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
@@ -233,24 +233,24 @@ export class SimEnvironment {
       // Scene 1 item placements (matching 3D BestMan scene)
       if (taskType === 'pack_objects') {
         addItem('bowl', 8.5, 5.8, 'cutting_board');
-        addItem('fork', 9.7, 0.5, 'fridge');
-        addItem('soap', 6.2, 0.5, 'counter_elementB');
+        addItem('fork', 9.4, 0.5, 'fridge');
+        addItem('soap', 5.9, 0.5, 'counter_elementB');
         addItem('apple', 3, 2, 'table_dining');
       } else if (taskType === 'sort_solids') {
         addItem('red_cube', 8.5, 5.8, 'cutting_board');
         addItem('blue_sphere', 3, 2, 'table_dining');
-        addItem('green_cylinder', 7.7, 0.5, 'counter_elementA');
+        addItem('green_cylinder', 7.4, 0.5, 'counter_elementA');
       } else if (taskType === 'make_sandwich') {
-        addItem('bread_bottom', 8.5, 5.8, 'cutting_board');
-        addItem('lettuce', 9.7, 0.5, 'fridge');
-        addItem('tomato', 7.7, 0.5, 'counter_elementA');
+        addItem('bread_bottom', 8.5, 5.5, 'cutting_board');
+        addItem('lettuce', 9.4, 0.5, 'fridge');
+        addItem('tomato', 7.4, 0.5, 'counter_elementA');
         addItem('cheese', 3, 2, 'table_dining');
         addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 
       // Scene 1 distractors (placed at logical 3D scene locations)
       const distractors: Array<[string, number, number]> = [
-        ['phone', 8.9, 0.5],
+        ['phone', 8.6, 0.5],
         ['book', 0.5, 0.5],
         ['toy_duck', 1.5, 7],
       ];

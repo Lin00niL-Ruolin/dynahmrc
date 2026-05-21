@@ -49,6 +49,21 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
   const [taskType, setTaskType] = useState('pack_objects');
   const [layout, setLayout] = useState('kitchen');
   const [selectedRobots, setSelectedRobots] = useState(ROBOTS.map(r => r.id));
+
+  // Layout-specific robot defaults
+  const layoutRobotDefaults: Record<string, string[]> = {
+    scene1: ['Alice', 'Bob', 'David', 'Lucy'],
+    kitchen: ['Alice', 'Bob', 'David', 'Lucy'],
+    living_room: ['Alice', 'Bob', 'David', 'Lucy'],
+  };
+
+  const handleLayoutChange = (id: string) => {
+    setLayout(id);
+    // Auto-select robots matching the layout
+    if (layoutRobotDefaults[id]) {
+      setSelectedRobots(layoutRobotDefaults[id]);
+    }
+  };
   const [maxSteps, setMaxSteps] = useState(50);
   const [starting, setStarting] = useState(false);
 
@@ -195,7 +210,7 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
                 key={scene.id}
                 scene={scene}
                 selected={layout === scene.id}
-                onClick={() => setLayout(scene.id)}
+                onClick={() => handleLayoutChange(scene.id)}
               />
             ))}
           </div>

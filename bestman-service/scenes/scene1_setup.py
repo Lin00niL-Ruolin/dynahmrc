@@ -119,22 +119,19 @@ def setup_scene1(client, scene_json_path=None):
     # 墙1: (5,0) → (5,5)  垂直墙，沿 Y 方向 5m
     create_wall(client, "wall_inner_v1",
                 5, 2.5, ROOM_H / 2,
-                [WALL_T, 5, ROOM_H],
-                color=[0.7, 0.7, 0.72, 1.0])  # 灰色
+                [WALL_T, 5, ROOM_H])
     print(f"[场景] ✅ 垂直墙1: (5,0) → (5,5) 长度=5m")
 
     # 墙2: (3,4) → (0,4)  水平墙，沿 X 方向 3m
     create_wall(client, "wall_inner_h1",
                 1.5, 4, ROOM_H / 2,
-                [3, WALL_T, ROOM_H],
-                color=[0.7, 0.7, 0.72, 1.0])  # 灰色
+                [3, WALL_T, ROOM_H])
     print(f"[场景] ✅ 水平墙2: (3,4) → (0,4) 长度=3m")
 
     # 墙3: (5,7) → (5,8)  垂直短墙，沿 Y 方向 1m
     create_wall(client, "wall_inner_v2",
                 5, 7.5, ROOM_H / 2,
-                [WALL_T, 1, ROOM_H],
-                color=[0.7, 0.7, 0.72, 1.0])  # 灰色
+                [WALL_T, 1, ROOM_H])
     print(f"[场景] ✅ 垂直墙3: (5,7) → (5,8) 长度=1m")
 
     # 1.3 木地板
@@ -203,6 +200,65 @@ def setup_scene1(client, scene_json_path=None):
             os.chdir(original_cwd)
     else:
         print("[场景] ⚠️ 未找到 scene1.json，仅创建了四面墙")
+
+    # 6. 固定机械臂 (xArm6) 在 table_new_2 (8.5, 5.8) 上
+    print("\n--- 固定机械臂 ---")
+    arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
+    tx, ty = 8.5, 5.8
+    table_top_z = 0.833
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+        bestman_dir = os.path.join(workspace_dir, 'BestMan')
+        cwd = os.getcwd()
+        os.chdir(bestman_dir)
+
+        bob_id = client.load_object(
+            obj_name="bob", model_path=arm_path,
+            object_position=[tx, ty, table_top_z],
+            object_orientation=[0, 0, 0],
+            scale=1.0, fixed_base=True
+        )
+        setattr(client, "bob_arm", bob_id)
+        print(f"[机器人] ✅ Bob 固定臂 (xArm6) @ ({tx}, {ty}) 桌面上")
+        os.chdir(cwd)
+    except Exception as e:
+        print(f"[机器人] ⚠️ Bob: {e}")
+
+    # 7. 移动操作机械臂在 (7, 8)
+    print("\n--- 移动操作机械臂 ---")
+    segbot_path = 'Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf'
+    rx, ry = 7, 8
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+        bestman_dir = os.path.join(workspace_dir, 'BestMan')
+        cwd = os.getcwd()
+        os.chdir(bestman_dir)
+
+        # Segbot base
+        base_id = client.load_object(
+            obj_name="new_robot", model_path=segbot_path,
+            object_position=[rx, ry, 0],
+            object_orientation=[0, 0, 0],
+            scale=1.0, fixed_base=False
+        )
+        setattr(client, "new_robot_base", base_id)
+        print(f"  ✓ 底座 @ ({rx}, {ry})")
+
+        # xArm6 arm on top
+        arm_id = client.load_object(
+            obj_name="new_robot_arm", model_path=arm_path,
+            object_position=[rx, ry, 0.833],
+            object_orientation=[0, 0, 0],
+            scale=1.0, fixed_base=True
+        )
+        setattr(client, "new_robot_arm", arm_id)
+        print(f"  ✓ xArm6 机械臂 @ ({rx}, {ry}, 0.833)")
+        print(f"[机器人] ✅ 移动操作机械臂 @ ({rx}, {ry})")
+        os.chdir(cwd)
+    except Exception as e:
+        print(f"[机器人] ⚠️ 移动操作臂: {e}")
 
     for _ in range(50):
         p.stepSimulation()

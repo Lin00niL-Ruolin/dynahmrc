@@ -34,7 +34,7 @@ app.get('/api/config', (_req, res) => {
       { id: 'scene1', name: '场景一', desc: '10m×8m 房间，含冰箱、烤箱、柜子、书架、桌子、洗手池、马桶' },
     ],
     layoutRobotDefaults: {
-      scene1: ['Alice', 'David', 'Lucy'], // 场景一没有固定臂机器人(Bob)
+      scene1: ['Alice', 'Bob', 'David', 'Lucy'],
       kitchen: ['Alice', 'Bob', 'David', 'Lucy'],
       living_room: ['Alice', 'Bob', 'David', 'Lucy'],
     },

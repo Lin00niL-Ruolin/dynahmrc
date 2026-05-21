@@ -152,11 +152,11 @@ class DynaHMRCBridge:
         """Get 3D position for a target furniture/object."""
         # Known positions from scene1 (x, y) → 3D (x, y, z)
         known_positions = {
-            "fridge": [9.7, 0.5, 0.5],
-            "counter_elementa": [7.7, 0.5, 0.5],
-            "counter_elementb": [6.2, 0.5, 0.5],
-            "dishwasher": [8.9, 0.5, 0.5],
-            "microwave": [8.4, 0.3, 0.8],
+            "fridge": [9.4, 0.5, 0.5],
+            "counter_elementa": [7.4, 0.5, 0.5],
+            "counter_elementb": [5.9, 0.5, 0.5],
+            "dishwasher": [8.6, 0.5, 0.5],
+            "microwave": [8.1, 0.3, 0.8],
             "table_dining": [3, 2, 0.5],
             "chair_bottom": [3, 1, 0.3],
             "chair_top": [3, 3, 0.3],
