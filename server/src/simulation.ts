@@ -151,7 +151,7 @@ export class SimEnvironment {
         ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         // Cutting board on Bob's table (8.5, 5.8)
-        ['cutting_board', 8.5, 4.5, 0.4, 0.4, false],
+        ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
@@ -228,20 +228,20 @@ export class SimEnvironment {
     if (this.layoutName === 'scene1') {
       // Scene 1 item placements (matching 3D BestMan scene)
       if (taskType === 'pack_objects') {
-        addItem('bowl', 8.5, 4.8, 'cutting_board');
+        addItem('bowl', 8.5, 5.8, 'cutting_board');
         addItem('fork', 9.4, 0.5, 'fridge');
         addItem('soap', 5.9, 0.5, 'counter_elementB');
         addItem('apple', 3, 2, 'table_dining');
       } else if (taskType === 'sort_solids') {
-        addItem('red_cube', 8.5, 4.8, 'cutting_board');
+        addItem('red_cube', 8.5, 5.8, 'cutting_board');
         addItem('blue_sphere', 3, 2, 'table_dining');
         addItem('green_cylinder', 7.4, 0.5, 'counter_elementA');
       } else if (taskType === 'make_sandwich') {
-        addItem('bread_bottom', 8.5, 4.5, 'cutting_board');
+        addItem('bread_bottom', 8.5, 5.2, 'table_bob');
         addItem('lettuce', 9.4, 0.5, 'fridge');
         addItem('tomato', 7.4, 0.5, 'counter_elementA');
         addItem('cheese', 3, 2, 'table_dining');
-        addItem('ham', 8.45, 5.78, 'table_bob');
+        addItem('ham', 8.45, 4, 'table_extra');
         addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 

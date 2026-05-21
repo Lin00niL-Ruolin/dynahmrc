@@ -97,11 +97,21 @@ def load_yaml_config(config_path: str) -> SimpleNamespace:
 
 class ServiceState:
     client: Optional[Client] = None
-    robots: Dict[str, Any] = {}
-    robot_positions: Dict[str, List[float]] = {}
-    scene_objects: Dict[str, int] = {}
+    robots: Dict[str, Any] = {}                 # robot_name → body_id
+    robot_positions: Dict[str, List[float]] = {} # robot_name → [x, y, z]
+    scene_objects: Dict[str, int] = {}           # object_name → body_id
+    gripper_constraints: Dict[str, int] = {}     # robot_name → constraint_id
     step_count: int = 0
     is_initialized: bool = False
+
+    # 已知可抓取的物品名称后缀（用于过滤场景物体）
+    PICKABLE_NAMES = {
+        'apple', 'blue_bowl', 'bowl', 'fork_0', 'fork', 'book_0', 'book',
+        'soap', 'cup', 'lemon', 'bread_0', 'bacon_0', 'bread_bottom',
+        'bread_top', 'ham', 'lettuce', 'tomato', 'cheese',
+        'red_cube', 'blue_sphere', 'green_cylinder', 'tray',
+        'phone', 'toy_duck', 'egg',
+    }
 
 
 state = ServiceState()
@@ -160,19 +170,50 @@ def initialize(req: InitRequest):
         else:
             raise ValueError(f"Unknown scene: {req.scene}")
         
-        # ✅ 机器人已由 scene_setup 创建
-        # 此处跳过重复加载，只从场景中反向注册机器人 ID
+        # 扫描场景中的机器人
         print("\n[BestMan Service] 扫描场景中的机器人...")
-        try:
-            state.robots['bob'] = client.bob_arm
-            state.robots['alice'] = client.alice_base
-            state.robots['david'] = client.david
-            state.robots['lucy'] = client.drone_body
-            print(f"[机器人] ✅ Bob / Alice / David / Lucy 已注册 (由场景脚本创建)")
-        except Exception as e:
-            print(f"[机器人] ⚠️ 注册机器人: {e}")
+        robot_attrs = ['bob_arm', 'alice_base', 'alice_arm', 'david', 'drone_body', 'bob']
+        for attr in robot_attrs:
+            val = getattr(client, attr, None)
+            if val is not None:
+                state.robots[attr] = val
+                print(f"  ✓ {attr} = {val}")
+        if state.robots:
+            print(f"[机器人] ✅ {', '.join(state.robots.keys())} 已注册")
+        else:
+            print("[机器人] ⚠️ 未找到任何机器人")
         
-        client.run(30)
+        # 扫描场景中的所有可抓取物体
+        print("\n[BestMan Service] 扫描场景中的可抓取物体...")
+        loaded = 0
+        for attr_name in dir(client):
+            if attr_name in ServiceState.PICKABLE_NAMES or attr_name.startswith('_') or attr_name == 'client':
+                continue
+            val = getattr(client, attr_name, None)
+            if isinstance(val, int) and val > 0:
+                if val not in state.robots.values():
+                    state.scene_objects[attr_name] = val
+                    print(f"  ✓ {attr_name} = {val}")
+                    loaded += 1
+        # 额外检查已知可抓取名称
+        for name in ServiceState.PICKABLE_NAMES:
+            val = getattr(client, name, None)
+            if val is not None and isinstance(val, int) and val not in state.robots.values():
+                state.scene_objects[name] = val
+                loaded += 1
+        print(f"[场景] ✅ 已注册 {loaded} 个可抓取物体")
+        
+        # 步进仿真让物体稳定
+        print("\n[BestMan Service] 步进仿真...")
+        for _ in range(10):
+            client.run(10)
+        
+        return {
+            "message": f"Scene '{req.scene}' initialized successfully",
+            "gui": req.gui,
+            "robots": list(state.robots.keys()),
+            "objects": list(state.scene_objects.keys()),
+        }
         
         return {
             "message": f"Scene '{req.scene}' initialized successfully",
@@ -189,7 +230,7 @@ def initialize(req: InitRequest):
 
 @app.post("/act")
 def execute_action(req: ActRequest):
-    """执行机器人动作"""
+    """执行机器人动作 — 真实 PyBullet 控制"""
     if not state.is_initialized:
         raise HTTPException(status_code=400, detail="Not initialized. Call /init first.")
     
@@ -200,23 +241,115 @@ def execute_action(req: ActRequest):
     print(f"[动作] {robot_id} → {action} {params}")
     
     try:
-        # 模拟执行，返回成功（后续替换为真实动作控制）
         state.step_count += 1
+        result = {"success": True, "robot": robot_id, "action": action, "step": state.step_count}
         
-        result = {
-            "success": True,
-            "robot": robot_id,
-            "action": action,
-            "message": f"{robot_id} executed {action}",
-            "step": state.step_count,
-        }
+        if action == "pick":
+            target = params.get("target", params.get("object", ""))
+            # 查找物体
+            body_id = state.scene_objects.get(target)
+            if body_id is None:
+                # 模糊匹配
+                for name, bid in state.scene_objects.items():
+                    if target.lower() in name.lower():
+                        body_id = bid
+                        break
+            if body_id is None:
+                return {"success": False, "message": f"未知物体: {target}", "action": action}
+            
+            # 查找机器人
+            robot_body = state.robots.get(robot_id)
+            if robot_body is None:
+                # 尝试 robot_id + '_arm' 或 robot_id + '_base'
+                for suffix in ['_arm', '_base', '']:
+                    robot_body = state.robots.get(robot_id + suffix)
+                    if robot_body:
+                        break
+            if robot_body is None:
+                return {"success": False, "message": f"未知机器人: {robot_id}", "action": action}
+            
+            # 已抓起对象先释放
+            if robot_id in state.gripper_constraints:
+                p.removeConstraint(state.gripper_constraints[robot_id])
+            
+            # 获取物体当前位置，计算相对于机器人的偏移
+            obj_pos, obj_orn = p.getBasePositionAndOrientation(body_id)
+            rob_pos, rob_orn = p.getBasePositionAndOrientation(robot_body)
+            offset = [obj_pos[i] - rob_pos[i] for i in range(3)]
+            
+            # 创建固定约束：物体→机器人
+            constraint_id = p.createConstraint(
+                parentBodyUniqueId=robot_body, parentLinkIndex=-1,
+                childBodyUniqueId=body_id, childLinkIndex=-1,
+                jointType=p.JOINT_FIXED,
+                jointAxis=[0, 0, 0],
+                parentFramePosition=offset,
+                childFramePosition=[0, 0, 0],
+            )
+            state.gripper_constraints[robot_id] = constraint_id
+            result["message"] = f"{robot_id} picked {target}"
+            print(f"  ✓ 抓起 {target} (body={body_id}) → 约束#{constraint_id}")
         
-        # 更新机器人位置（模拟）
-        if robot_id not in state.robot_positions:
-            state.robot_positions[robot_id] = [0.0, 0.0, 0.0]
+        elif action == "place":
+            target = params.get("target", "")
+            # 释放约束
+            if robot_id in state.gripper_constraints:
+                p.removeConstraint(state.gripper_constraints[robot_id])
+                del state.gripper_constraints[robot_id]
+            # 获取要放置的物体
+            obj_name = params.get("object", "")
+            body_id = state.scene_objects.get(obj_name)
+            if body_id:
+                # 在目标位置创建临时支撑让物体不掉下去
+                target_pos = state.scene_objects.get(target)
+                if target_pos is None and target:
+                    # 已知位置映射
+                    known_pos = {
+                        'tray': [5, 5, 0.83],
+                        'cutting_board': [8.5, 5.5, 0.86],
+                        'table_bob': [8.5, 5.5, 0.86],
+                    }
+                    if target in known_pos:
+                        pos = known_pos[target]
+                        p.resetBasePositionAndOrientation(body_id, pos, [0, 0, 0, 1])
+            
+            result["message"] = f"{robot_id} placed object"
+            print(f"  ✓ 放置物体")
         
-        if action == "navigate" and "target" in params:
-            state.robot_positions[robot_id] = params["target"]
+        elif action == "navigate":
+            target = params.get("target", "")
+            robot_body = state.robots.get(robot_id)
+            if robot_body is None:
+                for suffix in ['_arm', '_base', '']:
+                    robot_body = state.robots.get(robot_id + suffix)
+                    if robot_body:
+                        break
+            if target and robot_body:
+                # 已知家具位置
+                known_pos = {
+                    'fridge': [9.4, 0.5, 0], 'table_dining': [3, 2, 0],
+                    'table_bob': [8.5, 5.5, 0], 'cutting_board': [8.5, 5.5, 0.86],
+                    'counter_elementa': [7.4, 0.5, 0], 'counter_elementb': [5.9, 0.5, 0],
+                }
+                tgt = target.lower()
+                if tgt in known_pos:
+                    pos = known_pos[tgt]
+                    p.resetBasePositionAndOrientation(robot_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+                    print(f"  ✓ 导航到 {target} @ {pos}")
+            
+            if robot_id not in state.robot_positions:
+                state.robot_positions[robot_id] = [0.0, 0.0, 0.0]
+            result["message"] = f"{robot_id} navigated to {target}"
+        
+        elif action == "wait":
+            result["message"] = f"{robot_id} is waiting"
+        
+        elif action == "communicate":
+            content = params.get("content", "")
+            result["message"] = f"{robot_id} said: {content}"
+        
+        else:
+            result["message"] = f"{robot_id} executed {action} (simulated)"
         
         # 步进仿真
         if state.client:
@@ -227,17 +360,12 @@ def execute_action(req: ActRequest):
     except Exception as e:
         import traceback
         print(f"[动作错误] {traceback.format_exc()}")
-        return {
-            "success": False,
-            "robot": robot_id,
-            "action": action,
-            "message": str(e),
-        }
+        return {"success": False, "message": str(e)}
 
 
 @app.get("/state")
 def get_full_state():
-    """获取完整状态"""
+    """获取完整状态 (已存在的实现，维持不变)"""
     if not state.is_initialized:
         return StateResponse()
     
@@ -251,10 +379,9 @@ def get_full_state():
 @app.post("/step")
 def step_simulation(n_steps: int = 10):
     """步进仿真"""
-    if state.client:
-        state.client.run(n_steps)
-        state.step_count += n_steps
-    return {"stepped": n_steps, "total": state.step_count}
+
+
+
 
 
 @app.post("/reset")

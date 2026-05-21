@@ -5,6 +5,7 @@ import type { AppConfig } from '../types';
 interface Props {
   hmrc: ReturnType<typeof useDynaHMRC>;
   onStartMission: (runId: string) => void;
+  onBack: () => void;
 }
 
 const TASKS = [
@@ -14,6 +15,8 @@ const TASKS = [
     icon: '🥪',
     desc: 'Stack ingredients on the cutting board',
     color: '#f59e0b',
+    scene: 'scene1',
+    sceneLabel: '场景一 (10m×8m)',
   },
   {
     id: 'sort_solids',
@@ -21,6 +24,8 @@ const TASKS = [
     icon: '🎨',
     desc: 'Sort colored solids onto matching panels',
     color: '#8b5cf6',
+    scene: 'kitchen',
+    sceneLabel: '场景二 (Kitchen)',
   },
   {
     id: 'pack_objects',
@@ -28,13 +33,22 @@ const TASKS = [
     icon: '📦',
     desc: 'Pack bowl, fork, soap, apple into tray',
     color: '#06b6d4',
+    scene: 'living_room',
+    sceneLabel: '场景三 (Living Room)',
   },
 ];
 
+// Task → Scene 映射
+const TASK_SCENE_MAP: Record<string, string> = {
+  make_sandwich: 'scene1',
+  sort_solids: 'kitchen',
+  pack_objects: 'living_room',
+};
+
 const SCENES = [
-  { id: 'scene1', name: 'Room (10m × 8m)', desc: 'Standard single-room layout' },
-  { id: 'kitchen', name: 'Kitchen', desc: 'Kitchen counter and cabinets' },
-  { id: 'living_room', name: 'Living Room', desc: 'Living room with furniture' },
+  { id: 'scene1', name: '场景一 (10m×8m)', desc: '对应 Make Sandwich 任务 — 有 Bob Lab 和厨房区' },
+  { id: 'kitchen', name: '场景二 (Kitchen)', desc: '对应 Sort Solids 任务 — 标准厨房布局' },
+  { id: 'living_room', name: '场景三 (Living Room)', desc: '对应 Pack Objects 任务 — 客厅家具布局' },
 ];
 
 const ROBOTS = [
@@ -44,10 +58,10 @@ const ROBOTS = [
   { id: 'Lucy', icon: '🚁', type: 'Drone', selected: true },
 ];
 
-export function LandingPage({ hmrc, onStartMission }: Props) {
+export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
   const [config, setConfig] = useState<AppConfig | null>(null);
-  const [taskType, setTaskType] = useState('pack_objects');
-  const [layout, setLayout] = useState('kitchen');
+  const [taskType, setTaskType] = useState('make_sandwich');
+  const [layout, setLayout] = useState(TASK_SCENE_MAP['make_sandwich']);
   const [selectedRobots, setSelectedRobots] = useState(ROBOTS.map(r => r.id));
 
   // Layout-specific robot defaults
@@ -57,11 +71,15 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
     living_room: ['Alice', 'Bob', 'David', 'Lucy'],
   };
 
-  const handleLayoutChange = (id: string) => {
-    setLayout(id);
-    // Auto-select robots matching the layout
-    if (layoutRobotDefaults[id]) {
-      setSelectedRobots(layoutRobotDefaults[id]);
+  const handleTaskChange = (id: string) => {
+    setTaskType(id);
+    // 自动选择对应的场景
+    const sceneId = TASK_SCENE_MAP[id];
+    if (sceneId) {
+      setLayout(sceneId);
+      if (layoutRobotDefaults[sceneId]) {
+        setSelectedRobots(layoutRobotDefaults[sceneId]);
+      }
     }
   };
   const [maxSteps, setMaxSteps] = useState(50);
@@ -113,8 +131,27 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
         gap: 16,
         fontFamily: 'monospace',
         alignItems: 'center',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
       }}>
+        {/* Back Button */}
+        <button onClick={onBack} style={{
+          background: 'none',
+          border: 'none',
+          color: '#94a3b8',
+          cursor: 'pointer',
+          fontSize: 14,
+          fontFamily: 'monospace',
+          padding: '4px 8px',
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+        }}
+          onMouseEnter={e => (e.target as HTMLButtonElement).style.color = '#e2e8f0'}
+          onMouseLeave={e => (e.target as HTMLButtonElement).style.color = '#94a3b8'}
+        >
+          ← Back
+        </button>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           color: hmrc.connected ? '#4ade80' : '#f87171',
@@ -184,28 +221,32 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
                 key={task.id}
                 task={task}
                 selected={taskType === task.id}
-                onClick={() => setTaskType(task.id)}
+                onClick={() => handleTaskChange(task.id)}
               />
             ))}
           </div>
         </section>
 
-        {/* Scene Selection */}
+        {/* Scene Selection — 自动根据任务匹配 */}
         <section>
-          <SectionTitle icon="🗺️" text="Scene Selection" />
+          <SectionTitle icon="🗺️" text="Task → Scene Mapping" />
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: 10,
           }}>
-            {SCENES.map(scene => (
-              <SceneCard
-                key={scene.id}
-                scene={scene}
-                selected={layout === scene.id}
-                onClick={() => handleLayoutChange(scene.id)}
-              />
-            ))}
+            {TASKS.map(task => {
+              const scene = SCENES.find(s => s.id === TASK_SCENE_MAP[task.id]);
+              if (!scene) return null;
+              return (
+                <SceneCard
+                  key={scene.id}
+                  scene={scene}
+                  selected={layout === scene.id}
+                  onClick={() => {}}
+                />
+              );
+            })}
           </div>
         </section>
 
@@ -398,6 +439,14 @@ function TaskCard({ task, selected, onClick }: {
       }}>
         {task.desc}
       </p>
+      <div style={{
+        marginTop: 8, fontSize: 14, color: selected ? task.color : '#64748b',
+        textAlign: 'center', fontWeight: 500,
+        padding: '3px 8px', borderRadius: 4,
+        background: selected ? `${task.color}15` : 'transparent',
+      }}>
+        🗺️ {task.sceneLabel}
+      </div>
       {selected && (
         <div style={{
           textAlign: 'center', marginTop: 8,

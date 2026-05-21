@@ -54,7 +54,7 @@ export default function App() {
         <SplashPage onEnter={() => setPage('landing')} />
       )}
       {page === 'landing' && (
-        <LandingPage key={landingKey} hmrc={hmrc} onStartMission={handleStartMission} />
+        <LandingPage key={landingKey} hmrc={hmrc} onStartMission={handleStartMission} onBack={() => setPage('splash')} />
       )}
       {page === 'mission' && (
         <MissionPage key={runId} hmrc={hmrc} onBack={handleBack} />

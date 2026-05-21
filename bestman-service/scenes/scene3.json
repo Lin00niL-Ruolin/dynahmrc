@@ -174,5 +174,21 @@
         "object_orientation": [0, 0, 0],
         "scale": 1.0,
         "fixed_base": false
+    },
+    {
+        "obj_name": "blue_bowl",
+        "model_path": "Asset/Scene/Object/URDF_models/utensil_bowl_blue/model.urdf",
+        "object_position": [6.9, 0.6, 1.05],
+        "object_orientation": [0, 0, 0],
+        "scale": 1.0,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "apple",
+        "model_path": "Asset/Scene/Object/URDF_models/food_apple/model.urdf",
+        "object_position": [4.15, 4, 0.85],
+        "object_orientation": [0, 0, 0.3],
+        "scale": 1.0,
+        "fixed_base": false
     }
 ]

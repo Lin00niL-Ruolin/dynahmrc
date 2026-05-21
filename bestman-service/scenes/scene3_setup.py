@@ -164,6 +164,22 @@ def setup_scene3(client, scene_json_path=None):
                             p.changeVisualShape(obj_id, j, rgbaColor=[0.55, 0.55, 0.55, 1])
                         print(f"  🎨 packing_table → 中度灰色")
 
+                    # 叉子改成黑色
+                    if obj_name == "fork_0":
+                        num_joints = p.getNumJoints(obj_id)
+                        p.changeVisualShape(obj_id, -1, rgbaColor=[0.08, 0.08, 0.08, 1])
+                        for j in range(num_joints):
+                            p.changeVisualShape(obj_id, j, rgbaColor=[0.08, 0.08, 0.08, 1])
+                        print(f"  🎨 fork_0 → 黑色")
+
+                    # 苹果更红
+                    if obj_name == "apple":
+                        num_joints = p.getNumJoints(obj_id)
+                        p.changeVisualShape(obj_id, -1, rgbaColor=[0.9, 0.1, 0.05, 1])
+                        for j in range(num_joints):
+                            p.changeVisualShape(obj_id, j, rgbaColor=[0.9, 0.1, 0.05, 1])
+                        print(f"  🎨 apple → 鲜红色")
+
                     if obj_name in ["source_table_1", "source_table_2"]:
                         num_joints = p.getNumJoints(obj_id)
                         p.changeVisualShape(obj_id, -1, rgbaColor=[0.76, 0.6, 0.42, 1])

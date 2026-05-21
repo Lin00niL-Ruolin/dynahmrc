@@ -204,7 +204,7 @@ def setup_scene1(client, scene_json_path=None):
     # 6. 固定机械臂 (UR5e) 在 table_new_2 (8.5, 5.8) 上
     print("\n--- 固定机械臂 ---")
     bob_arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
-    tx, ty = 8.5, 5.8
+    tx, ty = 8.5, 6.0
     table_top_z = 0.86
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -277,43 +277,86 @@ def setup_scene1(client, scene_json_path=None):
     except Exception as e:
         print(f"[机器人] ⚠️ 移动操作臂: {e}")
 
-    # 8. 场景装饰物品 (面包片、培根等)
-    print("\n--- 装饰物品 ---")
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
-    bestman_dir = os.path.join(workspace_dir, 'BestMan')
-    cwd = os.getcwd()
-    os.chdir(bestman_dir)
-
+    # 8. 用 PyBullet 几何体创建案板（长方体）
+    print("\n--- 案板 ---")
     try:
-        # 面包片 on table_new_1 (8.5, 4)
-        bread_id = client.load_object(
-            obj_name="bread_0",
-            model_path='Asset/Scene/Object/URDF_models/food_bread/model.urdf',
-            object_position=[8.55, 4, 0.86],
-            object_orientation=[0, 0, 0.2],
-            scale=1.0, fixed_base=True
+        board_half = [0.35, 0.25, 0.02]  # 70cm x 50cm x 4cm
+        board_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=board_half)
+        board_vis = p.createVisualShape(
+            p.GEOM_BOX, halfExtents=board_half,
+            rgbaColor=[0.8, 0.7, 0.5, 1.0]  # 浅木色底
         )
-        setattr(client, "bread_0", bread_id)
-        print(f"  ✓ 面包片 @ (8.55, 4, 0.86)")
+        board_id = p.createMultiBody(
+            baseMass=0.5,
+            baseCollisionShapeIndex=board_col,
+            baseVisualShapeIndex=board_vis,
+            basePosition=[8.5, 5.5, 0.86],
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
+        )
+        # 加载木纹纹理
+        tex_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wood_texture.png")
+        if os.path.exists(tex_path):
+            tex_id = p.loadTexture(tex_path)
+            p.changeVisualShape(board_id, -1, textureUniqueId=tex_id)
+        setattr(client, "cutting_board", board_id)
+        print(f"  ✓ 案板 (70cmx50cmx4cm) 带木纹 @ (8.5, 5.5, 0.86)")
     except Exception as e:
-        print(f"  ⚠️ 面包片: {e}")
+        print(f"  ⚠️ 案板: {e}")
 
+    # 9. 用 PyBullet 几何体创建培根（长方体，肉色+白色条纹）
+    print("\n--- 培根 ---")
     try:
-        # 培根 on table_new_2 (8.5, 5.8)
-        bacon_id = client.load_object(
-            obj_name="bacon_0",
-            model_path='Asset/Scene/Object/Kitchen_world_models/MeatTurkeyLeg/00001/mobility.urdf',
-            object_position=[8.5, 5.8, 0.86],
-            object_orientation=[0, 0, -0.3],
-            scale=1.0, fixed_base=True
+        bacon_half = [0.08, 0.03, 0.005]  # 16cm x 6cm x 1cm — 培根片大小
+        bacon_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bacon_half)
+        # 用肉粉色+白色条纹效果，通过多层叠加实现
+        bacon_color = [0.92, 0.25, 0.15, 1.0]  # 鲜肉红色
+        bacon_vis = p.createVisualShape(
+            p.GEOM_BOX, halfExtents=bacon_half,
+            rgbaColor=bacon_color
+        )
+        bacon_id = p.createMultiBody(
+            baseMass=0.1,
+            baseCollisionShapeIndex=bacon_col,
+            baseVisualShapeIndex=bacon_vis,
+            basePosition=[8.5, 4, 0.86],  # 桌子一上
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0.3])  # 稍微倾斜
         )
         setattr(client, "bacon_0", bacon_id)
-        print(f"  ✓ 培根 @ (8.5, 5.8, 0.86)")
+        print(f"  ✓ 培根 (16cmx6cm) @ (8.5, 4, 0.86) — 桌子一")
     except Exception as e:
         print(f"  ⚠️ 培根: {e}")
 
-    os.chdir(cwd)
+    # 10. 用 PyBullet 几何体创建面包片（正方形，褐色）
+    print("\n--- 面包片 ---")
+    try:
+        bread_half = [0.07, 0.07, 0.012]  # 14cm x 14cm x 2.4cm
+        bread_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bread_half)
+        bread_vis = p.createVisualShape(
+            p.GEOM_BOX, halfExtents=bread_half,
+            rgbaColor=[0.75, 0.6, 0.4, 1.0]  # 浅咖色
+        )
+        bread_id = p.createMultiBody(
+            baseMass=0.05,
+            baseCollisionShapeIndex=bread_col,
+            baseVisualShapeIndex=bread_vis,
+            basePosition=[8.2, 5.1, 0.86],  # 桌子二上，不在案板上
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
+        )
+        setattr(client, "bread_0", bread_id)
+        print(f"  ✓ 面包片 (14cmx14cm) @ (8.2, 5.1, 0.86) — 桌子二")
+
+        # 再一片面包在桌子一上
+        bread2_id = p.createMultiBody(
+            baseMass=0.05,
+            baseCollisionShapeIndex=bread_col,
+            baseVisualShapeIndex=bread_vis,
+            basePosition=[8.55, 4.2, 0.86],  # 桌子一上
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0.1])  # 稍微偏转
+        )
+        setattr(client, "bread_1", bread2_id)
+        print(f"  ✓ 面包片2 (14cmx14cm) @ (8.55, 4, 0.86) — 桌子一")
+    except Exception as e:
+        print(f"  ⚠️ 面包片: {e}")
 
     for _ in range(50):
         p.stepSimulation()

@@ -29,14 +29,19 @@ app.get('/api/config', (_req, res) => {
       { id: 'make_sandwich', name: 'Make Sandwich', desc: 'Stack ingredients on cutting board' },
     ],
     layouts: [
-      { id: 'kitchen', name: 'Kitchen', desc: 'Kitchen with fridge, cabinet, tables' },
-      { id: 'living_room', name: 'Living Room', desc: 'Living room with sofa, bookshelf, TV stand' },
-      { id: 'scene1', name: '场景一', desc: '10m×8m 房间，含冰箱、烤箱、柜子、书架、桌子、洗手池、马桶' },
+      { id: 'scene1', name: '场景一 (10m×8m)', desc: '对应 Make Sandwich 任务 — 含厨房区、Bob Lab、卫生间' },
+      { id: 'kitchen', name: '场景二 (Kitchen)', desc: '对应 Sort Solids 任务 — 标准厨房布局' },
+      { id: 'living_room', name: '场景三 (Living Room)', desc: '对应 Pack Objects 任务 — 客厅家具布局' },
     ],
     layoutRobotDefaults: {
       scene1: ['Alice', 'Bob', 'David', 'Lucy'],
       kitchen: ['Alice', 'Bob', 'David', 'Lucy'],
       living_room: ['Alice', 'Bob', 'David', 'Lucy'],
+    },
+    taskSceneMap: {
+      make_sandwich: 'scene1',
+      sort_solids: 'kitchen',
+      pack_objects: 'living_room',
     },
     robotTypes: [
       { id: 'Alice', name: 'Alice (Mobile Manipulation)', desc: 'Wheeled chassis + arm, can navigate, open, pick, place' },
