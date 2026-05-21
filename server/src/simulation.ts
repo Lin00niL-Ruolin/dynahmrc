@@ -72,11 +72,7 @@ export class SimEnvironment {
     }
 
     this.taskTargets = TASK_GOALS[taskType] || [];
-    // Scene1-specific overrides
-    if (this.layoutName === 'scene1' && taskType === 'make_sandwich') {
-      // Remove ham (chicken leg) — not present in 3D BestMan scene
-      this.taskTargets = this.taskTargets.filter(t => t !== 'ham');
-    }
+
     this.addTaskObjects(taskType);
 
     return this.getState();
@@ -245,6 +241,7 @@ export class SimEnvironment {
         addItem('lettuce', 9.4, 0.5, 'fridge');
         addItem('tomato', 7.4, 0.5, 'counter_elementA');
         addItem('cheese', 3, 2, 'table_dining');
+        addItem('ham', 8.45, 5.78, 'table_bob');
         addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 

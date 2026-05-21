@@ -158,14 +158,7 @@ export function LandingPage({ hmrc, onStartMission }: Props) {
         }}>
           Decentralized Heterogeneous Multi-Robot Collaboration
         </p>
-        <p style={{
-          margin: '4px 0 0',
-          fontSize: 15,
-          color: '#64748b',
-          fontFamily: 'monospace',
-        }}>
-          Mission Control v1.0
-        </p>
+
       </div>
 
       <div style={{

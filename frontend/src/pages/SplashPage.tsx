@@ -191,7 +191,6 @@ export function SplashPage({ onEnter }: Props) {
         color: 'rgba(255,255,255,0.15)',
         letterSpacing: '2px',
       }}>
-        DYNAHMRC v1.0 · Powered by DeepSeek
       </div>
     </div>
   );
