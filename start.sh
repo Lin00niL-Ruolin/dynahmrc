@@ -38,18 +38,12 @@ done
 # 4. 启动 BestMan 3D 服务
 echo "[4/5] 启动 BestMan 3D (端口 5001)..."
 cd "$PROJECT_DIR/bestman-service"
+source /home/developer/miniconda/etc/profile.d/conda.sh
+conda activate base
 PYTHONPATH="/home/developer/.openclaw/workspace/BestMan:$PYTHONPATH" /home/developer/miniconda/bin/python service.py > /tmp/dynahmrc_bestman.log 2>&1 &
 BESTMAN_PID=$!
 echo "      PID: $BESTMAN_PID"
-echo "      等待 BestMan 加载 URDF 模型..."
-sleep 15
-
-# 初始化场景
-curl -s -X POST http://localhost:5001/init \
-  -H "Content-Type: application/json" \
-  -d '{"scene":"scene1", "gui":false, "config_path":"Config/default.yaml"}' > /dev/null 2>&1 && \
-  echo "      ✅ BestMan 3D 已就绪" || \
-  echo "      ⚠️ BestMan 初始化中（gui模式需手动初始化）"
+sleep 2
 
 # 5. 启动前端
 echo "[5/5] 启动前端 (端口 5173)..."

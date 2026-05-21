@@ -1,0 +1,82 @@
+[
+    {
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/elementB/model.urdf",
+        "object_position": [1, 0.5, 0.55],
+        "object_orientation": [0, 0, "math.pi"],
+        "scale": 1.1,
+        "obj_name": "elementB1",
+        "fixed_base": true
+    },
+    {
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/elementA/urdf/kitchen_part_right_gen_convex.urdf",
+        "object_position": [2.5, 0.5, 1.477],
+        "object_orientation": [0, 0, "math.pi / 2"],
+        "scale": 1.0,
+        "obj_name": "elementA",
+        "fixed_base": true
+    },
+    {
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Microwave/7128/mobility.urdf",
+        "object_position": [3.2, 0.3, 1.1],
+        "object_orientation": [0, 0, "math.pi / 2 * 3"],
+        "scale": 0.5,
+        "obj_name": "microwave",
+        "fixed_base": true
+    },
+    {
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Dishwasher/2085/mobility.urdf",
+        "object_position": [3.7, 0.5, 0.35],
+        "object_orientation": [0, 0, "math.pi / 2 * 3"],
+        "scale": 0.75,
+        "obj_name": "elementC",
+        "fixed_base": true
+    },
+    {
+        "model_path": "Asset/Scene/Object/Kitchen_world_models/Fridge/10144/mobility.urdf",
+        "object_position": [4.5, 0.5, 1.055],
+        "object_orientation": [0, 0, "math.pi / 2 * 3"],
+        "scale": 1.1,
+        "obj_name": "fridge",
+        "fixed_base": true
+    },
+    {
+        "obj_name": "table1",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf",
+        "object_position": [1, 4, 0],
+        "object_orientation": [0, 0, "math.pi/2"],
+        "scale": 1.4,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "table2",
+        "model_path": "Asset/Scene/Object/URDF_models/furniture_table_rectangle_high/table.urdf",
+        "object_position": [3, 5, 0],
+        "object_orientation": [0, 0, "math.pi/2"],
+        "scale": 1.4,
+        "fixed_base": false
+    },
+    {
+        "obj_name": "bookcase",
+        "model_path": "Asset/Scene/Object/bookcase/untitled.urdf",
+        "object_position": [1, 6.5, 1.068],
+        "object_orientation": ["math.pi/2", 0, 0],
+        "scale": 0.5,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "sofa",
+        "model_path": "Asset/Scene/Object/sofa/sofa_color.urdf",
+        "object_position": [7.5, 9, 0.415],
+        "object_orientation": ["math.pi/2", 0, 0],
+        "scale": 1.5,
+        "fixed_base": true
+    },
+    {
+        "obj_name": "rug",
+        "model_path": "Asset/Scene/Object/rug/10404_Circular_Throw_Rug_v1_max2010_iterations-2.urdf",
+        "object_position": [6, 2, 0],
+        "object_orientation": [0, 0, 0],
+        "scale": 0.01,
+        "fixed_base": true
+    }
+]

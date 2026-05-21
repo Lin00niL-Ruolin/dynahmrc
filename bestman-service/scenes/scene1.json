@@ -96,14 +96,7 @@
         "scale": 1.0,
         "fixed_base": true
     },
-    {
-        "obj_name": "bacon_0",
-        "model_path": "Asset/Scene/Object/Kitchen_world_models/MeatTurkeyLeg/00001/mobility.urdf",
-        "object_position": [8.45, 5.78, 0.86],
-        "object_orientation": [0, 0, -0.3],
-        "scale": 1.0,
-        "fixed_base": true
-    },
+
     {
         "obj_name": "chair_3",
         "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
