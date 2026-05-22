@@ -388,7 +388,7 @@ export class SimEnvironment {
       if (taskType === 'pack_objects') {
         // Items match scene3.json positions
         addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
-        addItem('soap', 4.7, 9.8, 'sink_base');               // soap on sink counter
+        addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
         addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
         addItem('bowl', 6.9, 1.2, 'kitchen_counter');         // blue_bowl on counter
       } else if (taskType === 'sort_solids') {
