@@ -14,7 +14,7 @@ const COLORS = {
   container_closed: '#475569', container_open: '#1e3a5f',
   item: '#f59e0b', item_placed: '#22c55e', label: '#94a3b8',
   text: '#e2e8f0', accent: '#22d3ee', leader: '#fbbf24',
-  stand_pose: '#22d3ee', zone: 'rgba(34, 211, 238, 0.08)',
+  stand_pose: '#22d3ee',
 };
 
 const ROBOT_STYLE: Record<string, { color: string; shape: 'circle' | 'diamond' | 'hexagon' | 'square' }> = {
@@ -139,16 +139,6 @@ export function SimulationView({ state, style }: Props) {
 
   function drawScene(ctx: CanvasRenderingContext2D, s: SimulationState, toC: typeof toCanvas, sc: typeof scale) {
     if (!s.scene?.objects) return;
-
-    // Task zone
-    const [zx, zy] = toC(5, 5);
-    ctx.fillStyle = COLORS.zone;
-    ctx.beginPath(); ctx.arc(zx, zy, 60, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(34, 211, 238, 0.15)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.arc(zx, zy, 60, 0, Math.PI * 2); ctx.stroke();
-    ctx.setLineDash([]);
 
     // Restricted zones
     const restricted = (s as any).restrictedZones || [];
