@@ -154,7 +154,7 @@
     {
         "obj_name": "soap",
         "model_path": "Asset/Scene/Object/URDF_models/soap/model.urdf",
-        "object_position": [5.7, 6, 1.75],
+        "object_position": [4.2, 4, 0.85],
         "object_orientation": [0, 0, 0],
         "scale": 1.5,
         "fixed_base": false
