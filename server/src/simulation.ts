@@ -125,6 +125,7 @@ export class SimEnvironment {
         ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
+        ['tray', 8.8, 5.5, 0.3, 0.3, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
@@ -177,6 +178,7 @@ export class SimEnvironment {
         // Right wall shelf
         ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
         ['blackboard', 7, 0.15, 0.15, 2.0, false],
+        ['tray', 3, 4.7, 0.3, 0.3, false],
         // Floor rug
         ['rug', 6, 2, 0.6, 0.6, false],
       ];
@@ -228,6 +230,7 @@ export class SimEnvironment {
         // Bathroom area (top area)
         ['bathtub', 1.5, 9.4, 1.0, 0.6, false],
         ['sink_base', 4.7, 9.5, 0.8, 0.6, false],
+        ['tray', 8, 2.7, 0.3, 0.3, false],
         // Floor items
         ['rug', 8, 2.4, 0.6, 0.6, false],
       ];
