@@ -211,34 +211,23 @@ export function MissionPage({ hmrc, onBack }: Props) {
           }}>
             {/* Simulation Canvas */}
             <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-              {/* Task watermark */}
-              <div style={{
-                position: 'absolute', top: 8, left: 8, zIndex: 10,
-                fontSize: 12, padding: '3px 8px', borderRadius: 4,
-                background: `${theme.accent}20`,
-                color: theme.accent,
-                border: `1px solid ${theme.accent}30`,
-                pointerEvents: 'none',
-              }}>
-                {theme.icon} {theme.taskName}
-              </div>
               <SimulationView
                 state={hmrc.state}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>
 
-            {/* Bottom bar */}
+            {/* Bottom bar — redesigned: no overlap, compact */}
             <div style={{
-              height: 90, flexShrink: 0,
+              height: 72, flexShrink: 0,
               background: '#1e293b', borderTop: '1px solid #334155',
-              display: 'flex', alignItems: 'stretch',
+              display: 'flex', alignItems: 'center', padding: '0 8px',
+              gap: 0,
             }}>
               {/* Controls */}
               <div style={{
-                flex: '0 0 140px', padding: '8px 10px',
+                flex: '0 0 120px', padding: '4px 8px',
                 borderRight: '1px solid #334155',
-                display: 'flex', flexDirection: 'column', justifyContent: 'center',
               }}>
                 <ControlBar
                   state={hmrc.state}
@@ -252,20 +241,18 @@ export function MissionPage({ hmrc, onBack }: Props) {
 
               {/* Progress */}
               <div style={{
-                flex: '0 0 150px', padding: '8px 10px',
+                flex: '0 0 130px', padding: '4px 8px',
                 borderRight: '1px solid #334155',
-                display: 'flex', flexDirection: 'column', justifyContent: 'center',
-                gap: 4,
               }}>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}>
                   Step {hmrc.state?.step ?? 0}
                 </div>
                 {hmrc.state?.taskProgress && (
-                  <div style={{ fontSize: 11, color: '#64748b' }}>
+                  <div style={{ fontSize: 10, color: '#64748b', lineHeight: 1.3 }}>
                     {hmrc.state.taskProgress}
                   </div>
                 )}
-                <div style={{ height: 4, background: '#0f172a', borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ height: 3, background: '#0f172a', borderRadius: 2, marginTop: 2, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
                     background: hmrc.state?.taskCompleted ? '#22c55e' : theme.accent,
@@ -363,30 +350,26 @@ function RobotStatusBar({ state }: { state: SimulationState | null }) {
 
   return (
     <div style={{
-      flex: 1, padding: '8px 12px', overflow: 'hidden',
-      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      flex: 1, padding: '4px 8px', overflow: 'hidden',
+      display: 'flex', alignItems: 'center', gap: 6,
     }}>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-        {robotList.length} robots
-      </div>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {robotList.map((r: any) => (
-          <div key={r.name} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '2px 6px', borderRadius: 4, fontSize: 11,
-            background: r.name === state?.leader ? '#78350f' : '#0f172a',
-            border: r.name === state?.leader ? '1px solid #fbbf2440' : '1px solid #334155',
-          }}>
-            <span>{robotEmojis[r.robotType] || '🤖'}</span>
-            <span style={{
-              color: r.name === state?.leader ? '#fbbf24' : '#cbd5e1',
-              fontWeight: r.name === state?.leader ? 600 : 400,
-            }}>{r.name}</span>
-            {r.graspingObject && <span style={{ fontSize: 10, color: '#22d3ee' }}>📦{r.graspingObject}</span>}
-            {r.name === state?.leader && <span style={{ fontSize: 10 }}>👑</span>}
-          </div>
-        ))}
-      </div>
+      {robotList.map((r: any) => (
+        <div key={r.name} style={{
+          display: 'flex', alignItems: 'center', gap: 3,
+          padding: '3px 8px', borderRadius: 4, fontSize: 11,
+          background: r.name === state?.leader ? '#78350f' : '#0f172a',
+          border: r.name === state?.leader ? '1px solid #fbbf2440' : '1px solid #334155',
+          whiteSpace: 'nowrap',
+        }}>
+          <span>{robotEmojis[r.robotType] || '🤖'}</span>
+          <span style={{
+            color: r.name === state?.leader ? '#fbbf24' : '#cbd5e1',
+            fontWeight: r.name === state?.leader ? 600 : 400,
+          }}>{r.name}</span>
+          {r.graspingObject && <span style={{ fontSize: 9, color: '#22d3ee' }}>📦{r.graspingObject}</span>}
+          {r.name === state?.leader && <span style={{ fontSize: 10 }}>👑</span>}
+        </div>
+      ))}
     </div>
   );
 }

@@ -326,51 +326,25 @@ export function SimulationView({ state, style }: Props) {
     }
   }
 
-  function drawOverlays(ctx: CanvasRenderingContext2D, s: SimulationState, _toC: typeof toCanvas) {
-    // Top-left status panel
-    const px = 10, py = 10, pw = 200, ph = 88;
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-    ctx.beginPath(); (ctx as any).roundRect(px, py, pw, ph, 6); ctx.fill();
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); (ctx as any).roundRect(px, py, pw, ph, 6); ctx.stroke();
-
-    ctx.fillStyle = COLORS.text;
-    ctx.font = '12px Inter, sans-serif';
+    function drawOverlays(ctx: CanvasRenderingContext2D, s: SimulationState, _toC: typeof toCanvas) {
+    // Step counter — compact, top-right corner
+    const txt = `Step ${s.step}`;
+    ctx.font = 'bold 13px Inter, sans-serif';
+    const tw = ctx.measureText(txt).width;
+    const px = CANVAS_W - tw - 20, py = 10;
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.beginPath(); (ctx as any).roundRect(px - 6, py, tw + 12, 26, 6); ctx.fill();
+    ctx.fillStyle = '#22d3ee';
     ctx.textAlign = 'left';
-    ctx.fillText(`Step ${s.step}`, px + 10, py + 18);
-    ctx.fillStyle = COLORS.label;
-    ctx.fillText(s.taskProgress || '', px + 10, py + 36);
-    if (s.leader) {
-      ctx.fillStyle = COLORS.leader;
-      ctx.fillText(`👑 Leader: ${s.leader}`, px + 10, py + 54);
-    }
-    ctx.fillStyle = COLORS.label;
-    ctx.font = '10px Inter, sans-serif';
-    ctx.fillText(`Dialogues: ${s.dialogues?.length || 0}`, px + 10, py + 72);
+    ctx.fillText(txt, px, py + 18);
 
-    // Legend
-    const lx = 10, ly = CANVAS_H - 100, lw = 180, lh = 90;
-    ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-    ctx.beginPath(); (ctx as any).roundRect(lx, ly, lw, lh, 6); ctx.fill();
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); (ctx as any).roundRect(lx, ly, lw, lh, 6); ctx.stroke();
-
-    let textY = ly + 16;
-    ctx.fillStyle = COLORS.label;
-    ctx.font = '9px Inter, sans-serif';
-    ctx.textAlign = 'left';
-    for (const [name, st] of Object.entries(ROBOT_STYLE)) {
-      ctx.fillStyle = st.color;
-      ctx.beginPath(); ctx.arc(lx + 10, textY, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = COLORS.text;
-      ctx.fillText(name, lx + 22, textY + 4);
-      textY += 16;
-    }
-    if (s.leader) {
-      ctx.fillStyle = COLORS.leader;
-      ctx.fillText(`👑 ${s.leader}`, lx + 22, textY + 4);
+    // Task progress — compact below step
+    if (s.taskProgress) {
+      ctx.font = '10px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(px - 6, py + 28, ctx.measureText(s.taskProgress).width + 12, 20);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText(s.taskProgress, px, py + 44);
     }
   }
 
@@ -399,13 +373,6 @@ export function SimulationView({ state, style }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', ...style }}>
-      <div style={{
-        padding: '8px 12px', background: '#1e293b',
-        borderBottom: '1px solid #334155', fontSize: 13,
-        color: '#94a3b8', fontWeight: 500,
-      }}>
-        🎮 Simulation View {state?.leader ? `| Leader: ${state.leader}` : ''}
-      </div>
       <div style={{
         flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', overflow: 'hidden',
