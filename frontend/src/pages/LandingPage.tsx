@@ -16,7 +16,7 @@ const TASKS = [
     desc: 'Stack ingredients on the cutting board',
     color: '#f59e0b',
     scene: 'scene1',
-    sceneLabel: '场景一 (10m×8m)',
+    sceneLabel: '场景一',
   },
   {
     id: 'sort_solids',
@@ -25,7 +25,7 @@ const TASKS = [
     desc: 'Sort colored solids onto matching panels',
     color: '#8b5cf6',
     scene: 'kitchen',
-    sceneLabel: '场景二 (Kitchen)',
+    sceneLabel: '场景二',
   },
   {
     id: 'pack_objects',
@@ -34,7 +34,7 @@ const TASKS = [
     desc: 'Pack bowl, fork, soap, apple into tray',
     color: '#06b6d4',
     scene: 'living_room',
-    sceneLabel: '场景三 (Living Room)',
+    sceneLabel: '场景三',
   },
 ];
 
@@ -46,9 +46,9 @@ const TASK_SCENE_MAP: Record<string, string> = {
 };
 
 const SCENES = [
-  { id: 'scene1', name: '场景一 (10m×8m)', desc: '对应 Make Sandwich 任务 — 有 Bob Lab 和厨房区' },
-  { id: 'kitchen', name: '场景二 (Kitchen)', desc: '对应 Sort Solids 任务 — 标准厨房布局' },
-  { id: 'living_room', name: '场景三 (Living Room)', desc: '对应 Pack Objects 任务 — 客厅家具布局' },
+  { id: 'scene1', name: '场景一' },
+  { id: 'kitchen', name: '场景二' },
+  { id: 'living_room', name: '场景三' },
 ];
 
 const ROBOTS = [
@@ -513,16 +513,11 @@ function SceneCard({ scene, selected, onClick }: {
           width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
           background: selected ? '#22d3ee' : '#334155',
         }} />
-        <div>
-          <div style={{
-            fontSize: 13, fontWeight: 500,
-            color: selected ? '#22d3ee' : '#e2e8f0',
-          }}>
-            {scene.name}
-          </div>
-          <div style={{ fontSize: 14, color: '#94a3b8' }}>
-            {scene.desc}
-          </div>
+        <div style={{
+          fontSize: 13, fontWeight: 500,
+          color: selected ? '#22d3ee' : '#e2e8f0',
+        }}>
+          {scene.name}
         </div>
       </div>
     </div>
