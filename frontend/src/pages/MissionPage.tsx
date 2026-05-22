@@ -236,7 +236,7 @@ export function MissionPage({ hmrc, onBack }: Props) {
             }}>
               {/* Controls */}
               <div style={{
-                width: 180, padding: '8px 12px',
+                flex: '0 0 140px', padding: '8px 10px',
                 borderRight: '1px solid #334155',
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
               }}>
@@ -252,7 +252,7 @@ export function MissionPage({ hmrc, onBack }: Props) {
 
               {/* Progress */}
               <div style={{
-                width: 200, padding: '8px 12px',
+                flex: '0 0 150px', padding: '8px 10px',
                 borderRight: '1px solid #334155',
                 display: 'flex', flexDirection: 'column', justifyContent: 'center',
                 gap: 4,
