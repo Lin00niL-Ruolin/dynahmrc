@@ -12,20 +12,83 @@ interface Props {
   onBack: () => void;
 }
 
-const TASK_NAMES: Record<string, string> = {
-  pack_objects: '📦 Pack Objects',
-  sort_solids: '🎨 Sort Solids',
-  make_sandwich: '🥪 Make Sandwich',
+// ==================== 任务配置文件 ====================
+
+const TASK_THEMES: Record<string, {
+  taskName: string;
+  accent: string;
+  gradient: string;
+  icon: string;
+  goal: string;
+  robots: { name: string; role: string; emoji: string }[];
+  steps: string[];
+}> = {
+  make_sandwich: {
+    taskName: '🥪 Make Sandwich',
+    accent: '#f59e0b',
+    gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
+    icon: '🥪',
+    goal: 'Stack bread, lettuce, tomato, cheese, ham on cutting board in order',
+    robots: [
+      { name: 'Alice', role: 'Mobile Manipulation', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Arm (Chef)', emoji: '🦿' },
+      { name: 'David', role: 'Navigation Helper', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Delivery', emoji: '🚁' },
+    ],
+    steps: [
+      'Collect ingredients (bread, lettuce, tomato, cheese, ham)',
+      'Deliver to Bob\'s cutting board',
+      'Bob assembles the sandwich in order',
+      'Place top bread to complete',
+    ],
+  },
+  sort_solids: {
+    taskName: '🎨 Sort Solids',
+    accent: '#8b5cf6',
+    gradient: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+    icon: '🎨',
+    goal: 'Sort red_cube, blue_sphere, green_cylinder onto matching colored panels',
+    robots: [
+      { name: 'Alice', role: 'Mobile Transport', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Arm (Sorter)', emoji: '🦿' },
+      { name: 'David', role: 'Scene Scout', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Sorting', emoji: '🚁' },
+    ],
+    steps: [
+      'Identify colored solids on table_2',
+      'Match to correct colored panels',
+      'Transport each to its panel',
+      'Verify all sorted correctly',
+    ],
+  },
+  pack_objects: {
+    taskName: '📦 Pack Objects',
+    accent: '#06b6d4',
+    gradient: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+    icon: '📦',
+    goal: 'Find bowl, fork, soap, apple around the house and place them all into the tray',
+    robots: [
+      { name: 'Alice', role: 'Mobile Manipulation', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Arm (Packer)', emoji: '🦿' },
+      { name: 'David', role: 'Item Locator', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Scout', emoji: '🚁' },
+    ],
+    steps: [
+      'Locate items: bowl, fork, soap, apple',
+      'Navigate to each item and pick it up',
+      'Bring items to the packing table',
+      'Place all items into the tray',
+    ],
+  },
 };
 
-const robotEmojis: Record<string, string> = {
-  Alice: '🦾', Bob: '🦿', David: '🚗', Lucy: '🚁',
-};
+// ==================== 组件 ====================
 
 export function MissionPage({ hmrc, onBack }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
 
   const taskType = hmrc.state?.taskType || 'pack_objects';
+  const theme = TASK_THEMES[taskType] || TASK_THEMES.pack_objects;
 
   const isRunning = hmrc.state !== null
     && hmrc.state?.stage !== 'completed'
@@ -58,7 +121,16 @@ export function MissionPage({ hmrc, onBack }: Props) {
             borderRadius: 6, padding: '4px 10px',
             color: '#94a3b8', cursor: 'pointer', fontSize: 13,
           }}>← Back</button>
-          <span style={{ fontSize: 18 }}>{TASK_NAMES[taskType] || '🤖 Mission'}</span>
+          {/* Task badge */}
+          <span style={{
+            fontSize: 13, fontWeight: 600,
+            background: `${theme.accent}20`,
+            color: theme.accent,
+            padding: '2px 10px', borderRadius: 6,
+            border: `1px solid ${theme.accent}40`,
+          }}>
+            {theme.taskName}
+          </span>
           <span style={{ fontSize: 12, color: '#64748b' }}>#{hmrc.runId?.slice(-6) || '...'}</span>
         </div>
 
@@ -73,10 +145,10 @@ export function MissionPage({ hmrc, onBack }: Props) {
             return (
               <div key={s} style={{
                 display: 'flex', alignItems: 'center', gap: 4,
-                fontSize: 12, color: done ? '#22d3ee' : '#334155',
+                fontSize: 12, color: done ? theme.accent : '#334155',
                 fontWeight: done ? 500 : 400,
               }}>
-                {i > 0 && <span style={{ color: done ? '#22d3ee' : '#334155' }}>→</span>}
+                {i > 0 && <span style={{ color: done ? theme.accent : '#334155' }}>→</span>}
                 <span>{labels[i]}</span>
               </div>
             );
@@ -93,7 +165,6 @@ export function MissionPage({ hmrc, onBack }: Props) {
             {hmrc.connected ? '● Live' : '● Offline'}
           </span>
 
-          {/* View toggle */}
           <div style={{ display: 'flex', background: '#0f172a', borderRadius: 6, border: '1px solid #334155' }}>
             {[
               { mode: 'split' as ViewMode, label: '分屏' },
@@ -121,6 +192,10 @@ export function MissionPage({ hmrc, onBack }: Props) {
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
             borderRight: viewMode === 'split' ? '1px solid #334155' : 'none',
           }}>
+            {/* Task briefing (shown before execution phase) */}
+            {hmrc.state?.stage !== 'execution_reflection' && hmrc.state?.stage !== 'completed' && hmrc.state?.stage !== 'stopped' && (
+              <TaskBriefing theme={theme} taskType={taskType} />
+            )}
             <DialoguePanel
               dialogues={hmrc.dialogues}
               style={{ flex: 1, border: 'none' }}
@@ -128,7 +203,7 @@ export function MissionPage({ hmrc, onBack }: Props) {
           </div>
         )}
 
-        {/* ---- Right: Simulation + Sidebar ---- */}
+        {/* ---- Right: Simulation + Bottom Bar ---- */}
         {(viewMode === 'split' || viewMode === 'simulation') && (
           <div style={{
             flex: viewMode === 'split' ? 1 : 1,
@@ -136,13 +211,24 @@ export function MissionPage({ hmrc, onBack }: Props) {
           }}>
             {/* Simulation Canvas */}
             <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+              {/* Task watermark */}
+              <div style={{
+                position: 'absolute', top: 8, left: 8, zIndex: 10,
+                fontSize: 12, padding: '3px 8px', borderRadius: 4,
+                background: `${theme.accent}20`,
+                color: theme.accent,
+                border: `1px solid ${theme.accent}30`,
+                pointerEvents: 'none',
+              }}>
+                {theme.icon} {theme.taskName}
+              </div>
               <SimulationView
                 state={hmrc.state}
                 style={{ width: '100%', height: '100%' }}
               />
             </div>
 
-            {/* Bottom bar: Controls + Status + Robots */}
+            {/* Bottom bar */}
             <div style={{
               height: 90, flexShrink: 0,
               background: '#1e293b', borderTop: '1px solid #334155',
@@ -179,11 +265,10 @@ export function MissionPage({ hmrc, onBack }: Props) {
                     {hmrc.state.taskProgress}
                   </div>
                 )}
-                {/* Progress bar */}
                 <div style={{ height: 4, background: '#0f172a', borderRadius: 2, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
-                    background: hmrc.state?.taskCompleted ? '#22c55e' : '#22d3ee',
+                    background: hmrc.state?.taskCompleted ? '#22c55e' : theme.accent,
                     width: hmrc.state?.taskCompleted ? '100%'
                       : `${Math.min(((hmrc.state?.step || 0) / 50) * 100, 95)}%`,
                     transition: 'width 0.3s',
@@ -192,35 +277,115 @@ export function MissionPage({ hmrc, onBack }: Props) {
               </div>
 
               {/* Robot Status */}
-              <div style={{
-                flex: 1, padding: '8px 12px', overflow: 'hidden',
-                display: 'flex', flexDirection: 'column', justifyContent: 'center',
-              }}>
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-                  {hmrc.state?.robots ? `${Object.keys(hmrc.state.robots).length} robots` : 'Waiting...'}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {hmrc.state?.robots && Object.values(hmrc.state.robots as any[]).map((r: any) => (
-                    <div key={r.name} style={{
-                      display: 'flex', alignItems: 'center', gap: 4,
-                      padding: '2px 6px', borderRadius: 4, fontSize: 11,
-                      background: r.name === hmrc.state?.leader ? '#78350f' : '#0f172a',
-                      border: r.name === hmrc.state?.leader ? '1px solid #fbbf2440' : '1px solid #334155',
-                    }}>
-                      <span>{robotEmojis[r.robotType] || '🤖'}</span>
-                      <span style={{
-                        color: r.name === hmrc.state?.leader ? '#fbbf24' : '#cbd5e1',
-                        fontWeight: r.name === hmrc.state?.leader ? 600 : 400,
-                      }}>{r.name}</span>
-                      {r.graspingObject && <span style={{ fontSize: 10, color: '#22d3ee' }}>📦{r.graspingObject}</span>}
-                      {r.name === hmrc.state?.leader && <span style={{ fontSize: 10 }}>👑</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <RobotStatusBar state={hmrc.state} />
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== 任务简介面板 ====================
+
+function TaskBriefing({ theme, taskType }: { theme: typeof TASK_THEMES[string]; taskType: string }) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div style={{
+      background: '#1e293b',
+      borderBottom: `1px solid ${theme.accent}30`,
+      padding: collapsed ? '6px 12px' : '10px 14px',
+      flexShrink: 0,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        cursor: 'pointer',
+      }} onClick={() => setCollapsed(!collapsed)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 16 }}>{theme.icon}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: theme.accent }}>
+            Mission Briefing
+          </span>
+        </div>
+        <span style={{ fontSize: 11, color: '#64748b' }}>
+          {collapsed ? '▸ Expand' : '▾ Hide'}
+        </span>
+      </div>
+
+      {!collapsed && (
+        <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 6px' }}>
+            <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Goal:</span> {theme.goal}
+          </p>
+
+          {/* Steps */}
+          <div style={{ marginBottom: 6 }}>
+            <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Steps:</span>
+            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+              {theme.steps.map((step, i) => (
+                <li key={i} style={{ marginBottom: 2 }}>{step}</li>
+              ))}
+            </ol>
+          </div>
+
+          {/* Robots */}
+          <div>
+            <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Robots:</span>
+            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              {theme.robots.map(r => (
+                <span key={r.name} style={{
+                  padding: '2px 6px', borderRadius: 4,
+                  background: '#0f172a', border: '1px solid #334155',
+                  fontSize: 11,
+                }}>
+                  {r.emoji} {r.name} <span style={{ color: '#64748b' }}>({r.role})</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==================== 机器人状态栏 ====================
+
+const robotEmojis: Record<string, string> = {
+  Alice: '🦾', Bob: '🦿', David: '🚗', Lucy: '🚁',
+};
+
+function RobotStatusBar({ state }: { state: SimulationState | null }) {
+  if (!state?.robots) return null;
+
+  const robotList = Object.values(state.robots as any[]);
+
+  return (
+    <div style={{
+      flex: 1, padding: '8px 12px', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+    }}>
+      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+        {robotList.length} robots
+      </div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {robotList.map((r: any) => (
+          <div key={r.name} style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '2px 6px', borderRadius: 4, fontSize: 11,
+            background: r.name === state?.leader ? '#78350f' : '#0f172a',
+            border: r.name === state?.leader ? '1px solid #fbbf2440' : '1px solid #334155',
+          }}>
+            <span>{robotEmojis[r.robotType] || '🤖'}</span>
+            <span style={{
+              color: r.name === state?.leader ? '#fbbf24' : '#cbd5e1',
+              fontWeight: r.name === state?.leader ? 600 : 400,
+            }}>{r.name}</span>
+            {r.graspingObject && <span style={{ fontSize: 10, color: '#22d3ee' }}>📦{r.graspingObject}</span>}
+            {r.name === state?.leader && <span style={{ fontSize: 10 }}>👑</span>}
+          </div>
+        ))}
       </div>
     </div>
   );
