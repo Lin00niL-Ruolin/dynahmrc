@@ -65,6 +65,7 @@ export class RobotAgent {
           this.getTaskDescription(),
           teammates.join(', '),
           this.getCapabilityDescription(),
+          this.taskType,
         ),
       },
     ];
@@ -78,7 +79,7 @@ export class RobotAgent {
       { role: 'system', content: prompts.TASK_ALLOCATION_SYSTEM },
       {
         role: 'user',
-        content: prompts.taskAllocationUser(this.name, selfIntroductions),
+        content: prompts.taskAllocationUser(this.name, selfIntroductions, this.taskType),
       },
     ];
     const response = await this.llm.chat(msgs);
@@ -122,6 +123,7 @@ export class RobotAgent {
       leader,
       plan,
       this.getPrinciples(),
+      this.taskType,
     );
 
     const userContent = prompts.executionUser(

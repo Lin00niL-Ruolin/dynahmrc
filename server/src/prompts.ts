@@ -68,11 +68,16 @@ Phase: Initial stage, where each robot introduces itself.
 CoT: Let's think step by step!
 `;
 
-export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string): string {
+export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
+  const taskContexts: Record<string, string> = {
+    pack_objects: 'The mission is to pack scattered household items (bowl, fork, soap, apple) into a tray. Think about your ability to explore, find, and transport items.',
+    sort_solids: 'The mission is to sort colored cubes (red_cube, blue_sphere, green_cylinder) by matching them to color panels. Think about your precision and ability to identify colors.',
+    make_sandwich: 'The mission is to collect ingredients and assemble a sandwich step by step. Think about how you can contribute to ingredient transport and precise stacking.',
+  };
   return `
 Task Objective and Context:
 1) The overall collaborative goal is: ${taskDescription}
-2) Objects are scattered in an unknown indoor environment, requiring exploration and organization.
+2) ${taskContexts[taskType || 'pack_objects'] || taskContexts.pack_objects}
 3) Your teammates are: ${teammates}
 
 ${capabilities}
@@ -97,12 +102,21 @@ Tasks:
 CoT: Let's think step by step!
 `;
 
-export function taskAllocationUser(name: string, selfIntroductions: string): string {
+const TASK_ALLOCATION_HINTS: Record<string, string> = {
+  pack_objects: 'This is a PACKING mission. Each robot should be assigned to fetch specific items (bowl, fork, soap, apple) from their known locations and bring them to the tray at the packing_table. Mobile robots should do item transport; the fixed arm (Bob) can assist with precise placement.',
+  sort_solids: 'This is a SORTING mission. Robots need to pick up colored cubes from table_2 and deliver each to its matching color panel. The fixed arm (Bob) can do precision sorting; mobile robots bring cubes to Bob.',
+  make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients must be collected in order: bread_bottom → lettuce → tomato → cheese → ham → bread_top. Bob (the fixed arm) should do the final assembly on the cutting board. Other robots collect and deliver ingredients to Bob.',
+};
+
+export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
   return `
 Identity and Information:
 1) You are an intelligent robot named ${name}.
 2) Below are the self-introductions from yourself and your collaborators:
 ${selfIntroductions}
+
+Task Context:
+${TASK_ALLOCATION_HINTS[taskType || 'pack_objects'] || TASK_ALLOCATION_HINTS.pack_objects}
 
 Plan Proposal and Leadership Campaign:
 1) Please analyze them carefully and thoroughly to develop your collaboration plan.
@@ -158,33 +172,70 @@ export function executionSystem(
   leader: string,
   plan: string,
   principles: string,
+  taskType?: string,
 ): string {
+  // Task-specific item and placement info
+  const taskSteps: Record<string, { items: string; locations: string; target: string }> = {
+    pack_objects: {
+      items: 'bowl, fork, soap, apple',
+      locations: 'bowl should be on kitchen_counter (near 6.9, 1.2), fork on kitchen_cabinet (near 1.2, 0.55), soap near sink_base (5.7, 6), apple on source_table_2 (4.15, 4)',
+      target: 'tray',
+    },
+    sort_solids: {
+      items: 'red_cube, blue_sphere, green_cylinder',
+      locations: 'red_cube is on table_2 (3, 5.3), blue_sphere on table_2 (3, 5), green_cylinder on table_2 (3, 4.7)',
+      target: 'matching colored panels',
+    },
+    make_sandwich: {
+      items: 'bread_bottom, lettuce, tomato, cheese, ham, bread_top',
+      locations: 'bread_bottom on table_bob (8.5, 5.2), lettuce in fridge (9.4, 0.5), tomato on counter_elementA (7.4, 0.5), cheese on table_dining (3, 2), ham on table_extra (8.45, 4), bread_top on table_bob (8.55, 5.82)',
+      target: 'cutting_board',
+    },
+  };
+
+  const info = taskSteps[taskType || 'pack_objects'] || taskSteps.pack_objects;
+
   return `
 ${roleDescription}
 
 Task Objective and Context:
 1) The overall team task is: ${taskDescription}
-2) Ingredients are scattered in an unknown indoor environment. The scene graph shows furniture locations but not their contents. You must EXPLORE to find task items.
+2) Items are scattered in an indoor environment at known locations. The scene graph shows furniture locations.
 3) Collaborate with teammates ${teammates}, who have different capabilities, to complete the task.
 4) ${leader} is the elected leader and proposed the collaboration plan: ${plan}
 
 Principles:
 ${principles}
 
+=== TASK ITEMS ===
+Items to find: ${info.items}
+Item locations: ${info.locations}
+Place target: place all items at the ${info.target}
+
 === AVAILABLE ACTIONS ===
-1. navigate(<furniture_name>) - Move to furniture. Useful to get close to objects. Example: navigate(table_0)
-2. open(<container_name>) - Open container to see what's inside. Example: open(fridge)
-3. pick(<object_name>) - Pick up an item. Must be close (within 2m). Example: pick(apple)
-4. place(<object_name>, <target>) - Place held object at target. Use this to COMPLETE THE TASK. Example: place(apple, tray)
+1. navigate(<furniture_name>) - Move to furniture to get close to objects. Example: navigate(table_0)
+2. open(<container_name>) - Open a container to see what's inside. Example: open(fridge)
+3. pick(<object_name>) - Pick up an item (must be within 2m). Example: pick(apple)
+4. place(<object_name>, <target>) - Place held object at target to COMPLETE THE TASK. Example: place(apple, tray)
 5. move(<dx>, <dy>) - Adjust position slightly. Example: move(0.5, -0.3)
 6. communicate(<message>, <recipient>) - Share info with team. Example: communicate(I found apple at fridge!, Alice)
 7. wait() - Do nothing this step.
 
-=== HOW TO MAKE PROGRESS ===
-STEP 1: Navigate to furniture where task items might be (table_0, table_1, fridge, cabinet, drawer)
-STEP 2: If the target is a container (fridge, cabinet, drawer), open it to check contents
-STEP 3: If a task item is within reach, pick() it up
-STEP 4: Navigate to tray (or target location) and place() the item
+=== TASK-SPECIFIC EXECUTION STEPS ===
+${taskType === 'pack_objects' ? `STEP 1: Navigate to each item location: kitchen_cabinet, kitchen_counter, sink_base, source_table_2
+STEP 2: pick() each item
+STEP 3: navigate(tray) and place() each item into the tray`
+: taskType === 'sort_solids' ? `STEP 1: Navigate to table_2 to find the colored cubes
+STEP 2: pick() each cube
+STEP 3: Navigate to matching color panel and place() the cube on the correct panel
+  - red_cube → red panel
+  - blue_sphere → blue panel
+  - green_cylinder → green panel`
+: `STEP 1: Collect ingredients in order: bread_bottom, lettuce, tomato, cheese, ham, bread_top
+STEP 2: Navigate to each location and pick() the ingredient
+STEP 3: Navigate to table_bob / cutting_board area
+STEP 4: place() each ingredient on cutting_board in the correct stacking order`
+}
 
 === CRITICAL OUTPUT RULE ===
 You MUST output your action in the EXACT format shown above.
