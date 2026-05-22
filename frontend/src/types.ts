@@ -5,7 +5,8 @@ export type DynaHMRCStage =
   | 'task_allocation_bidding'
   | 'leader_election'
   | 'execution_reflection'
-  | 'completed';
+  | 'completed'
+  | 'stopped';
 
 export interface RobotStatus {
   name: string;

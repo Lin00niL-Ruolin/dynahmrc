@@ -340,18 +340,27 @@ Principles:
 CoT: Let's think step by step!
 `;
 
+const REFLECTION_TASK_HINTS: Record<string, string> = {
+  pack_objects: 'Task: Pack items (bowl, fork, soap, apple) into the tray. Focus on finding missing items and navigating to the tray for placement.',
+  sort_solids: 'Task: Sort red_cube, blue_sphere, green_cylinder to matching colored panels. Focus on color matching and precision delivery.',
+  make_sandwich: 'Task: Assemble sandwich: bread_bottom → lettuce → tomato → cheese → ham → bread_top. Focus on ingredient order and Bob\'s assembly on cutting board.',
+};
+
 export function reflectionParticipantUser(
   name: string,
   role: string,
   taskStatus: string,
   taskDescription: string,
   capabilities: string,
+  taskType?: string,
 ): string {
   return `
 You are ${name}, a ${role}.
 
 Current task status: ${taskStatus}
 Target task: ${taskDescription}
+
+${REFLECTION_TASK_HINTS[taskType || 'pack_objects'] || REFLECTION_TASK_HINTS.pack_objects}
 
 ${capabilities}
 
@@ -364,6 +373,12 @@ Plan: plan for your subsequent tasks.
 CoT: Let's think step by step!
 `;
 }
+
+const LEADER_REFLECTION_HINTS: Record<string, string> = {
+  pack_objects: 'The PACKING mission needs all items (bowl, fork, soap, apple) placed in the tray. Check progress and reassign who fetches which missing item.',
+  sort_solids: 'The SORTING mission needs each colored cube (red_cube, blue_sphere, green_cylinder) on its matching panel. Reassign based on current progress.',
+  make_sandwich: 'The SANDWICH ASSEMBLY needs ingredients layered on the cutting board in order. Reassign collection and delivery tasks.',
+};
 
 export const REFLECTION_LEADER_SYSTEM = `
 Contexts:
@@ -378,11 +393,14 @@ Principles:
 CoT: Let's think step by step!
 `;
 
-export function reflectionLeaderUser(name: string, teamReflections: string): string {
+export function reflectionLeaderUser(name: string, teamReflections: string, taskType?: string): string {
   return `
 1) You are a smart robot named ${name}, you are the leader.
 2) The historical summaries and future plans of each one in the entire team received are as follows:
 ${teamReflections}
+
+Task Context:
+${LEADER_REFLECTION_HINTS[taskType || 'pack_objects'] || LEADER_REFLECTION_HINTS.pack_objects}
 
 Output Response Format:
 Thoughts: think step by step to analyze the problem.

@@ -166,7 +166,7 @@ export class RobotAgent {
         { role: 'system', content: prompts.REFLECTION_LEADER_SYSTEM },
         {
           role: 'user',
-          content: prompts.reflectionLeaderUser(this.name, teamReflections),
+          content: prompts.reflectionLeaderUser(this.name, teamReflections, this.taskType),
         },
       ];
     } else {
@@ -180,6 +180,7 @@ export class RobotAgent {
             taskStatus,
             this.getTaskDescription(),
             this.getCapabilityDescription(),
+            this.taskType,
           ),
         },
       ];

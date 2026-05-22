@@ -247,7 +247,7 @@ export class DynaHMRCEngine {
           robotName: name,
           robotType: agent.robotType,
           thoughts,
-          content: `Action: ${action.actionType}(${JSON.stringify(action.params)})\nFeedback: ${feedback.description}`,
+          content: `Action: ${action.actionType}(${Object.values(action.params).join(", ")})\nFeedback: ${feedback.description}`,
           timestamp: Date.now(),
         });
 
