@@ -20,6 +20,10 @@ export function useDynaHMRC() {
     const wsUrl = `${protocol}//${window.location.host}/ws/${id}`;
 
     console.log('[WS] Connecting to:', wsUrl);
+    console.log('[WS] Location:', window.location.href);
+    console.log('[WS] Protocol:', window.location.protocol);
+    console.log('[WS] Host:', window.location.host);
+
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -71,6 +75,13 @@ export function useDynaHMRC() {
     return ws;
   }, []);
 
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+
+  const addDebug = (msg: string) => {
+    console.log('[DynaDEBUG]', msg);
+    setDebugInfo(prev => [...prev.slice(-9), msg]);
+  };
+
   const createRun = useCallback(async (config: {
     taskType?: string;
     layout?: string;
@@ -78,7 +89,9 @@ export function useDynaHMRC() {
     dynamicVariations?: string[];
     maxSteps?: number;
   }) => {
+    addDebug('Creating run...');
     try {
+      addDebug(`POST /api/run config=${config.taskType} layout=${config.layout}`);
       const resp = await fetch('/api/run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -91,8 +104,13 @@ export function useDynaHMRC() {
         }),
       });
 
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      if (!resp.ok) {
+        const text = await resp.text();
+        addDebug(`API error: HTTP ${resp.status} ${text}`);
+        throw new Error(`HTTP ${resp.status}: ${text}`);
+      }
       const data = await resp.json();
+      addDebug(`Run created: ${data.runId}`);
 
       // Reset state
       dialogRef.current = [];
@@ -101,9 +119,11 @@ export function useDynaHMRC() {
       setError(null);
 
       // Connect WebSocket with auto-start
+      addDebug(`Connecting WS: ${window.location.host}/ws/${data.runId}`);
       connectWebSocket(data.runId, true);
       return data.runId;
     } catch (e: any) {
+      addDebug(`Error: ${e.message}`);
       setError(e.message);
       return null;
     }
@@ -143,6 +163,7 @@ export function useDynaHMRC() {
     state,
     dialogues,
     error,
+    debugInfo,
     createRun,
     start,
     pause,
