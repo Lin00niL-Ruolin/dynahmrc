@@ -21,7 +21,6 @@ const TASK_THEMES: Record<string, {
   icon: string;
   goal: string;
   robots: { name: string; role: string; emoji: string }[];
-  steps: string[];
 }> = {
   make_sandwich: {
     taskName: '🥪 Make Sandwich',
@@ -309,15 +308,7 @@ function TaskBriefing({ theme, taskType }: { theme: typeof TASK_THEMES[string]; 
             <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Goal:</span> {theme.goal}
           </p>
 
-          {/* Steps */}
-          <div style={{ marginBottom: 6 }}>
-            <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Steps:</span>
-            <ol style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-              {theme.steps.map((step, i) => (
-                <li key={i} style={{ marginBottom: 2 }}>{step}</li>
-              ))}
-            </ol>
-          </div>
+          {/* Steps removed - robots decide during collaboration */}
 
           {/* Robots */}
           <div>
