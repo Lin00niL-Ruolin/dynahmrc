@@ -27,20 +27,48 @@ const ROBOT_EMOJIS: Record<string, string> = {
 function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: string } {
   const { stage, content, robotName } = dialogue;
 
+  // Helper: extract the 'Contents:' portion from LLM output (skip Thoughts/Reasons headers)
+  const extractContents = (txt: string): string => {
+    const lines = txt.split('\n');
+    // Find the Contents section: look for lines after 'Contents:' or '2) Contents:' etc.
+    let inContent = false;
+    const contentLines: string[] = [];
+    for (const line of lines) {
+      const clean = line.trim();
+      // Detect content section headers
+      if (/^\s*\d*[\.\)]?\s*Contents/i.test(clean) || /^Contents/i.test(clean)) {
+        inContent = true;
+        const afterColon = line.replace(/^[^:]*:\s*/, '');
+        if (afterColon) contentLines.push(afterColon);
+        continue;
+      }
+      // Skip other section headers
+      if (/^\s*\d*[\.\)]?\s*(Thoughts?|Reasons?|Leader|Summary|Plan)/i.test(clean)) {
+        inContent = false;
+        continue;
+      }
+      if (inContent && clean) contentLines.push(line);
+    }
+    return contentLines.join('\n').trim() || txt; // fallback to full text
+  };
+
   // Leader vote extraction
   if (stage === 'leader_election') {
     const voteMatch = content.match(/Leader:\s*(\w+)/i);
     if (voteMatch) {
-      const rest = content
+      const reasons = content
         .replace(/Leader:\s*\w+/i, '')
         .replace(/^\d+[\)\.]\s*/gm, '')
         .trim();
-      return { key: `🗳️ Vote → ${voteMatch[1]}`, detail: rest };
+      return { 
+        key: `🗳️ I vote for **${voteMatch[1]}**`,
+        detail: reasons 
+      };
     }
     return { key: '🗳️ Casting vote...', detail: content };
   }
 
-  // Execution action extraction  
+  // Execution action extraction
   if (stage === 'execution_reflection') {
     const lines = content.split('\n');
     const actionLine = lines[0] || '';
@@ -48,26 +76,30 @@ function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: stri
     return { key: `⚡ ${actionLine}`, detail: feedbackLines.join('\n') };
   }
 
-  // Self description: extract the capability highlight
+  // Self description: show the FULL introduction from Contents
   if (stage === 'self_description') {
-    // Find the core introduction sentence
-    const sentences = content.split(/[.!]\s*/);
-    const introSentences = sentences.filter(s =>
-      s.includes('I am') || s.includes('I\'m') || s.includes('I can')
-    );
-    const keySummary = introSentences[0]
-      ? introSentences[0].replace(/^\d+[\)\.\]\s]*/, '').trim() + '.'
-      : (sentences[0] || content).replace(/^\d+[\)\.\]\s]*/, '').trim();
-    return { key: `🤝 ${keySummary}`, detail: content };
+    const intro = extractContents(content);
+    if (intro && intro.length > 10) {
+      // Get first 2-3 sentences for a complete introduction
+      const fullIntro = intro.replace(/^\d+[\)\.\]\s]*/, '').trim();
+      return { key: `🤝 ${fullIntro}`, detail: '' };
+    }
+    // Fallback: use raw content but skip Thoughts header
+    const raw = content.replace(/^.*?Contents?:?\s*/is, '').trim();
+    return { key: `🤝 ${raw}`, detail: '' };
   }
 
-  // Task allocation: highlight the plan
+  // Task allocation: highlight the collaboration plan / task assignments
   if (stage === 'task_allocation_bidding') {
-    const sentences = content.split('\n');
-    const planLines = sentences.filter(l => l.toLowerCase().includes('plan') || l.toLowerCase().includes('leadership') || l.includes('-'));
-    const campaignMatch = content.match(/Campaign Speech[^]*/i);
-    const keyPlan = planLines[0] || sentences[0] || content;
-    return { key: `📋 ${keyPlan.replace(/^[\s*\d\.\]\)]+/, '').trim().slice(0, 80)}`, detail: content };
+    // Extract the plan portion (before campaign speech)
+    const planText = content.split(/Campaign Speech/i)[0] || content;
+    const plan = extractContents(planText);
+    if (plan && plan.length > 20) {
+      // Take the key assignments (bullet points or role assignments)
+      const cleaned = plan.replace(/^\d+[\)\.\]\s]*/gm, '').trim();
+      return { key: `📋 ${cleaned}`, detail: content };
+    }
+    return { key: `📋 ${content.slice(0, 120)}`, detail: content };
   }
 
   // Reflection
@@ -275,7 +307,7 @@ function DialogueCard({ dialogue }: { dialogue: RobotDialogue }) {
         {isLeader && <span style={{ fontSize: 11, color: '#fbbf24' }}>LEADER</span>}
       </div>
 
-      {/* Key highlight — the most important output */}
+      {/* Key highlight - the most important output */}
       {key && (
         <div style={{
           background: `${keyColor}15`,
