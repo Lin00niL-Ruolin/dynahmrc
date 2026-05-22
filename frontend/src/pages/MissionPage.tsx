@@ -30,9 +30,9 @@ const TASK_THEMES: Record<string, {
     goal: 'Stack bread, lettuce, tomato, cheese, ham on cutting board in order',
     robots: [
       { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
-      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
+      { name: 'Bob', role: 'Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Collect ingredients (bread, lettuce, tomato, cheese, ham)',
@@ -49,9 +49,9 @@ const TASK_THEMES: Record<string, {
     goal: 'Sort red_cube, blue_sphere, green_cylinder onto matching colored panels',
     robots: [
       { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
-      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
+      { name: 'Bob', role: 'Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Identify colored solids on table_2',
@@ -68,9 +68,9 @@ const TASK_THEMES: Record<string, {
     goal: 'Find bowl, fork, soap, apple around the house and place them all into the tray',
     robots: [
       { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
-      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
+      { name: 'Bob', role: 'Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Locate items: bowl, fork, soap, apple',
