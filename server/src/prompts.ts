@@ -70,9 +70,9 @@ CoT: Let's think step by step!
 
 export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
   const taskContexts: Record<string, string> = {
-    pack_objects: 'The mission is to pack scattered household items (bowl, fork, soap, apple) into a tray. Think about your ability to explore, find, and transport items.',
-    sort_solids: 'The mission is to sort colored cubes (red_cube, blue_sphere, green_cylinder) by matching them to color panels. Think about your precision and ability to identify colors.',
-    make_sandwich: 'The mission is to collect ingredients and assemble a sandwich step by step. Think about how you can contribute to ingredient transport and precise stacking.',
+    make_sandwich: 'The mission is to assemble a hamburger: bread_bottom, ham, bread_top on the cutting board. Consider how you can help find ingredients and assist Bob (the fixed arm) with assembly.',
+    sort_solids: 'The mission is to find a small red cube scattered in the scene and place it on the matching large red cube on table_2. Think about exploration, transport, and precision placement.',
+    pack_objects: 'The mission is to pack four items (fork, apple, book, soap) into the tray. Consider how you can explore, find items, transport them to Bob, and assist with packing.',
   };
   return `
 Task Objective and Context:
@@ -103,9 +103,9 @@ CoT: Let's think step by step!
 `;
 
 const TASK_ALLOCATION_HINTS: Record<string, string> = {
-  pack_objects: 'This is a PACKING mission. Each robot should be assigned to fetch specific items (bowl, fork, soap, apple) from their known locations and bring them to the tray at the packing_table. Mobile robots should do item transport; the fixed arm (Bob) can assist with precise placement.',
-  sort_solids: 'This is a SORTING mission. Robots need to pick up colored cubes from table_2 and deliver each to its matching color panel. The fixed arm (Bob) can do precision sorting; mobile robots bring cubes to Bob.',
-  make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients must be collected in order: bread_bottom → lettuce → tomato → cheese → ham → bread_top. Bob (the fixed arm) should do the final assembly on the cutting board. Other robots collect and deliver ingredients to Bob.',
+  make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients: bread_bottom, ham, bread_top. Stack in order on cutting_board. Bob (fixed arm on table_bob) does final assembly. Other robots find ingredients and bring them to Bob's table.',
+  sort_solids: 'This is a SORTING mission. Find the small_red_cube scattered in the scene and place it on the large_red_cube on table_2. Mobile robots search and transport, Bob does precision placement.',
+  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Mobile robots find items and bring to Bob's table. Bob places them into the tray one by one.',
 };
 
 export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
@@ -176,20 +176,20 @@ export function executionSystem(
 ): string {
   // Task-specific item and placement info
   const taskSteps: Record<string, { items: string; locations: string; target: string }> = {
-    pack_objects: {
-      items: 'bowl, fork, soap, apple',
-      locations: 'bowl should be on kitchen_counter (near 6.9, 1.2), fork on kitchen_cabinet (near 1.2, 0.55), soap near sink_base (5.7, 6), apple on source_table_2 (4.15, 4)',
-      target: 'tray',
+    make_sandwich: {
+      items: 'bread_bottom, ham, bread_top',
+      locations: 'bread_bottom on table_bob (8.5, 5.2), ham on counter_elementA (7.4, 0.5), bread_top on table_bob (8.55, 5.82)',
+      target: 'cutting_board',
     },
     sort_solids: {
-      items: 'red_cube, blue_sphere, green_cylinder',
-      locations: 'red_cube is on table_2 (3, 5.3), blue_sphere on table_2 (3, 5), green_cylinder on table_2 (3, 4.7)',
-      target: 'panels: red_panel, blue_panel, green_panel',
+      items: 'small_red_cube',
+      locations: 'small_red_cube scattered somewhere in the scene (check shelf_table, sofa, bookcase, floor areas). 6 large colored cubes (red/green/blue/yellow/purple/orange) are on table_2.',
+      target: 'large_red_cube on table_2',
     },
-    make_sandwich: {
-      items: 'bread_bottom, lettuce, tomato, cheese, ham, bread_top',
-      locations: 'bread_bottom on table_bob (8.5, 5.2), lettuce in fridge (9.4, 0.5), tomato on counter_elementA (7.4, 0.5), cheese on table_dining (3, 2), ham on table_extra (8.45, 4), bread_top on table_bob (8.55, 5.82)',
-      target: 'cutting_board',
+    pack_objects: {
+      items: 'fork, apple, book, soap',
+      locations: 'fork on kitchen_cabinet (1.2, 0.55), apple on source_table_2 (4.15, 4), book on bookcase (7.5, 5.5), soap on wall_shelf (5.7, 6)',
+      target: 'tray',
     },
   };
 
@@ -210,7 +210,7 @@ ${principles}
 === TASK ITEMS ===
 Items to find: ${info.items}
 Item locations: ${info.locations}
-Place target: ${taskType === 'sort_solids' ? 'place each item on its matching color panel (red_cube→red_panel, blue_sphere→blue_panel, green_cylinder→green_panel)' : taskType === 'pack_objects' ? 'place all items into the tray' : 'place each ingredient on the cutting_board in order'}
+Place target: ${taskType === 'make_sandwich' ? 'place bread_bottom -> ham -> bread_top on cutting_board in order' : taskType === 'sort_solids' ? 'place small_red_cube on top of large_red_cube on table_2' : 'place all four items (fork, apple, book, soap) into the tray'}
 
 === AVAILABLE ACTIONS ===
 1. navigate(<furniture_name>) - Move to furniture to get close to objects. Example: navigate(table_0)
@@ -228,19 +228,18 @@ Place target: ${taskType === 'sort_solids' ? 'place each item on its matching co
 - Bob (fixed arm) can NOT navigate anywhere - he stays at his position.
 
 === TASK-SPECIFIC EXECUTION STEPS ===
-${taskType === 'pack_objects' ? `STEP 1: Navigate to each item location: kitchen_cabinet, kitchen_counter, sink_base, source_table_2
+${taskType === 'make_sandwich' ? `STEP 1: Navigate to table_bob area where bread_bottom and bread_top are located
+STEP 2: Navigate to counter_elementA to find ham
+STEP 3: pick() each ingredient: bread_bottom, ham, bread_top
+STEP 4: place() on cutting_board in order: bread_bottom -> ham -> bread_top`
+: taskType === 'sort_solids' ? `STEP 1: Explore the scene to find the small_red_cube (check shelf_table, sofa, floor areas)
+STEP 2: pick() the small_red_cube
+STEP 3: Navigate to table_2 where the large colored cubes are located
+STEP 4: place(small_red_cube, large_red_cube) to complete the sorting`
+: `STEP 1: Find each item: fork at kitchen_cabinet, apple at source_table_2, book at bookcase, soap at wall_shelf
 STEP 2: pick() each item
-STEP 3: navigate(tray) and place() each item into the tray`
-: taskType === 'sort_solids' ? `STEP 1: Navigate to table_2 to find the colored cubes located at (3, 5.3), (3, 5), (3, 4.7)
-STEP 2: pick() each cube
-STEP 3: Navigate to matching colored panel and place() the cube
-  - place(red_cube, red_panel)
-  - place(blue_sphere, blue_panel)
-  - place(green_cylinder, green_panel)`
-: `STEP 1: Collect ingredients in order: bread_bottom, lettuce, tomato, cheese, ham, bread_top
-STEP 2: Navigate to each location and pick() the ingredient
-STEP 3: Navigate to table_bob / cutting_board area
-STEP 4: place() each ingredient on cutting_board in the correct stacking order`
+STEP 3: Navigate to Bob's table (packing_table / source_table_1) and place() the item there
+STEP 4: Bob takes items from table and places them into the tray`
 }
 
 === CRITICAL OUTPUT RULE ===
@@ -347,12 +346,10 @@ CoT: Let's think step by step!
 `;
 
 const REFLECTION_TASK_HINTS: Record<string, string> = {
-  pack_objects: 'Task: Pack items (bowl, fork, soap, apple) into the tray. Focus on finding missing items and navigating to the tray for placement.',
-  sort_solids: 'Task: Sort red_cube, blue_sphere, green_cylinder to matching colored panels. Focus on color matching and precision delivery.',
-  make_sandwich: 'Task: Assemble sandwich: bread_bottom → lettuce → tomato → cheese → ham → bread_top. Focus on ingredient order and Bob\'s assembly on cutting board.',
+  make_sandwich: 'Task: Hamburger assembly: bread_bottom, ham, bread_top on cutting_board. Bob assembles, others transport ingredients to Bob\'s table.',
+  sort_solids: 'Task: Find small_red_cube and place on large_red_cube. Search floor/shelf areas for the small cube, then bring to table_2.',
+  pack_objects: 'Task: Pack fork, apple, book, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
 };
-
-export function reflectionParticipantUser(
   name: string,
   role: string,
   taskStatus: string,
@@ -381,9 +378,9 @@ CoT: Let's think step by step!
 }
 
 const LEADER_REFLECTION_HINTS: Record<string, string> = {
-  pack_objects: 'The PACKING mission needs all items (bowl, fork, soap, apple) placed in the tray. Check progress and reassign who fetches which missing item.',
-  sort_solids: 'The SORTING mission needs each colored cube (red_cube, blue_sphere, green_cylinder) on its matching panel. Reassign based on current progress.',
-  make_sandwich: 'The SANDWICH ASSEMBLY needs ingredients layered on the cutting board in order. Reassign collection and delivery tasks.',
+  make_sandwich: 'The SANDWICH mission needs bread_bottom, ham, bread_top on cutting_board. Assign each ingredient to a different robot to parallelize.',
+  sort_solids: 'The SORTING mission needs small_red_cube on large_red_cube. Assign scouts to find the small cube, and Bob for precision placement.',
+  pack_objects: 'The PACKING mission needs fork, apple, book, soap in tray. Assign each item to a different robot, Bob places from table into tray.',
 };
 
 export const REFLECTION_LEADER_SYSTEM = `
@@ -416,13 +413,13 @@ CoT: Let's think step by step!
 }
 
 export const TASK_DESCRIPTIONS: Record<string, string> = {
-  pack_objects: 'Pack specified objects (bowl, fork, soap, apple) into a tray.',
-  sort_solids: 'Sort colored solids (red_cube, blue_sphere, green_cylinder) onto matching colored panels.',
-  make_sandwich: 'Stack ingredients (bread_bottom, lettuce, tomato, cheese, ham, bread_top) in order on a cutting board.',
+  make_sandwich: 'Stack bread_bottom, ham, bread_top in order on the cutting board to make a hamburger.',
+  sort_solids: 'Find the small red cube scattered in the scene, bring it to table_2, and place it on top of the matching large red cube.',
+  pack_objects: 'Pack four items (fork, apple, book, soap) into the tray.',
 };
 
 export const TASK_GOALS: Record<string, string[]> = {
-  pack_objects: ['bowl', 'fork', 'soap', 'apple'],
-  sort_solids: ['red_cube', 'blue_sphere', 'green_cylinder'],
-  make_sandwich: ['bread_bottom', 'lettuce', 'tomato', 'cheese', 'ham', 'bread_top'],
+  make_sandwich: ['bread_bottom', 'ham', 'bread_top'],
+  sort_solids: ['small_red_cube'],
+  pack_objects: ['fork', 'apple', 'book', 'soap'],
 };

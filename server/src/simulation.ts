@@ -182,8 +182,13 @@ export class SimEnvironment {
         // Right wall shelf
         ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
         ['blackboard', 7, 0.15, 0.15, 2.0, false],
-        ['tray', 3, 4.7, 0.3, 0.3, false],
-        // Colored sorting panels for sort_solids task
+                ['large_red_cube', 3, 5.3, 0.35, 0.35, false],
+        ['large_green_cube', 3, 5, 0.35, 0.35, false],
+        ['large_blue_cube', 3, 4.7, 0.35, 0.35, false],
+        ['large_yellow_cube', 2.5, 5.3, 0.35, 0.35, false],
+        ['large_purple_cube', 2.5, 5, 0.35, 0.35, false],
+        ['large_orange_cube', 2.5, 4.7, 0.35, 0.35, false],
+        ['tray', 3, 4.7, 0.3, 0.3, false], // Colored sorting panels for sort_solids task
         ['red_panel', 1.5, 8, 0.4, 0.3, false],
         ['blue_panel', 2.5, 8, 0.4, 0.3, false],
         ['green_panel', 3.5, 8, 0.4, 0.3, false],
@@ -315,20 +320,15 @@ export class SimEnvironment {
     if (this.layoutName === 'scene1') {
       // Scene 1 item placements (matching 3D BestMan scene1)
       if (taskType === 'pack_objects') {
-        addItem('bowl', 8.5, 5.8, 'cutting_board');
         addItem('fork', 9.4, 0.5, 'fridge');
-        addItem('soap', 5.9, 0.5, 'counter_elementB');
         addItem('apple', 3, 2, 'table_dining');
+        addItem('book', 0.5, 0.5, 'bookshelf_1');
+        addItem('soap', 5.9, 0.5, 'counter_elementB');
       } else if (taskType === 'sort_solids') {
-        addItem('red_cube', 8.5, 5.8, 'cutting_board');
-        addItem('blue_sphere', 3, 2, 'table_dining');
-        addItem('green_cylinder', 7.4, 0.5, 'counter_elementA');
+        addItem('small_red_cube', 3, 2, 'table_dining');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 8.5, 5.2, 'table_bob');
-        addItem('lettuce', 9.4, 0.5, 'fridge');
-        addItem('tomato', 7.4, 0.5, 'counter_elementA');
-        addItem('cheese', 3, 2, 'table_dining');
-        addItem('ham', 8.45, 4, 'table_extra');
+        addItem('ham', 7.4, 0.5, 'counter_elementA');
         addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 
@@ -364,17 +364,12 @@ export class SimEnvironment {
         addItem('soap', 1, 4, 'table_1');
         addItem('apple', 3, 5, 'table_2');
       } else if (taskType === 'sort_solids') {
-        // 3 colored cubes on table_2 (matching scene2 Bob table + cubes)
-        addItem('red_cube', 3, 5.3, 'table_2');
-        addItem('blue_sphere', 3, 5, 'table_2');
-        addItem('green_cylinder', 3, 4.7, 'table_2');
+        // Small red cube scattered in scene, large cubes already on table_2
+        addItem('small_red_cube', 9.5, 7.5, 'shelf_table');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
-        addItem('lettuce', 4.5, 1.06, 'fridge');
-        addItem('tomato', 1, 4, 'table_1');
-        addItem('cheese', 3, 5, 'table_2');
-        addItem('ham', 1, 4.3, 'table_1');
-        addItem('bread_top', 3, 5.3, 'table_2');
+        addItem('ham', 1, 4, 'table_1');
+        addItem('bread_top', 3, 5, 'table_2');
       }
 
       // Scene 2 distractors
@@ -400,19 +395,14 @@ export class SimEnvironment {
       if (taskType === 'pack_objects') {
         // Items match scene3.json positions
         addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
-        addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
         addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
-        addItem('bowl', 6.9, 1.2, 'kitchen_counter');         // blue_bowl on counter
+        addItem('book', 7.5, 5.8, 'bookcase');                // book_0 on bookcase
+        addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
       } else if (taskType === 'sort_solids') {
-        addItem('red_cube', 8, 3, 'packing_table');
-        addItem('blue_sphere', 8, 3.3, 'packing_table');
-        addItem('green_cylinder', 2, 4, 'source_table_1');
+        addItem('small_red_cube', 2, 4, 'source_table_1');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 8, 3, 'packing_table');
-        addItem('lettuce', 5.5, 1.06, 'fridge');
-        addItem('tomato', 3.1, 1.6, 'kitchen_counter');
-        addItem('cheese', 2, 4, 'source_table_1');
-        addItem('ham', 4, 4, 'source_table_2');
+        addItem('ham', 3.1, 1.6, 'kitchen_counter');
         addItem('bread_top', 8, 2.7, 'packing_table');
       }
 
