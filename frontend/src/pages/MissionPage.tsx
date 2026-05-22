@@ -29,10 +29,10 @@ const TASK_THEMES: Record<string, {
     icon: '🥪',
     goal: 'Stack bread, lettuce, tomato, cheese, ham on cutting board in order',
     robots: [
-      { name: 'Alice', role: 'Mobile Manipulation', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Arm (Chef)', emoji: '🦿' },
-      { name: 'David', role: 'Navigation Helper', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Delivery', emoji: '🚁' },
+      { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Collect ingredients (bread, lettuce, tomato, cheese, ham)',
@@ -48,10 +48,10 @@ const TASK_THEMES: Record<string, {
     icon: '🎨',
     goal: 'Sort red_cube, blue_sphere, green_cylinder onto matching colored panels',
     robots: [
-      { name: 'Alice', role: 'Mobile Transport', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Arm (Sorter)', emoji: '🦿' },
-      { name: 'David', role: 'Scene Scout', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Sorting', emoji: '🚁' },
+      { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Identify colored solids on table_2',
@@ -67,10 +67,10 @@ const TASK_THEMES: Record<string, {
     icon: '📦',
     goal: 'Find bowl, fork, soap, apple around the house and place them all into the tray',
     robots: [
-      { name: 'Alice', role: 'Mobile Manipulation', emoji: '🦾' },
-      { name: 'Bob', role: 'Fixed Arm (Packer)', emoji: '🦿' },
-      { name: 'David', role: 'Item Locator', emoji: '🚗' },
-      { name: 'Lucy', role: 'Aerial Scout', emoji: '🚁' },
+      { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
+      { name: 'Bob', role: 'Fixed Manipulation Robot', emoji: '🦿' },
+      { name: 'David', role: 'Mobile Scout Robot', emoji: '🚗' },
+      { name: 'Lucy', role: 'Aerial Drone Robot', emoji: '🚁' },
     ],
     steps: [
       'Locate items: bowl, fork, soap, apple',
