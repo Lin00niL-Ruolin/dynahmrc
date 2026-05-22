@@ -103,9 +103,9 @@ CoT: Let's think step by step!
 `;
 
 const TASK_ALLOCATION_HINTS: Record<string, string> = {
-  make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients: bread_bottom, ham, bread_top. Stack in order on cutting_board. Bob (fixed arm on table_bob) does final assembly. Other robots find ingredients and bring them to Bob's table.',
+  make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients: bread_bottom, ham, bread_top. Stack in order on cutting_board. Bob (fixed arm on table_bob) does final assembly. Other robots find ingredients and bring them to Bob\'s table.',
   sort_solids: 'This is a SORTING mission. Find the small_red_cube scattered in the scene and place it on the large_red_cube on table_2. Mobile robots search and transport, Bob does precision placement.',
-  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Mobile robots find items and bring to Bob's table. Bob places them into the tray one by one.',
+  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
 };
 
 export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
@@ -350,6 +350,8 @@ const REFLECTION_TASK_HINTS: Record<string, string> = {
   sort_solids: 'Task: Find small_red_cube and place on large_red_cube. Search floor/shelf areas for the small cube, then bring to table_2.',
   pack_objects: 'Task: Pack fork, apple, book, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
 };
+
+export function reflectionParticipantUser(
   name: string,
   role: string,
   taskStatus: string,

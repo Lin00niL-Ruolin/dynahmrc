@@ -29,9 +29,9 @@ app.get('/api/health', (_req, res) => {
 app.get('/api/config', (_req, res) => {
   res.json({
     taskTypes: [
-      { id: 'pack_objects', name: 'Pack Objects', desc: 'Pack bowl, fork, soap, apple into tray' },
-      { id: 'sort_solids', name: 'Sort Solids', desc: 'Sort colored solids onto matching panels' },
-      { id: 'make_sandwich', name: 'Make Sandwich', desc: 'Stack ingredients on cutting board' },
+      { id: 'make_sandwich', name: 'Make Sandwich', desc: 'Stack bread_bottom, ham, bread_top on cutting board' },
+      { id: 'sort_solids', name: 'Sort Solids', desc: 'Find small red cube, place on large red cube on table_2' },
+      { id: 'pack_objects', name: 'Pack Objects', desc: 'Pack fork, apple, book, soap into tray' },
     ],
     layouts: [
       { id: 'scene1', name: '场景一', desc: '对应 Make Sandwich — 厨房+Dining+Bobs Lab+卫生间' },
