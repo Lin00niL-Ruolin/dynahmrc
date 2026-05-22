@@ -158,7 +158,32 @@ export function SimulationView({ state, style }: Props) {
       ctx.fillText('⛔ RESTRICTED', rzx, rzy - r - 6);
     }
 
-    // Walls (name starts with 'wall_')
+    // === Outer walls based on room dimensions ===
+    const wallThick = 0.2;
+    const rw = s.roomWidth || 10;
+    const rh = s.roomHeight || 10;
+    const outerWalls = [
+      // bottom: (0,0)→(rw,0)
+      ['wall_outer_bottom', rw / 2, 0, rw, wallThick],
+      // top: (0,rh)→(rw,rh)
+      ['wall_outer_top', rw / 2, rh, rw, wallThick],
+      // left: (0,0)→(0,rh)
+      ['wall_outer_left', 0, rh / 2, wallThick, rh],
+      // right: (rw,0)→(rw,rh)
+      ['wall_outer_right', rw, rh / 2, wallThick, rh],
+    ];
+    ctx.fillStyle = '#475569';
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    for (const [, wx, wy, ww, wh] of outerWalls) {
+      const [cx, cy] = toC(wx, wy);
+      const w = sc(ww);
+      const h = sc(wh);
+      ctx.fillRect(cx - w / 2, cy - h / 2, w, h);
+      ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
+    }
+
+    // Internal walls (name starts with 'wall_')
     for (const obj of Object.values(s.scene.objects)) {
       if (obj.category !== 'furniture') continue;
       if (!obj.name.startsWith('wall_')) continue;
