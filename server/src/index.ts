@@ -194,6 +194,53 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// === BestMan 3D Simulation Bridge ===
+
+app.get('/api/bestman/status', async (_req, res) => {
+  try {
+    const { checkEnvironment } = await import('./bestman-bridge.js');
+    const { getStatus } = await import('./bestman-bridge.js');
+    const env = checkEnvironment();
+    const svc = getStatus();
+    res.json({ ...svc, env: env.ok ? 'ok' : env.message });
+  } catch (e: any) {
+    res.json({ running: false, env: e.message });
+  }
+});
+
+app.post('/api/bestman/start', async (req, res) => {
+  try {
+    const { startService } = await import('./bestman-bridge.js');
+    const scene = req.body?.scene || 'scene1';
+    const gui = req.body?.gui !== false;
+    const ok = await startService(scene, gui);
+    res.json({ ok, message: ok ? 'BestMan started' : 'Failed to start BestMan' });
+  } catch (e: any) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
+
+app.post('/api/bestman/stop', async (_req, res) => {
+  try {
+    const { stopService } = await import('./bestman-bridge.js');
+    stopService();
+    res.json({ ok: true, message: 'BestMan stopped' });
+  } catch (e: any) {
+    res.json({ ok: true, message: 'Already stopped' });
+  }
+});
+
+app.post('/api/bestman/act', async (req, res) => {
+  try {
+    const { sendAction } = await import('./bestman-bridge.js');
+    const { robot, action, params } = req.body;
+    const result = await sendAction(robot, action, params);
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // === Serve static frontend (SPA fallback) ===
 const distDir = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(distDir));

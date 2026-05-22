@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useDynaHMRC } from '../hooks/useDynaHMRC';
 import { DialoguePanel } from '../components/DialoguePanel';
 import { SimulationView } from '../components/SimulationView';
@@ -155,8 +155,11 @@ export function MissionPage({ hmrc, onBack }: Props) {
           })}
         </div>
 
-        {/* Right: Status + View toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Right: BestMan + Status + View toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* BestMan 3D Connection */}
+          <BestManControl taskType={taskType} />
+
           <span style={{
             fontSize: 12, padding: '2px 8px', borderRadius: 4,
             background: hmrc.connected ? '#064e3b' : '#450a0a',
@@ -333,6 +336,73 @@ function TaskBriefing({ theme, taskType }: { theme: typeof TASK_THEMES[string]; 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ==================== BestMan 3D 连接控制 ====================
+
+function BestManControl({ taskType }: { taskType: string }) {
+  const [connecting, setConnecting] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [bmStatus, setBmStatus] = useState<string>('');
+
+  const checkStatus = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/bestman/status');
+      const data = await resp.json();
+      setConnected(data.running || false);
+      setBmStatus(data.env || '');
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    checkStatus();
+    const interval = setInterval(checkStatus, 5000);
+    return () => clearInterval(interval);
+  }, [checkStatus]);
+
+  const handleToggle = async () => {
+    if (connected) {
+      await fetch('/api/bestman/stop', { method: 'POST' });
+      setConnected(false);
+    } else {
+      setConnecting(true);
+      try {
+        const sceneMap: Record<string, string> = {
+          make_sandwich: 'scene1',
+          sort_solids: 'scene2',
+          pack_objects: 'scene3',
+        };
+        const resp = await fetch('/api/bestman/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1', gui: true }),
+        });
+        const data = await resp.json();
+        setConnected(data.ok || false);
+      } catch {}
+      setConnecting(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button
+        onClick={handleToggle}
+        disabled={connecting || bmStatus.includes('not')}
+        title={bmStatus}
+        style={{
+          fontSize: 11, padding: '3px 8px', borderRadius: 4, border: 'none',
+          cursor: connecting ? 'wait' : 'pointer',
+          background: connected ? '#065f46' : connecting ? '#1e293b' : '#1e293b',
+          border: `1px solid ${connected ? '#10b981' : '#334155'}`,
+          color: connected ? '#6ee7b7' : '#94a3b8',
+          fontWeight: 500,
+        }}
+      >
+        {connecting ? '⟳' : connected ? '🧊 3D' : '🧊 3D Off'}
+      </button>
     </div>
   );
 }
