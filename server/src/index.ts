@@ -34,9 +34,9 @@ app.get('/api/config', (_req, res) => {
       { id: 'make_sandwich', name: 'Make Sandwich', desc: 'Stack ingredients on cutting board' },
     ],
     layouts: [
-      { id: 'scene1', name: '场景一 (10m×8m)', desc: '对应 Make Sandwich 任务 — 含厨房区、Bob Lab、卫生间' },
-      { id: 'kitchen', name: '场景二 (Kitchen)', desc: '对应 Sort Solids 任务 — 标准厨房布局' },
-      { id: 'living_room', name: '场景三 (Living Room)', desc: '对应 Pack Objects 任务 — 客厅家具布局' },
+      { id: 'scene1', name: '场景一', desc: '对应 Make Sandwich — 厨房+Dining+Bobs Lab+卫生间' },
+      { id: 'kitchen', name: '场景二', desc: '对应 Sort Solids — L型厨房+分类桌+书架+沙发' },
+      { id: 'living_room', name: '场景三', desc: '对应 Pack Objects — 厨房+打包桌+双源桌+浴缸' },
     ],
     layoutRobotDefaults: {
       scene1: ['Alice', 'Bob', 'David', 'Lucy'],

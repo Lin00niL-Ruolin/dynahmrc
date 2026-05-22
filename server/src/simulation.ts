@@ -22,13 +22,19 @@ export class SimEnvironment {
   roomWidth = 10;
   roomHeight = 8;
 
-  constructor(layoutName = 'kitchen') {
+  constructor(layoutName = 'scene2') {
     this.layoutName = layoutName;
     this.scene = this.buildScene(layoutName);
     // Set room dimensions based on layout
     if (layoutName === 'scene1') {
       this.roomWidth = 10;
       this.roomHeight = 8;
+    } else if (layoutName === 'scene2') {
+      this.roomWidth = 10;
+      this.roomHeight = 10;
+    } else if (layoutName === 'scene3') {
+      this.roomWidth = 10;
+      this.roomHeight = 10;
     }
   }
 
@@ -47,17 +53,31 @@ export class SimEnvironment {
 
     if (robots) {
       let startPositions: Array<[number, number]>;
-      if (this.layoutName === 'scene1') {
-        // Scene1 robot positions matching 3D BestMan scene: Alice(6,6), Bob(8.5,5.5), David(4,6), Lucy(3,2)
-        const scene1Positions: Record<string, [number, number]> = {
+      const scenePositions: Record<string, Record<string, [number, number]>> = {
+        'scene1': {
           'Alice': [6, 6],
           'Bob': [8.5, 5.5],
           'David': [4, 6],
           'Lucy': [3, 2],
-        };
+        },
+        'scene2': {
+          'Alice': [2, 2],
+          'Bob': [3, 5],
+          'David': [7, 2],
+          'Lucy': [8, 5],
+        },
+        'scene3': {
+          'Alice': [5, 2],
+          'Bob': [2, 4],
+          'David': [8, 6],
+          'Lucy': [3, 3],
+        },
+      };
+      const robotPosMap = scenePositions[this.layoutName] || {};
+      if (Object.keys(robotPosMap).length > 0) {
         startPositions = [];
         for (const [name] of robots) {
-          startPositions.push(scene1Positions[name] || [5, 5]);
+          startPositions.push(robotPosMap[name] || [5, 5]);
         }
       } else {
         startPositions = [[4, 4], [4, 6], [6, 4], [6, 6]];
@@ -81,55 +101,9 @@ export class SimEnvironment {
   private buildScene(layoutName: string): SceneGraph {
     const objects: Record<string, SceneObject> = {};
 
-    if (layoutName === 'kitchen') {
-      const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
-        ['table_0', 3, 5, 1.5, 1.0, false],
-        ['table_1', 7, 5, 1.5, 1.0, false],
-        ['fridge', 1, 3, 0.8, 0.8, true, 'close'],
-        ['cabinet', 5, 8, 0.8, 0.8, true, 'close'],
-        ['drawer', 2, 7, 0.6, 0.6, true, 'close'],
-        ['shelf', 8, 2, 1.0, 0.6, true, 'open'],
-        ['counter', 5, 1, 2.0, 0.6, false],
-        ['tray', 5, 5, 0.4, 0.4, false],
-      ];
-      for (const f of furniture) {
-        objects[f[0]] = {
-          name: f[0], category: 'furniture',
-          posX: f[1], posY: f[2], width: f[3], height: f[4],
-          isContainer: f[5],
-          isOpen: f[6] === 'open',
-          contains: f[7] || [],
-          standPoseX: f[1] + 0.5,
-          standPoseY: f[2],
-        };
-      }
-    } else if (layoutName === 'living_room') {
-      const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
-        ['table_0', 4, 4, 1.5, 1.0, false],
-        ['sofa', 2, 2, 2.0, 0.8, false],
-        ['bookshelf', 8, 3, 1.0, 0.6, true, 'close'],
-        ['tv_stand', 8, 7, 1.2, 0.6, false],
-        ['coffee_table', 5, 5, 1.0, 0.8, false],
-        ['desk', 4, 8, 1.0, 0.6, false],
-        ['bed', 2, 7, 1.5, 1.0, false],
-        ['wardrobe', 1, 8, 0.8, 0.6, true, 'close'],
-        ['tray', 5, 5, 0.4, 0.4, false],
-      ];
-      for (const f of furniture) {
-        objects[f[0]] = {
-          name: f[0], category: 'furniture',
-          posX: f[1], posY: f[2], width: f[3], height: f[4],
-          isContainer: f[5],
-          isOpen: f[6] === 'open',
-          contains: f[7] || [],
-          standPoseX: f[1] + 0.5,
-          standPoseY: f[2],
-        };
-      }
-    } else if (layoutName === 'scene1') {
-      // Scene 1: 10m x 8m room matching 3D BestMan scene1 layout
+    if (layoutName === 'scene1') {
+      // Scene 1: 10m x 8m room matching 3D BestMan scene1 layout (Make Sandwich)
       // Internal walls: vertical at x=5 from y=0 to y=5, horizontal at y=4 from x=0 to x=3, vertical at x=5 from y=7 to y=8
-      // Furniture definitions matching scene1.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
         // Kitchen area (bottom-right, x=5..10, y=0..4)
         ['fridge', 9.4, 0.5, 0.8, 0.8, true, 'close'],
@@ -141,7 +115,7 @@ export class SimEnvironment {
         ['table_dining', 3, 2, 1.0, 0.6, false],
         ['chair_bottom', 3, 1, 0.3, 0.3, false],
         ['chair_top', 3, 3, 0.3, 0.3, false],
-        // Bookshelves (far left wall)
+        // Bookshelves (far left wall, y=0..3)
         ['bookshelf_1', 0.5, 0.5, 0.8, 0.6, true, 'open'],
         ['bookshelf_2', 0.5, 1.5, 0.8, 0.6, true, 'open'],
         ['bookshelf_3', 0.5, 2.5, 0.8, 0.6, true, 'open'],
@@ -150,48 +124,146 @@ export class SimEnvironment {
         ['table_extra', 8.5, 4, 1.0, 0.6, false],
         ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
-        // Cutting board on Bob's table (8.5, 5.8)
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
       ];
       for (const f of furniture) {
-        // Walls (name starts with 'wall_') have no standPose (can't navigate to walls)
-        const isWall = f[0].startsWith('wall_');
         objects[f[0]] = {
           name: f[0], category: 'furniture',
           posX: f[1], posY: f[2], width: f[3], height: f[4],
           isContainer: f[5],
           isOpen: f[6] === 'open',
           contains: f[7] || [],
-          standPoseX: isWall ? null : f[1] + 0.5,
-          standPoseY: isWall ? null : f[2],
+          standPoseX: f[1] + 0.5,
+          standPoseY: f[2],
         };
       }
 
       // Internal walls matching 3D BestMan scene1 layout
       const walls: Array<[string, number, number, number, number]> = [
-        // Vertical wall: from (5,0) to (5,5), center at (5, 2.5)
-        ['wall_inner_v1', 5, 2.5, 0.15, 5.0],
-        // Horizontal wall: from (0,4) to (3,4), center at (1.5, 4)
-        ['wall_inner_h1', 1.5, 4, 3.0, 0.15],
-        // Vertical short wall: from (5,7) to (5,8), center at (5, 7.5)
-        ['wall_inner_v2', 5, 7.5, 0.15, 1.0],
+        ['wall_inner_v1', 5, 2.5, 0.15, 5.0],   // vertical: (5,0) to (5,5)
+        ['wall_inner_h1', 1.5, 4, 3.0, 0.15],    // horizontal: (0,4) to (3,4)
+        ['wall_inner_v2', 5, 7.5, 0.15, 1.0],    // vertical: (5,7) to (5,8)
       ];
       for (const w of walls) {
         objects[w[0]] = {
           name: w[0], category: 'furniture',
           posX: w[1], posY: w[2], width: w[3], height: w[4],
           isContainer: false, isOpen: false, contains: [],
-          standPoseX: null,
-          standPoseY: null,
+          standPoseX: null, standPoseY: null,
+        };
+      }
+
+    } else if (layoutName === 'kitchen') {
+      // Scene 2: 10m x 10m L-shaped room matching 3D BestMan scene2 layout (Sort Solids)
+      // Furniture from scene2.json
+      const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
+        // Kitchen counters/cabinets along bottom wall (y=0..2)
+        ['cabinet_elementB', 1, 0.55, 0.8, 0.6, true, 'close'],
+        ['counter_elementA', 2.5, 1.48, 0.8, 0.6, false],
+        ['microwave', 3.2, 1.1, 0.6, 0.4, true, 'close'],
+        ['dishwasher', 3.7, 0.35, 0.6, 0.4, false],
+        ['fridge', 4.5, 1.06, 0.8, 0.8, true, 'close'],
+        // Tables
+        ['table_1', 1, 4, 1.2, 0.8, false],
+        ['table_2', 3, 5, 1.2, 0.8, false],
+        // Left area furniture
+        ['bookcase', 1, 6.5, 0.8, 0.6, true, 'open'],
+        // Top area (L alcove)
+        ['sofa', 7.5, 9, 1.5, 0.8, false],
+        ['bed', 8, 9, 1.5, 1.0, false],
+        // Right wall shelf
+        ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
+        ['blackboard', 7, 0.15, 0.15, 2.0, false],
+        // Floor rug
+        ['rug', 6, 2, 0.6, 0.6, false],
+      ];
+      for (const f of furniture) {
+        objects[f[0]] = {
+          name: f[0], category: 'furniture',
+          posX: f[1], posY: f[2], width: f[3], height: f[4],
+          isContainer: f[5],
+          isOpen: f[6] === 'open',
+          contains: f[7] || [],
+          standPoseX: f[1] + 0.5,
+          standPoseY: f[2],
+        };
+      }
+
+      // Internal walls matching 3D BestMan scene2 layout
+      const walls: Array<[string, number, number, number, number]> = [
+        ['wall_inner_v1', 5, 2, 0.15, 4.0],       // vertical: (5,0) to (5,4)
+        ['wall_inner_h1', 3, 8, 6.0, 0.15],        // horizontal: (0,8) to (6,8)
+        ['wall_inner_v2', 6, 9, 0.15, 2.0],        // vertical: (6,8) to (6,10)
+      ];
+      for (const w of walls) {
+        objects[w[0]] = {
+          name: w[0], category: 'furniture',
+          posX: w[1], posY: w[2], width: w[3], height: w[4],
+          isContainer: false, isOpen: false, contains: [],
+          standPoseX: null, standPoseY: null,
+        };
+      }
+
+    } else if (layoutName === 'living_room') {
+      // Scene 3: 10m x 10m room matching 3D BestMan scene3 layout (Pack Objects)
+      // Furniture from scene3.json
+      const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
+        // Kitchen line along bottom (y=0..2)
+        ['kitchen_cabinet', 1.2, 0.55, 0.8, 0.6, true, 'close'],
+        ['kitchen_counter', 3.1, 1.6, 0.8, 0.6, false],
+        ['microwave', 3.8, 1.1, 0.6, 0.4, true, 'close'],
+        ['dishwasher', 4.6, 0.43, 0.6, 0.4, false],
+        ['fridge', 5.5, 1.06, 0.8, 0.8, true, 'close'],
+        ['cabinet_2', 7.3, 0.55, 0.8, 0.6, true, 'close'],
+        ['sofa', 8.6, 0.42, 1.5, 0.8, false],
+        // Tables and chairs (center area)
+        ['packing_table', 8, 3, 1.2, 0.8, false],
+        ['source_table_1', 2, 4, 1.0, 0.8, false],
+        ['source_table_2', 4, 4, 1.0, 0.8, false],
+        ['chair', 2, 3, 0.3, 0.3, false],
+        ['bookcase', 7.5, 5.5, 0.8, 0.6, true, 'open'],
+        // Bathroom area (top area)
+        ['bathtub', 1.5, 9.4, 1.0, 0.6, false],
+        ['sink_base', 4.7, 9.5, 0.8, 0.6, false],
+        // Floor items
+        ['rug', 8, 2.4, 0.6, 0.6, false],
+      ];
+      for (const f of furniture) {
+        objects[f[0]] = {
+          name: f[0], category: 'furniture',
+          posX: f[1], posY: f[2], width: f[3], height: f[4],
+          isContainer: f[5],
+          isOpen: f[6] === 'open',
+          contains: f[7] || [],
+          standPoseX: f[1] + 0.5,
+          standPoseY: f[2],
+        };
+      }
+
+      // Internal walls matching 3D BestMan scene3 layout
+      const walls: Array<[string, number, number, number, number]> = [
+        ['wall_inner_v1', 6, 1, 0.15, 2.0],        // vertical: (6,0) to (6,2)
+        ['wall_inner_v2', 6, 6, 0.15, 4.0],        // vertical: (6,4) to (6,8)
+        ['wall_inner_h1', 8, 6, 4.0, 0.15],         // horizontal: (6,6) to (10,6)
+        ['wall_inner_v3', 5.5, 9, 0.15, 2.0],       // vertical: (5.5,8) to (5.5,10)
+        ['wall_inner_h2', 1.5, 8, 3.0, 0.15],       // horizontal: (0,8) to (3,8)
+        ['wall_inner_h3', 5.75, 8, 0.5, 0.15],      // horizontal: (5.5,8) to (6,8)
+      ];
+      for (const w of walls) {
+        objects[w[0]] = {
+          name: w[0], category: 'furniture',
+          posX: w[1], posY: w[2], width: w[3], height: w[4],
+          isContainer: false, isOpen: false, contains: [],
+          standPoseX: null, standPoseY: null,
         };
       }
     } else {
+      // Fallback default scene
       const furniture: Array<[string, number, number, number, number, boolean, string?]> = [
         ['table_0', 4, 4, 1.5, 1.0, false],
-        ['table_1', 6, 6, 1.5, 1.0, false],
         ['cabinet', 2, 7, 0.8, 0.8, true, 'close'],
         ['counter', 5, 2, 2.0, 0.6, false],
         ['tray', 5, 5, 0.4, 0.4, false],
@@ -226,7 +298,7 @@ export class SimEnvironment {
     };
 
     if (this.layoutName === 'scene1') {
-      // Scene 1 item placements (matching 3D BestMan scene)
+      // Scene 1 item placements (matching 3D BestMan scene1)
       if (taskType === 'pack_objects') {
         addItem('bowl', 8.5, 5.8, 'cutting_board');
         addItem('fork', 9.4, 0.5, 'fridge');
@@ -245,11 +317,57 @@ export class SimEnvironment {
         addItem('bread_top', 8.55, 5.82, 'table_bob');
       }
 
-      // Scene 1 distractors (placed at logical 3D scene locations)
-      const distractors: Array<[string, number, number]> = [
-        ['phone', 8.6, 0.5],
-        ['book', 0.5, 0.5],
+      // Scene 1 distractors + 3D scene books
+      const distractors: Array<[string, number, number, string?]> = [
+        ['phone', 8.7, 0.5],
         ['toy_duck', 1.5, 7],
+        // Books on bookshelf_1 matching scene1.json (book_holder, book_1, book_2, book_3)
+        ['book_holder', 0.3, 0.5, 'bookshelf_1'],
+        ['book_1', 0.4, 0.7, 'bookshelf_1'],
+        ['book_2', 0.6, 0.7, 'bookshelf_1'],
+        ['book_3', 0.8, 0.5, 'bookshelf_1'],
+      ];
+      for (const [name, x, y, container] of distractors) {
+        if (!this.scene.objects[name]) {
+          this.scene.objects[name] = {
+            name, category: 'item',
+            posX: x, posY: y, width: 0.2, height: 0.2,
+            isContainer: false, isOpen: false, contains: [],
+            standPoseX: null, standPoseY: null,
+          };
+          if (container && this.scene.objects[container]) {
+            this.scene.objects[container].contains.push(name);
+          }
+        }
+      }
+
+    } else if (this.layoutName === 'kitchen') {
+      // Scene 2 (sort_solids) item placements matching 3D scene2.json
+      if (taskType === 'pack_objects') {
+        addItem('bowl', 2.5, 1.48, 'counter_elementA');
+        addItem('fork', 4.5, 1.06, 'fridge');
+        addItem('soap', 1, 4, 'table_1');
+        addItem('apple', 3, 5, 'table_2');
+      } else if (taskType === 'sort_solids') {
+        // 3 colored cubes on table_2 (matching scene2 Bob table + cubes)
+        addItem('red_cube', 3, 5.3, 'table_2');
+        addItem('blue_sphere', 3, 5, 'table_2');
+        addItem('green_cylinder', 3, 4.7, 'table_2');
+      } else if (taskType === 'make_sandwich') {
+        addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
+        addItem('lettuce', 4.5, 1.06, 'fridge');
+        addItem('tomato', 1, 4, 'table_1');
+        addItem('cheese', 3, 5, 'table_2');
+        addItem('ham', 1, 4.3, 'table_1');
+        addItem('bread_top', 3, 5.3, 'table_2');
+      }
+
+      // Scene 2 distractors
+      const distractors: Array<[string, number, number]> = [
+        ['book', 1, 6.5],
+        ['toy_duck', 7.5, 9],
+        ['phone', 9.5, 7.5],
+        ['lemon', 5, 1.5],
       ];
       for (const [name, x, y] of distractors) {
         if (!this.scene.objects[name]) {
@@ -261,27 +379,67 @@ export class SimEnvironment {
           };
         }
       }
-    } else {
-      // Original layouts
+
+    } else if (this.layoutName === 'living_room') {
+      // Scene 3 (pack_objects) item placements matching 3D scene3.json
       if (taskType === 'pack_objects') {
-        addItem('bowl', 3.5, 5.5, 'table_0');
-        addItem('fork', 6.5, 5.5, 'table_1');
-        addItem('soap', 5, 8, 'cabinet');
-        addItem('apple', 1, 3, 'fridge');
+        // Items match scene3.json positions
+        addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
+        addItem('soap', 5.7, 6, 'sink_base');                 // soap near sink
+        addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
+        addItem('bowl', 6.9, 1.2, 'kitchen_counter');         // blue_bowl on counter
       } else if (taskType === 'sort_solids') {
-        addItem('red_cube', 3.5, 5.5, 'table_0');
-        addItem('blue_sphere', 6.5, 5.5, 'table_1');
-        addItem('green_cylinder', 5, 8, 'cabinet');
+        addItem('red_cube', 8, 3, 'packing_table');
+        addItem('blue_sphere', 8, 3.3, 'packing_table');
+        addItem('green_cylinder', 2, 4, 'source_table_1');
       } else if (taskType === 'make_sandwich') {
-        addItem('bread_bottom', 3.5, 5.5, 'table_0');
-        addItem('lettuce', 1, 3, 'fridge');
-        addItem('tomato', 5, 8, 'cabinet');
-        addItem('cheese', 6.5, 5.5, 'table_1');
-        addItem('ham', 3.5, 4.5, 'table_0');
-        addItem('bread_top', 6.5, 4.5, 'table_1');
+        addItem('bread_bottom', 8, 3, 'packing_table');
+        addItem('lettuce', 5.5, 1.06, 'fridge');
+        addItem('tomato', 3.1, 1.6, 'kitchen_counter');
+        addItem('cheese', 2, 4, 'source_table_1');
+        addItem('ham', 4, 4, 'source_table_2');
+        addItem('bread_top', 8, 2.7, 'packing_table');
       }
 
-      // Distractor items (original)
+      // Scene 3 distractors matching scene3.json items
+      const distractors: Array<[string, number, number]> = [
+        ['lemon', 5.5, 1.0],       // near fridge (from scene3.json)
+        ['cup', 4.15, 4.2],        // on source_table_2 (from scene3.json)
+        ['book_0', 7.5, 5.8],      // on bookcase (from scene3.json)
+        ['toy_duck', 1.5, 9.4],    // near bathtub
+        ['phone', 8.6, 0.42],      // near sofa
+      ];
+      for (const [name, x, y] of distractors) {
+        if (!this.scene.objects[name]) {
+          this.scene.objects[name] = {
+            name, category: 'item',
+            posX: x, posY: y, width: 0.2, height: 0.2,
+            isContainer: false, isOpen: false, contains: [],
+            standPoseX: null, standPoseY: null,
+          };
+        }
+      }
+
+    } else {
+      // Fallback default layout
+      if (taskType === 'pack_objects') {
+        addItem('bowl', 3.5, 5.5, 'table_0');
+        addItem('fork', 4, 5.5, 'table_0');
+        addItem('soap', 2, 7, 'cabinet');
+        addItem('apple', 3, 5, 'table_0');
+      } else if (taskType === 'sort_solids') {
+        addItem('red_cube', 3.5, 5.5, 'table_0');
+        addItem('blue_sphere', 4.5, 5.5, 'table_0');
+        addItem('green_cylinder', 2, 7, 'cabinet');
+      } else if (taskType === 'make_sandwich') {
+        addItem('bread_bottom', 3.5, 5.5, 'table_0');
+        addItem('lettuce', 5.5, 5.5, 'table_0');
+        addItem('tomato', 2, 7, 'cabinet');
+        addItem('cheese', 4, 5.5, 'table_0');
+        addItem('ham', 4.5, 5.5, 'table_0');
+        addItem('bread_top', 3, 5.5, 'table_0');
+      }
+
       const distractors: Array<[string, number, number]> = [
         ['phone', 2, 2],
         ['book', 7, 3],
@@ -588,8 +746,11 @@ export class SimEnvironment {
         msg = 'Goal change requested but no targets exist.';
       }
     } else if (varType === 'restricted_zone') {
-      // Mark area near cabinets as restricted
-      const zoneObj = this.scene.objects['cabinet'] || this.scene.objects['bookshelf'];
+      // Mark area near cabinets as restricted (use layout-appropriate target)
+      const zoneObj = this.scene.objects['cabinet']
+        || this.scene.objects['bookshelf_1']
+        || this.scene.objects['cabinet_elementB']
+        || this.scene.objects['kitchen_cabinet'];
       if (zoneObj) {
         const zx = zoneObj.posX;
         const zy = zoneObj.posY;
