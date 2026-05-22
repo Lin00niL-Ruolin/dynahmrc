@@ -9,8 +9,9 @@ export function useDynaHMRC() {
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const dialogRef = useRef<RobotDialogue[]>([]);
+  const genRef = useRef(0); // generation counter: incremented each new run to ignore stale ws messages
 
-  const connectWebSocket = useCallback((id: string, autoStart = false) => {
+  const connectWebSocket = useCallback((id: string, autoStart = false, gen = 0) => {
     if (wsRef.current) {
       wsRef.current.close();
     }
@@ -28,6 +29,8 @@ export function useDynaHMRC() {
     wsRef.current = ws;
 
     ws.onopen = () => {
+      // Ignore if a newer run was started (generation increased)
+      if (gen !== 0 && gen !== genRef.current) return;
       setConnected(true);
       setRunId(id);
       // Auto-start the engine
@@ -38,6 +41,8 @@ export function useDynaHMRC() {
     };
 
     ws.onmessage = (event) => {
+      // Ignore stale messages from previous runs
+      if (gen !== 0 && gen !== genRef.current) return;
       try {
         const msg = JSON.parse(event.data);
         console.log('[WS] Received:', msg.type, msg.data?.stage || '');
@@ -113,14 +118,18 @@ export function useDynaHMRC() {
       addDebug(`Run created: ${data.runId}`);
 
       // Reset state
+      // Increment generation to stale-proof old WebSocket callbacks
+      const currentGen = ++genRef.current;
+
+      // Reset dialogue state
       dialogRef.current = [];
       setDialogues([]);
       setState(null);
       setError(null);
 
-      // Connect WebSocket with auto-start
+      // Connect WebSocket with auto-start (pass generation for stale msg filtering)
       addDebug(`Connecting WS: ${window.location.host}/ws/${data.runId}`);
-      connectWebSocket(data.runId, true);
+      connectWebSocket(data.runId, true, currentGen);
       return data.runId;
     } catch (e: any) {
       addDebug(`Error: ${e.message}`);

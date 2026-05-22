@@ -154,15 +154,29 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
         </button>
         <span style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          color: hmrc.connected ? '#4ade80' : '#f87171',
+          color: config ? '#4ade80' : '#f87171',
         }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: hmrc.connected ? '#4ade80' : '#f87171',
+            background: config ? '#4ade80' : '#f87171',
             display: 'inline-block',
           }} />
-          {hmrc.connected ? 'Backend Connected' : 'Backend Disconnected'}
+          {config ? 'Server Online' : 'Connecting...'}
         </span>
+        {/* WebSocket status: only relevant after mission starts */}
+        {hmrc.connected && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            color: '#22d3ee',
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: '#22d3ee',
+              display: 'inline-block',
+            }} />
+            WebSocket Connected
+          </span>
+        )}
         {hmrc.error && (
           <span style={{ color: '#f87171' }}>⚠ {hmrc.error}</span>
         )}
