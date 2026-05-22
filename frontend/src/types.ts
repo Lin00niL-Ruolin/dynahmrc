@@ -57,6 +57,7 @@ export interface SimulationState {
   scene: SceneGraph;
   stage: DynaHMRCStage;
   leader: string | null;
+  taskType?: string;
   collaborationPlan: string;
   dialogues: RobotDialogue[];
   actions: RobotAction[];

@@ -555,6 +555,7 @@ export class SimEnvironment {
       collaborationPlan: '',
       dialogues: [],
       actions: [],
+      taskType: this.taskType,
       taskProgress: `Placed ${this.placedObjects.length}/${this.taskTargets.length} objects`,
       taskCompleted: this.taskCompleted,
       roomWidth: this.roomWidth,

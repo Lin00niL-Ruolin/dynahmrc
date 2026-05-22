@@ -25,9 +25,7 @@ const robotEmojis: Record<string, string> = {
 export function MissionPage({ hmrc, onBack }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>('split');
 
-  const taskType = hmrc.runId?.includes('make_sandwich') ? 'make_sandwich'
-    : hmrc.runId?.includes('sort_solids') ? 'sort_solids'
-    : 'pack_objects';
+  const taskType = hmrc.state?.taskType || 'pack_objects';
 
   const isRunning = hmrc.state !== null
     && hmrc.state?.stage !== 'completed'
