@@ -105,7 +105,7 @@ CoT: Let's think step by step!
 const TASK_ALLOCATION_HINTS: Record<string, string> = {
   make_sandwich: 'This is a SANDWICH ASSEMBLY mission. Ingredients: bread_bottom, ham, bread_top. Stack in order on cutting_board. Bob (fixed arm on table_bob) does final assembly. Other robots find ingredients and bring them to Bob\'s table.',
   sort_solids: 'This is a SORTING mission. Find the small_red_cube scattered in the scene and place it on the large_red_cube on table_2. Mobile robots search and transport, Bob does precision placement.',
-  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
+  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Each robot picks ONE different item - do NOT pick what another robot already has. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
 };
 
 export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
@@ -222,10 +222,11 @@ Place target: ${taskType === 'make_sandwich' ? 'place bread_bottom -> ham -> bre
 7. wait() - Do nothing this step.
 
 === COORDINATION RULES ===
-- Check what other robots are doing via received messages BEFORE picking an item. If another robot already picked an item, go find another.
-- Each item only needs ONE robot to pick and place it. Avoid duplicating work.
-- David (mobile scout) can ONLY navigate and communicate - never pick/place/open.
-- Bob (fixed arm) can NOT navigate anywhere - he stays at his position.
+1. David (wheeled scout) can ONLY navigate and communicate - CANNOT pick/place/open.
+2. Bob (fixed arm) is mounted on his table - he CANNOT navigate or move at all. He can only pick/place items within arm's reach of his table.
+3. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and go find a different one.
+4. Alice and Lucy: you are the main transporters. Collect items and bring them to Bob's table.
+5. Alice: you can also open containers (fridge, cabinets).
 
 === TASK-SPECIFIC EXECUTION STEPS ===
 ${taskType === 'make_sandwich' ? `STEP 1: Navigate to table_bob area where bread_bottom and bread_top are located
