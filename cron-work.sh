@@ -27,9 +27,12 @@ DISK_USED=$(df /home/developer | tail -1 | awk '{print $5}' | sed 's/%//')
 log "Disk usage: ${DISK_USED}%"
 if [ "$DISK_USED" -gt 85 ]; then
   log "Cleaning up..."
-  rm -rf frontend/node_modules/.vite 2>/dev/null; rm -rf frontend/dist 2>/dev/null
-  rm -rf server/dist 2>/dev/null; npm cache clean --force 2>/dev/null || true
-  notify "⚠️ 磁盘清理完成 (${DISK_USED}%)"
+  rm -rf frontend/node_modules/.vite 2>/dev/null; rm -rf server/dist 2>/dev/null; npm cache clean --force 2>/dev/null || true
+  notify "⚠️ 磁盘清理 (${DISK_USED}%)"
+  # Rebuild frontend after cleanup so dist/ is always ready
+  log "Rebuilding frontend..."
+  (cd frontend && npx vite build) 2>&1 | tail -3 | while read line; do log "  $line"; done
+  log "Frontend rebuilt."
 fi
 
 # === 2. Run test: check if server works with real API ===
