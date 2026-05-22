@@ -104,11 +104,57 @@ export class DeepSeekClient {
     };
   }
 
-  private mockResponse(_messages: LLMMessage[]): LLMResponse {
+  private mockResponse(messages: LLMMessage[]): LLMResponse {
+    // Try to produce a valid action if this is an execution-stage call
+    const isExecution = messages.some(m => m.content.includes('AVAILABLE ACTIONS'));
+    const isSelfDescribe = messages.some(m => m.content.includes('self-introduction'));
+    const isTaskAllocation = messages.some(m => m.content.includes('campaign speech'));
+    const isLeaderElection = messages.some(m => m.content.includes('Leader Election'));
+    const isReflection = messages.some(m => m.content.includes('Reflection') || m.content.includes('reflection'));
+
+    if (isSelfDescribe) {
+      return {
+        thoughts: '[Mock] I am a capable robot. I can navigate, pick, and place objects to help complete the mission.',
+        content: 'Hello teammates! I am a versatile mobile robot. I can efficiently navigate the environment, pick up objects, and place them at targets. I will assist in locating and transporting items to complete our shared mission.',
+        raw: 'Thoughts: I am...\nContent: Hello teammates!...',
+      };
+    }
+    if (isTaskAllocation) {
+      return {
+        thoughts: '[Mock] Analyzing the team composition and task requirements to propose an effective plan.',
+        content: 'Collaboration Plan:\n- Alice will explore and collect task items from the environment\n- Bob will handle precise placement at the target location\n- David will assist in navigation and communication\n- Lucy will scout from above and provide aerial support\n\nCampaign Speech:\nI have the best combination of mobility and manipulation for this task. I propose an efficient parallel workflow where each robot works simultaneously on different subtasks. Vote for me as leader!',
+        raw: 'Thoughts: Analyzing...\nContent: Collaboration Plan:...',
+      };
+    }
+    if (isLeaderElection) {
+      return {
+        thoughts: '[Mock] Reviewing all plans and speeches to select the best leader.',
+        content: `After careful analysis, Alice has the most comprehensive plan that leverages all robots\' strengths effectively. Reasons: Alice proposed clear parallel task assignments and demonstrated strong coordination skills. Leader: Alice`,
+        raw: 'Thoughts: Reviewing...\nContent: Reasons:...\nLeader: Alice',
+      };
+    }
+    if (isReflection) {
+      return {
+        thoughts: '[Mock] Reflecting on the progress so far and planning next steps.',
+        content: 'Summary: We have made progress on collecting items. Some remain to be found and placed. Plan: Continue exploring, pick up remaining items, and deliver them to the target location.',
+        raw: 'Thoughts: Reflecting...\nSummary: Progress...\nPlan: Continue...',
+      };
+    }
+    if (isExecution) {
+      // Pick a random furniture name from the scene graph in messages
+      const furnMatch = messages[messages.length-1]?.content.match(/navigate\(\w+\)/);
+      const target = furnMatch ? furnMatch[0].replace('navigate(','').replace(')','') : 'table_0';
+      return {
+        thoughts: `[Mock] Moving to ${target} to search for task items.`,
+        content: `navigate(${target})`,
+        raw: `Thoughts: Moving to ${target}...\nContent: navigate(${target})`,
+      };
+    }
+
     return {
-      thoughts: '[Mock] Analyzing the task and my capabilities...',
-      content: '[Mock] I will navigate to the table and pick up the object.',
-      raw: '[Mock Response]\nThoughts: Analyzing...\nContent: Executing action...',
+      thoughts: '[Mock] Ready to proceed.',
+      content: 'wait()',
+      raw: '[Mock]\nThoughts: Ready.\nContent: wait()',
     };
   }
 }

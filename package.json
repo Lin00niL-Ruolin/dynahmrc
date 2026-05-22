@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "server": "cd server && npx tsx src/index.ts",
+    "server": "cd server && npx tsx --env-file=.env src/index.ts",
     "client": "cd frontend && npx vite",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "cd frontend && npx vite build"
