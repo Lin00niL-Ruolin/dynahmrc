@@ -126,6 +126,10 @@ export class SimEnvironment {
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         ['tray', 8.8, 5.5, 0.3, 0.3, false],
+        // Colored sorting panels for sort_solids task
+        ['red_panel', 1.5, 2.5, 0.4, 0.3, false],
+        ['blue_panel', 2.5, 2.5, 0.4, 0.3, false],
+        ['green_panel', 3.5, 2.5, 0.4, 0.3, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
@@ -179,6 +183,10 @@ export class SimEnvironment {
         ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
         ['blackboard', 7, 0.15, 0.15, 2.0, false],
         ['tray', 3, 4.7, 0.3, 0.3, false],
+        // Colored sorting panels for sort_solids task
+        ['red_panel', 1.5, 8, 0.4, 0.3, false],
+        ['blue_panel', 2.5, 8, 0.4, 0.3, false],
+        ['green_panel', 3.5, 8, 0.4, 0.3, false],
         // Floor rug
         ['rug', 6, 2, 0.6, 0.6, false],
       ];
@@ -231,6 +239,10 @@ export class SimEnvironment {
         ['bathtub', 1.5, 9.4, 1.0, 0.6, false],
         ['sink_base', 4.7, 9.5, 0.8, 0.6, false],
         ['tray', 8, 2.7, 0.3, 0.3, false],
+        // Colored sorting panels for sort_solids task
+        ['red_panel', 5, 2, 0.4, 0.3, false],
+        ['blue_panel', 6, 2, 0.4, 0.3, false],
+        ['green_panel', 7, 2, 0.4, 0.3, false],
         // Floor items
         ['rug', 8, 2.4, 0.6, 0.6, false],
       ];
@@ -461,11 +473,49 @@ export class SimEnvironment {
     }
   }
 
+  isManipulator(name: string): boolean {
+    // David is pure mobile (no manipulation), Bob is fixed arm (no navigation)
+    const rtype = this.robotTypes[name];
+    return rtype !== RobotType.DAVID;
+  }
+
+  canNavigate(name: string): boolean {
+    const rtype = this.robotTypes[name];
+    return rtype !== RobotType.BOB;
+  }
+
   step(action: RobotAction): Feedback {
     this.stepCount++;
     const robotName = action.robotName;
     const pos = this.robotPositions[robotName] || [5, 5];
     const gripper = this.robotGrippers[robotName] || null;
+
+    // === Capability enforcement ===
+    if (action.actionType === ActionType.NAVIGATE && !this.canNavigate(robotName)) {
+      return {
+        actionType: ActionType.NAVIGATE,
+        success: false,
+        description: `${robotName} is a fixed arm and cannot navigate or move from position (${pos[0].toFixed(2)}, ${pos[1].toFixed(2)}). Only mobile robots can navigate.`,
+        details: {},
+      };
+    }
+    if ((action.actionType === ActionType.PICK || action.actionType === ActionType.PLACE)
+      && !this.isManipulator(robotName)) {
+      return {
+        actionType: action.actionType,
+        success: false,
+        description: `${robotName} is a navigation-only robot without a manipulator arm. Cannot pick or place objects. Only communicate or navigate.`,
+        details: {},
+      };
+    }
+    if (action.actionType === ActionType.OPEN && !this.isManipulator(robotName)) {
+      return {
+        actionType: ActionType.OPEN,
+        success: false,
+        description: `${robotName} is a navigation-only robot and cannot open containers. This needs a robot with a manipulator arm.`,
+        details: {},
+      };
+    }
 
     switch (action.actionType) {
       case ActionType.WAIT:

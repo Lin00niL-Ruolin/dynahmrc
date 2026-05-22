@@ -184,7 +184,7 @@ export function executionSystem(
     sort_solids: {
       items: 'red_cube, blue_sphere, green_cylinder',
       locations: 'red_cube is on table_2 (3, 5.3), blue_sphere on table_2 (3, 5), green_cylinder on table_2 (3, 4.7)',
-      target: 'matching colored panels',
+      target: 'panels: red_panel, blue_panel, green_panel',
     },
     make_sandwich: {
       items: 'bread_bottom, lettuce, tomato, cheese, ham, bread_top',
@@ -210,7 +210,7 @@ ${principles}
 === TASK ITEMS ===
 Items to find: ${info.items}
 Item locations: ${info.locations}
-Place target: place all items at the ${info.target}
+Place target: ${taskType === 'sort_solids' ? 'place each item on its matching color panel (red_cube→red_panel, blue_sphere→blue_panel, green_cylinder→green_panel)' : taskType === 'pack_objects' ? 'place all items into the tray' : 'place each ingredient on the cutting_board in order'}
 
 === AVAILABLE ACTIONS ===
 1. navigate(<furniture_name>) - Move to furniture to get close to objects. Example: navigate(table_0)
@@ -221,16 +221,22 @@ Place target: place all items at the ${info.target}
 6. communicate(<message>, <recipient>) - Share info with team. Example: communicate(I found apple at fridge!, Alice)
 7. wait() - Do nothing this step.
 
+=== COORDINATION RULES ===
+- Check what other robots are doing via received messages BEFORE picking an item. If another robot already picked an item, go find another.
+- Each item only needs ONE robot to pick and place it. Avoid duplicating work.
+- David (mobile scout) can ONLY navigate and communicate - never pick/place/open.
+- Bob (fixed arm) can NOT navigate anywhere - he stays at his position.
+
 === TASK-SPECIFIC EXECUTION STEPS ===
 ${taskType === 'pack_objects' ? `STEP 1: Navigate to each item location: kitchen_cabinet, kitchen_counter, sink_base, source_table_2
 STEP 2: pick() each item
 STEP 3: navigate(tray) and place() each item into the tray`
-: taskType === 'sort_solids' ? `STEP 1: Navigate to table_2 to find the colored cubes
+: taskType === 'sort_solids' ? `STEP 1: Navigate to table_2 to find the colored cubes located at (3, 5.3), (3, 5), (3, 4.7)
 STEP 2: pick() each cube
-STEP 3: Navigate to matching color panel and place() the cube on the correct panel
-  - red_cube → red panel
-  - blue_sphere → blue panel
-  - green_cylinder → green panel`
+STEP 3: Navigate to matching colored panel and place() the cube
+  - place(red_cube, red_panel)
+  - place(blue_sphere, blue_panel)
+  - place(green_cylinder, green_panel)`
 : `STEP 1: Collect ingredients in order: bread_bottom, lettuce, tomato, cheese, ham, bread_top
 STEP 2: Navigate to each location and pick() the ingredient
 STEP 3: Navigate to table_bob / cutting_board area
