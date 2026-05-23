@@ -55,8 +55,8 @@ export class SimEnvironment {
       let startPositions: Array<[number, number]>;
       const scenePositions: Record<string, Record<string, [number, number]>> = {
         'scene1': {
-          'Alice': [6, 6],
-          'Bob': [8.5, 5.5],
+          'Alice': [6.5, 7],
+          'Bob': [8.5, 5.85],
           'David': [4, 6],
           'Lucy': [3, 2],
         },

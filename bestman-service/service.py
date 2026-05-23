@@ -344,7 +344,7 @@ def execute_action(req: ActRequest):
                     known_pos = {
                         'tray': [5, 5, 0.83],
                         'cutting_board': [8.5, 5.5, 0.86],
-                        'table_bob': [8.5, 5.5, 0.86],
+                        'table_new_2': [8.5, 5.5, 0.86],
                     }
                     if target in known_pos:
                         pos = known_pos[target]
@@ -361,7 +361,7 @@ def execute_action(req: ActRequest):
                 known_pos = {
                     'fridge': [9.4, 0.5, 0],
                     'table_dining': [3, 2, 0],
-                    'table_bob': [8.5, 5.5, 0],
+                    'table_new_2': [8.5, 5.5, 0],
                     'cutting_board': [8.5, 5.5, 0.86],
                     'counter_elementa': [7.4, 0.5, 0],
                     'counter_elementb': [5.9, 0.5, 0],

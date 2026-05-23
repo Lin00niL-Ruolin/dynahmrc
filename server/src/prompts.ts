@@ -237,23 +237,42 @@ Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (ham_bottom, b
 (Only the actions YOU can perform are listed below)
 ${ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice}
 
-=== COORDINATION RULES (ALL TASKS) ===
-1. Bob (fixed arm) does the FINAL operation. All items must be brought to Bob's table first, then Bob places them.
-2. Exception: If an item is ALREADY on Bob's table, Bob can pick it directly without waiting for delivery.
-3. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and find a different one.
-4. If you are a mobile robot: navigate to the item → pick it up → bring it to Bob's table → place it there for Bob.
-5. If you are Bob: pick items already on your table directly. For items elsewhere, wait for them to be delivered.
+===== ⚠️ MANDATORY WORKFLOW — ALL TASKS ⚠️ =====
+There are TWO roles with DIFFERENT jobs:
+
+📦 Mobile robots (Alice, Lucy, David — anyone who can navigate):
+  Your job: fetch items → bring to Bob's table → PLACE ON BOB'S TABLE (not on cutting_board)
+  ✗ NEVER place items directly on cutting_board
+  ✓ Always place on Bob's table (table_new_2 / table_new_1 depending on task)
+
+🦾 Bob (fixed arm on his table):
+  Your job: take items from your table → place on the final target (cutting_board / tray / etc.)
+  ✓ Pick items already on your table
+  ✓ Place them on the final target
+  ✗ Never navigate (you can't move)
+
+Concrete example (make_sandwich):
+  1. Alice brings bacon from table_new_1 → places on Bob's table ✅
+  2. Bob picks bacon from his table → places on cutting_board ✅
+  3. Alice must NOT place bacon directly on cutting_board ❌
+
+=== COORDINATION RULES ===
+1. Bob ALWAYS does the final placement. No one else.
+2. If an item is already on Bob's table, Bob can pick it directly.
+3. Each item only needs ONE robot to bring it.
+4. Mobile robots: bring items to Bob's table. NOT to the final target.
+5. Bob: pick from your table, place on final target.
 6. Communicate important findings to the team.
 
 === TASK-SPECIFIC EXECUTION STEPS ===
-${taskType === 'make_sandwich' ? `STEP 1: Check if ham_bottom is on Bob's table (table_new_2) — if yes, Bob can pick it directly
-STEP 2: Mobile robots: go to table_new_1, pick bacon & ham_top, bring them to Bob's table
-STEP 3: Bob: once items arrive at your table, pick & stack them on cutting_board (any order)`
-: taskType === 'sort_solids' ? `STEP 1: Mobile robots: find the small_red_cube around the scene, pick it up, bring to Bob's table
-STEP 2: Bob: once small_red_cube arrives, place it on the matching large_red_cube on table_2`
-: `STEP 1: Find each item: fork at kitchen_cabinet, apple at source_table_2, book at bookcase, soap at wall_shelf
-STEP 2: pick() each item and bring to Bob's table
-STEP 3: Bob: once items arrive at your table, pick them and place into the tray`
+${taskType === 'make_sandwich' ? `Alice: ham_bottom is on Bob's table. Do not pick it — Bob handles it.
+Alice: take ONE trip per item. First go to table_new_1, pick bacon, bring to Bob's table, place on Bob's table.
+Then go back to table_new_1, pick ham_top, bring to Bob's table, place on Bob's table.
+Bob: pick items from your table and stack them on cutting_board.`
+: taskType === 'sort_solids' ? `Mobile robot: pick up small_red_cube, bring to Bob's table, place on Bob's table (not on the colored cube).
+Bob: pick small_red_cube from your table, place on matching large_red_cube.`
+: `Mobile robots: ONE item per trip. Pick it → Bob's table → place. Go back for the next item.
+Bob: pick items from your table, place into tray.`
 }
 
 ===== CRITICAL RULES — READ THIS! =====
@@ -262,6 +281,7 @@ STEP 3: Bob: once items arrive at your table, pick them and place into the tray`
 3. If your gripper is occupied, you MUST place() what you are holding before you can pick() anything else.
 4. Use the Shared Task Status below to know what other robots are doing before you act.
 5. Never pick() an item that another robot is already holding or has already placed.
+6. WORKFLOW: Mobile robots bring items to BOB'S TABLE. Bob places items on the FINAL TARGET. Mobile robots NEVER place on the final target.
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
