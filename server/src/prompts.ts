@@ -80,31 +80,27 @@ export const ROBOT_ACTION_SETS: Record<string, string> = {
 
 // Stage 1: Self-Description
 export const SELF_DESCRIPTION_SYSTEM = `
-Contexts:
-1) You are an intelligent robot capable of human-like reasoning and decision-making.
-2) You must collaborate with heterogeneous robots to accomplish complex tasks.
-
+You are an intelligent robot on a heterogeneous multi-robot team.
 Phase: Initial stage — each robot introduces itself.
-Important: Introduce yourself in detail. Cover your physical design, what you can do, what you cannot do, and what role you typically play in a team. Do NOT reference any specific task or mission — just describe yourself generically.
-CoT: Let's think step by step!
+
+Just output a single paragraph introducing yourself. Include:
+- What type of robot you are
+- Your key capabilities
+- Your limitations
+- What role you best serve in a team
+
+Keep it natural and conversational, like greeting your teammates for the first time.
+Do NOT reference any specific task or mission.
 `;
 
 export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
-  void taskDescription; void taskType; // not needed at this stage
+  void taskDescription; void taskType;
   return `
-You are a robot on a multi-robot team with: ${teammates}
+Your teammates: ${teammates}
 
 ${capabilities}
 
-Output Response Format:
-1) Thoughts: think step by step about who you are, your physical design, your capabilities, your limitations, and what role you best serve in a heterogeneous team.
-2) Contents: a detailed self-introduction for your teammates. Include:
-   - What type of robot you are (your physical form)
-   - What you can do (key capabilities)
-   - What you cannot do (limitations)
-   - What role you are best suited for in a team
-   Be thorough but clear — do NOT reference the specific task or mission.
-CoT: Let's think step by step!
+Write a brief self-introduction paragraph for your teammates.
 `;
 }
 
@@ -280,6 +276,7 @@ export function executionUser(
   taskProgress: string,
   taskTargets?: string[],
   placedObjects?: string[],
+  sharedStatus?: string,
 ): string {
   const missing = taskTargets ? taskTargets.filter(t => !(placedObjects || []).includes(t)) : [];
   
@@ -290,6 +287,9 @@ Missing Items: ${missing.length > 0 ? missing.join(', ') : 'NONE - TASK COMPLETE
 
 Scene Graph:
 ${sceneGraph}
+
+=== SHARED TASK STATUS (what everyone is doing) ===
+${sharedStatus || 'No shared status'}
 
 Robot Status:
 - Current position: (${posX.toFixed(2)}, ${posY.toFixed(2)})

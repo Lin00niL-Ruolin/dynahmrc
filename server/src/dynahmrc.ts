@@ -240,6 +240,21 @@ export class DynaHMRCEngine {
 
       const taskProgress = `Step ${this.stepCount}: Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects: [${this.sim.placedObjects.join(', ')}] Remaining: [${this.sim.taskTargets.filter(t => !this.sim.placedObjects.includes(t)).join(', ')}]`;
 
+      // Build shared status (task blackboard — everyone sees this)
+      const gripperStatuses = agentNames.map(n => {
+        const a = this.agents[n];
+        const holding = a.status.graspingObject || 'empty';
+        return `${n}:${holding === 'empty' ? 'empty' : `holding ${holding}`}`;
+      }).join(', ');
+      const placedStr = this.sim.placedObjects.length > 0
+        ? `Placed on cutting_board: [${this.sim.placedObjects.join(', ')}]`
+        : 'Nothing placed yet';
+      const remainingStr = this.sim.taskTargets.filter(t => !this.sim.placedObjects.includes(t));
+      const unclaimedStr = remainingStr.length > 0
+        ? `Unclaimed items: [${remainingStr.join(', ')}]`
+        : 'All items placed!';
+      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${unclaimedStr}`;
+
       // Run all robot actions in parallel
       const actionResults = await Promise.all(
         agentNames.map(async (name) => {
@@ -252,6 +267,7 @@ export class DynaHMRCEngine {
             taskProgress,
             this.sim.taskTargets,
             this.sim.placedObjects,
+            sharedStatus,
           );
           return { name, agent, thoughts, action };
         })

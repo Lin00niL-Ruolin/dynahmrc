@@ -27,7 +27,7 @@ const TASK_THEMES: Record<string, {
     accent: '#f59e0b',
     gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
     icon: '🥪',
-    goal: 'Stack ham_bottom, bacon, ham_top on cutting board (LLM decides order)',
+    goal: 'Stack ham_bottom, bacon, ham_top on cutting board',
     robots: [
       { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
       { name: 'Bob', role: 'Manipulation Robot', emoji: '🦿' },

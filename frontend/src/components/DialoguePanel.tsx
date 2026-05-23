@@ -112,17 +112,10 @@ function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: stri
     return { key: `⚡ ${actionLine}`, detail: feedbackLines.join('\n') };
   }
 
-  // Self description: show the FULL introduction from Contents
+  // Self description: just the intro paragraph (no Thoughts/Contents split)
   if (stage === 'self_description') {
-    const intro = extractContents(content);
-    if (intro && intro.length > 10) {
-      // Get first 2-3 sentences for a complete introduction
-      const fullIntro = intro.replace(/^\d+[\)\.\]\s]*/, '').trim();
-      return { key: `🤝 ${fullIntro}`, detail: '' };
-    }
-    // Fallback: use raw content but skip Thoughts header
-    const raw = content.replace(/^.*?Contents?:?\s*/is, '').trim();
-    return { key: `🤝 ${raw}`, detail: '' };
+    const intro = content.replace(/^(Thoughts?:\s*)?/i, '').trim();
+    return { key: `🤝 ${intro}`, detail: '' };
   }
 
   // Task allocation: highlight the collaboration plan / task assignments
