@@ -210,7 +210,23 @@ export function executionSystem(
     },
   };
 
-  const info = taskSteps[taskType || 'pack_objects'] || taskSteps.pack_objects;
+  // For sort_solids, generate dynamic tasks from randomized TASK_GOALS
+  let info = taskSteps[taskType || 'pack_objects'] || taskSteps.pack_objects;
+  if (taskType === 'sort_solids') {
+    const goals = TASK_GOALS['sort_solids'] || [];
+    if (goals.length > 0) {
+      const itemList = goals.join(', ');
+      const locList = goals.map(g => {
+        const color = g.replace('small_cube_', '');
+        const locs: Record<string, string> = {
+          red: 'table_dining (3,2)', green: 'bookcase (1,6.5)', blue: 'sofa (7.5,9.5)',
+          yellow: 'table_1 (8.5,2.8)', purple: 'shelf_table (9.5,7.5)', orange: 'table_2 (5,6)',
+        };
+        return `${g} near ${locs[color] || 'unknown'}`;
+      }).join(', ');
+      info = { items: itemList, locations: locList, target: 'on matching colored cube' };
+    }
+  }
 
   const robotNameClean = robotName || 'Alice';
 

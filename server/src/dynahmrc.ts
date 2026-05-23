@@ -4,7 +4,7 @@ import {
 } from './types.js';
 import { RobotAgent } from './agent.js';
 import { SimEnvironment } from './simulation.js';
-import { TASK_DESCRIPTIONS } from './prompts.js';
+import { TASK_DESCRIPTIONS, TASK_GOALS } from './prompts.js';
 
 type UpdateCallback = (msg: WSMessage) => Promise<void>;
 
@@ -29,6 +29,8 @@ export class DynaHMRCEngine {
   private bestManStarted = false;
   agents: Record<string, RobotAgent> = {};
   sim: SimEnvironment;
+
+  taskDescription = '';
 
   constructor(
     taskType = 'pack_objects',
@@ -83,6 +85,21 @@ export class DynaHMRCEngine {
   async run(): Promise<void> {
     this.running = true;
     this.sim.reset(this.taskType, this.robotConfigs);
+
+    // Randomize sort_solids: pick 1-2 random color pairs
+    if (this.taskType === 'sort_solids') {
+      const colors = ['red', 'green', 'blue', 'yellow', 'purple', 'orange'];
+      const count = Math.random() < 0.6 ? 1 : 2;
+      const shuffled = [...colors].sort(() => Math.random() - 0.5).slice(0, count);
+      const pairs = shuffled.map(c => ({ small: `small_cube_${c}`, large: `cube_${c}` }));
+      const pairTexts = pairs.map(p => `${p.small} → ${p.large}`);
+      this.taskDescription = `Match ${count} pair(s): ${pairTexts.join(', ')}. Mobile robots find the small cubes and bring them to Bob's table. Bob places each on its matching large cube.`;
+      this.sim.taskTargets = pairs.map(p => p.small);
+      const { TASK_DESCRIPTIONS, TASK_GOALS } = await import('./prompts.js');
+      TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
+      TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
+      console.log(`[DynaHMRC] Sort task: ${pairTexts.join(', ')}`);
+    }
 
     // 如果启用 BestMan，启动服务
     if (this.useBestMan && !this.bestManStarted) {

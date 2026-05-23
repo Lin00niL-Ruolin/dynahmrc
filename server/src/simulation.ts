@@ -316,6 +316,12 @@ export class SimEnvironment {
         addItem('soap', 5.9, 0.5, 'counter_elementB');
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 3, 2, 'table_dining');
+        // 3D scene also has cubes at: green(1,6.5), blue(7.5,9.5), yellow(8.5,2.8), purple(9.5,7.5), orange(5,6)
+        addItem('small_cube_green', 1, 6.5, 'bookcase');
+        addItem('small_cube_blue', 7.5, 9.5, 'sofa');
+        addItem('small_cube_yellow', 8.5, 2.8, 'table_1');
+        addItem('small_cube_purple', 9.5, 7.5, 'shelf_table');
+        addItem('small_cube_orange', 5, 6, 'table_2');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_0', 8.2, 5.85, 'table_new_2');
         addItem('bacon', 8.5, 4, 'table_new_1');
@@ -348,8 +354,12 @@ export class SimEnvironment {
         addItem('soap', 1, 4, 'table_1');
         addItem('apple', 3, 5, 'table_2');
       } else if (taskType === 'sort_solids') {
-        // Small red cube scattered in scene, large cubes already on table_2
         addItem('small_cube_red', 9.5, 7.5, 'shelf_table');
+        addItem('small_cube_green', 1, 6.5, 'bookcase');
+        addItem('small_cube_blue', 7.5, 9.5, 'sofa');
+        addItem('small_cube_yellow', 8.5, 2.8, 'table_1');
+        addItem('small_cube_purple', 9.5, 7.5, 'shelf_table');
+        addItem('small_cube_orange', 5, 6, 'table_2');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
         addItem('ham', 1, 4, 'table_1');
@@ -382,6 +392,11 @@ export class SimEnvironment {
         addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 2, 4, 'source_table_1');
+        addItem('small_cube_green', 8, 8, 'bathtub');
+        addItem('small_cube_blue', 9.5, 7.5, 'shelf_table');
+        addItem('small_cube_yellow', 9, 1.5, 'counter_elementa');
+        addItem('small_cube_purple', 5.5, 4.36, 'table_1');
+        addItem('small_cube_orange', 8.5, 2.7, 'sink');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 8, 3, 'packing_table');
         addItem('ham', 3.1, 1.6, 'kitchen_counter');
@@ -497,7 +512,16 @@ export class SimEnvironment {
         };
 
       case ActionType.NAVIGATE: {
-        const target = action.params.target as string;
+        let target = action.params.target as string;
+        // Alias map: common name variations
+        const aliases: Record<string, string> = {
+          "table_new_1": "table_1", "table_new_2": "table_2",
+          "Bob's table": "table_2", "bobs table": "table_2", "bob table": "table_2",
+          "cutting_board": "cutting_board",
+        };
+        if (aliases[target.toLowerCase()]) {
+          target = aliases[target.toLowerCase()];
+        }
         let obj = this.scene.objects[target];
         
         // Fuzzy match
@@ -583,14 +607,26 @@ export class SimEnvironment {
       }
 
       case ActionType.PICK: {
-        const objName = action.params.object as string;
-        const obj = this.scene.objects[objName];
+        let objName = action.params.object as string;
+        let obj = this.scene.objects[objName];
+        
+        // Fuzzy match: if exact name not found, try partial match
+        if (!obj) {
+          const lower = objName.toLowerCase();
+          for (const [name, o] of Object.entries(this.scene.objects)) {
+            if (o.category === 'item' && (name.toLowerCase().includes(lower) || lower.includes(name.toLowerCase()))) {
+              obj = o;
+              objName = name;
+              break;
+            }
+          }
+        }
         
         if (!obj) {
           return {
             actionType: ActionType.PICK,
             success: false,
-            description: `Pick failed: target ${objName} does not exist in the scene graph. Valid targets are: ${Object.values(this.scene.objects).filter(o=>o.category==='item').map(o=>o.name).join(', ')}`,
+            description: `Pick failed: target ${objName} does not exist in the scene graph.`,
             details: { error_code: 'INVALID_TARGET' },
           };
         }
