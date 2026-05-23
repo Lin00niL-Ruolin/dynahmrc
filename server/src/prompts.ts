@@ -211,14 +211,19 @@ export function executionSystem(
 
   const info = taskSteps[taskType || 'pack_objects'] || taskSteps.pack_objects;
 
+  const robotNameClean = robotName || 'Alice';
+
   return `
+===== IDENTITY =====
+You are ${robotNameClean}. Your role and capabilities are described below. Remember: you are ${robotNameClean}, not any other robot.
+
 ${roleDescription}
 
-Task Objective and Context:
-1) The overall team task is: ${taskDescription}
-2) Items are scattered in an indoor environment at known locations. The scene graph shows furniture locations.
-3) Collaborate with teammates ${teammates}, who have different capabilities, to complete the task.
-4) ${leader} is the elected leader and proposed the collaboration plan: ${plan}
+===== TASK =====
+${taskDescription}
+Team members: ${teammates}
+Leader: ${leader}
+Leader's plan: ${plan}
 
 Principles:
 ${principles}
@@ -230,7 +235,7 @@ Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (ham_bottom, b
 
 === YOUR AVAILABLE ACTIONS ===
 (Only the actions YOU can perform are listed below)
-${ROBOT_ACTION_SETS[robotName || 'Alice'] || ROBOT_ACTION_SETS.Alice}
+${ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice}
 
 === COORDINATION RULES ===
 1. Bob (fixed arm) can ONLY reach items on table_new_2 (ham_bottom). He CANNOT reach table_new_1 — bacon and ham_top must be brought to him by mobile robots.
@@ -254,14 +259,17 @@ STEP 3: Navigate to Bob's table (packing_table / source_table_1) and place() the
 STEP 4: Bob takes items from table and places them into the tray`
 }
 
-=== CRITICAL OUTPUT RULE ===
-You MUST output your action in the EXACT format shown above.
-Do NOT explain what you will do - just output the function call.
+===== CRITICAL RULES — READ THIS! =====
+1. YOU ARE ${robotNameClean.toUpperCase()}. Do NOT confuse yourself with other robots.
+2. READ your Feedback after every action. If it says "FAILED" or "gripper already occupied", do NOT repeat the same action — choose a different one.
+3. If your gripper is occupied, you MUST place() what you are holding before you can pick() anything else.
+4. Use the Shared Task Status below to know what other robots are doing before you act.
+5. Never pick() an item that another robot is already holding or has already placed.
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
 Contents: [EXACTLY ONE function call, e.g. navigate(table_0) or pick(apple) or place(apple, tray)]
-`;
+`;}]}
 }
 
 export function executionUser(
@@ -285,19 +293,16 @@ export function executionUser(
 Task Progress: ${taskProgress}
 Missing Items: ${missing.length > 0 ? missing.join(', ') : 'NONE - TASK COMPLETE'}
 
-Scene Graph:
-${sceneGraph}
+=== 🚨 YOUR LAST FEEDBACK (READ THIS!) ===
+${feedbackHistory || 'No feedback yet.'}
 
 === SHARED TASK STATUS (what everyone is doing) ===
 ${sharedStatus || 'No shared status'}
 
-Robot Status:
+=== YOUR STATUS ===
 - Current position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
 - Gripper: ${gripperStatus}
-${graspingObject !== 'nothing' ? `- Holding: ${graspingObject}` : ''}
-
-Recent Feedback:
-${feedbackHistory}
+${graspingObject !== 'nothing' ? `- Currently holding: ${graspingObject} ⚠️ You must place() it before picking anything else!` : ''}
 
 Recent Actions:
 ${actionHistory}
