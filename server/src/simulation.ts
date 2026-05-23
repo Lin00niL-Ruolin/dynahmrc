@@ -636,11 +636,13 @@ export class SimEnvironment {
           };
         }
         
-        if (dist > 2.0) {
+        // Per-robot reach: Bob (fixed arm) has limited range, mobile robots have longer
+        const maxReach = this.robotTypes[robotName] === RobotType.BOB ? 0.7 : 2.0;
+        if (dist > maxReach) {
           return {
             actionType: ActionType.PICK,
             success: false,
-            description: `Pick failed: ${objName} is out of reach (distance=${dist.toFixed(2)}m, max reach=2.0m). Try navigating closer first. Relative distance: dx=${dx.toFixed(2)}m, dy=${dy.toFixed(2)}m.`,
+            description: `Pick failed: ${objName} is out of reach (distance=${dist.toFixed(2)}m, max reach=${maxReach.toFixed(1)}m). Try navigating closer first. Relative distance: dx=${dx.toFixed(2)}m, dy=${dy.toFixed(2)}m.`,
             details: { error_code: 'OUT_OF_REACH', distance: dist, dx, dy },
           };
         }

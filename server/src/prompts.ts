@@ -240,20 +240,14 @@ ${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any o
 === YOUR ACTIONS ===
 ${actionSet}
 
-===== YOUR CYCLE =====
-1. Gripper EMPTY → pick(item) — pick up an item that needs moving
-2. Gripper FULL → navigate to Bob's table → place(item, Bob's table)
-3. Repeat from step 1
+===== FOLLOW THE LEADER'S PLAN =====
+The leader's plan shown above is your primary guide. Execute it step by step.
 
-(If you are BOB: pick items from your table → place on final target)
-
-===== RULES =====
+===== PHYSICAL CONSTRAINTS =====
 - pick() is ONLY allowed when gripper is EMPTY
-- After pick(), your next action MUST be navigate or place — NEVER pick again
-- Bob does final placement. Mobile robots bring items to Bob's table, NOT to the final target
-- Read your feedback! If it says FAILED, do something different
-
-${taskType === 'make_sandwich' ? '=== SCENE1 ITEMS ===\nBob\'s table (table_new_2): bread_0 → Bob picks and places\nOther table (table_new_1): bacon, bread_1 → mobile robot brings to Bob' : taskType === 'sort_solids' ? '=== SCENE2 ITEMS ===\nFind small_red_cube anywhere → bring to Bob\'s table → Bob places on matching large cube' : '=== SCENE3 ITEMS ===\nfork, apple, book, soap → mobile robot brings each to Bob\'s table → Bob places into tray'}
+- If gripper is FULL, your next action must be navigate or place — NEVER pick again
+- Bob (fixed arm): can only reach items within 0.7m, cannot navigate
+- Read your feedback! If it says FAILED, choose a different action
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
