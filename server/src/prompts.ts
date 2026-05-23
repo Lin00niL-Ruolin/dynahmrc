@@ -84,27 +84,21 @@ Contexts:
 1) You are an intelligent robot capable of human-like reasoning and decision-making.
 2) You must collaborate with heterogeneous robots to accomplish complex tasks.
 
-Phase: Initial stage, where each robot introduces itself.
+Phase: Initial stage — each robot introduces itself.
+Important: Introduce yourself generically. Describe what you can and cannot do as a robot, without referencing any specific task or mission.
 CoT: Let's think step by step!
 `;
 
 export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
-  const taskContexts: Record<string, string> = {
-    make_sandwich: 'Stack the three ingredients (ham_bottom, bacon, ham_top) on top of each other on the cutting board. ham_bottom is on table_new_2; bacon and ham_top are on table_new_1. Only mobile robots can reach table_new_1 items — Bob (fixed arm) cannot. Decide the stacking order yourself.',
-    sort_solids: 'The mission is to find a small red cube scattered in the scene and place it on the matching large red cube on table_2. Think about exploration, transport, and precision placement.',
-    pack_objects: 'The mission is to pack four items (fork, apple, book, soap) into the tray. Consider how you can explore, find items, transport them to Bob, and assist with packing.',
-  };
+  void taskDescription; void taskType; // not needed at this stage
   return `
-Task Objective and Context:
-1) The overall collaborative goal is: ${taskDescription}
-2) ${taskContexts[taskType || 'pack_objects'] || taskContexts.pack_objects}
-3) Your teammates are: ${teammates}
+You are a robot on a team with: ${teammates}
 
 ${capabilities}
 
 Output Response Format:
-1) Thoughts: step-by-step reasoning about who you are and how you can contribute;
-2) Contents: concise self-introduction for teammates.
+1) Thoughts: think about who you are, what you can do, and what your limitations are;
+2) Contents: a brief self-introduction for your teammates. Describe only your own capabilities and role — do NOT reference the specific task or mission.
 CoT: Let's think step by step!
 `;
 }
