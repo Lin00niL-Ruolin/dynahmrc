@@ -108,8 +108,8 @@ class ServiceState:
     # 已知可抓取的物品名称后缀(用于过滤场景物体)
     PICKABLE_NAMES = {
         'apple', 'blue_bowl', 'bowl', 'fork_0', 'fork', 'book_0', 'book',
-        'soap', 'cup', 'lemon', 'bread_0', 'bacon_0', 'bread_bottom',
-        'bread_top', 'ham', 'lettuce', 'tomato', 'cheese',
+        'soap', 'cup', 'lemon', 'ham_bottom', 'ham_top', 'bread_bottom',
+        'bread_top', 'lettuce', 'tomato', 'cheese',
         'red_cube', 'blue_sphere', 'green_cylinder', 'tray',
         'phone', 'toy_duck', 'egg',
     }

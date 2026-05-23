@@ -303,58 +303,45 @@ def setup_scene1(client, scene_json_path=None):
     except Exception as e:
         print(f"  ⚠️ 案板: {e}")
 
-    # 9. 用 PyBullet 几何体创建培根（长方体，肉色+白色条纹）
-    print("\n--- 培根 ---")
+    # 9. ham_top — 火腿片（肉色）在桌子一上
+    print("\n--- ham_top ---")
     try:
-        bacon_half = [0.08, 0.03, 0.005]  # 16cm x 6cm x 1cm — 培根片大小
-        bacon_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bacon_half)
-        # 用肉粉色+白色条纹效果，通过多层叠加实现
-        bacon_color = [0.92, 0.25, 0.15, 1.0]  # 鲜肉红色
-        bacon_vis = p.createVisualShape(
-            p.GEOM_BOX, halfExtents=bacon_half,
-            rgbaColor=bacon_color
-        )
-        bacon_id = p.createMultiBody(
-            baseMass=0.1,
-            baseCollisionShapeIndex=bacon_col,
-            baseVisualShapeIndex=bacon_vis,
-            basePosition=[8.5, 4, 0.86],  # 桌子一上
-            baseOrientation=p.getQuaternionFromEuler([0, 0, 0.3])  # 稍微倾斜
-        )
-        setattr(client, "bacon_0", bacon_id)
-        print(f"  ✓ 培根 (16cmx6cm) @ (8.5, 4, 0.86) — 桌子一")
+        ham_half = [0.08, 0.03, 0.005]
+        ham_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=ham_half)
+        ham_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=ham_half, rgbaColor=[0.92, 0.25, 0.15, 1.0])
+        ham_id = p.createMultiBody(0.1, ham_col, ham_vis, [8.5, 4, 0.86], p.getQuaternionFromEuler([0, 0, 0.3]))
+        setattr(client, "ham_top", ham_id)
+        print(f"  ✓ ham_top @ (8.5, 4, 0.86) — 桌子一")
     except Exception as e:
-        print(f"  ⚠️ 培根: {e}")
+        print(f"  ⚠️ ham_top: {e}")
 
-    # 10. 用 PyBullet 几何体创建面包片（正方形，褐色）
+    # 10. 面包片在两张桌子上
     print("\n--- 面包片 ---")
     try:
-        bread_half = [0.07, 0.07, 0.012]  # 14cm x 14cm x 2.4cm
+        bread_half = [0.07, 0.07, 0.012]
         bread_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bread_half)
-        bread_vis = p.createVisualShape(
-            p.GEOM_BOX, halfExtents=bread_half,
-            rgbaColor=[0.75, 0.6, 0.4, 1.0]  # 浅咖色
-        )
-        bread_id = p.createMultiBody(
-            baseMass=0.05,
-            baseCollisionShapeIndex=bread_col,
-            baseVisualShapeIndex=bread_vis,
-            basePosition=[8.2, 5.85, 0.86],  # 桌子二上
-            baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
-        )
-        setattr(client, "bread_0", bread_id)
-        print(f"  ✓ 面包片 (14cmx14cm) @ (8.2, 5.85, 0.86) — 桌子二")
+        bread_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=bread_half, rgbaColor=[0.75, 0.6, 0.4, 1.0])
 
-        # 再一片面包在桌子一上
-        bread2_id = p.createMultiBody(
-            baseMass=0.05,
-            baseCollisionShapeIndex=bread_col,
-            baseVisualShapeIndex=bread_vis,
-            basePosition=[8.55, 4.2, 0.86],  # 桌子一上
-            baseOrientation=p.getQuaternionFromEuler([0, 0, 0.1])  # 稍微偏转
-        )
-        setattr(client, "bread_1", bread2_id)
-        print(f"  ✓ 面包片2 (14cmx14cm) @ (8.55, 4, 0.86) — 桌子一")
+        # bread_bottom 在桌子二上
+        bb = p.createMultiBody(0.05, bread_col, bread_vis, [8.2, 5.85, 0.86])
+        setattr(client, "bread_bottom", bb)
+        print(f"  ✓ bread_bottom @ (8.2, 5.85, 0.86) — 桌子二")
+
+        # bread_top 在桌子一上
+        bt = p.createMultiBody(0.05, bread_col, bread_vis, [8.55, 4.2, 0.86], p.getQuaternionFromEuler([0, 0, 0.1]))
+        setattr(client, "bread_top", bt)
+        print(f"  ✓ bread_top @ (8.55, 4.2, 0.86) — 桌子一")
+    except Exception as e:
+        print(f"  ⚠️ 面包片: {e}")
+
+    # 10b. ham_bottom 在桌子二上
+    print("\n--- ham_bottom ---")
+    try:
+        ham2 = p.createMultiBody(0.1, ham_col, ham_vis, [8.2, 5.5, 0.86], p.getQuaternionFromEuler([0, 0, -0.1]))
+        setattr(client, "ham_bottom", ham2)
+        print(f"  ✓ ham_bottom @ (8.2, 5.5, 0.86) — 桌子二")
+    except Exception as e:
+        print(f"  ⚠️ ham_bottom: {e}")
     except Exception as e:
         print(f"  ⚠️ 面包片: {e}")
 
