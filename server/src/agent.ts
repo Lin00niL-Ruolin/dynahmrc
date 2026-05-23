@@ -152,6 +152,19 @@ export class RobotAgent {
     const response = await this.llm.chat(msgs);
     let action = this.parseAction(response.content);
 
+    // ⛔ Mobile robots: if the last action was also communicate, force navigate instead
+    if (this.roleTypeName !== 'Bob' && action.actionType === ActionType.COMMUNICATE) {
+      const lastActionType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
+      if (lastActionType === ActionType.COMMUNICATE) {
+        console.log(`[Agent ${this.name}] Repeated communicate(). Forcing navigate to table_new_1.`);
+        action = {
+          robotName: this.name, actionType: ActionType.NAVIGATE,
+          params: { target: 'table_new_1' },
+          timestamp: Date.now(),
+        };
+      }
+    }
+
     // ⛔ Bob: never try to pick items that are not on his table
     const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
     if (this.roleTypeName === 'Bob' && action.actionType === ActionType.PICK && !this.status.gripperOccupied) {
@@ -162,6 +175,15 @@ export class RobotAgent {
           robotName: this.name, actionType: ActionType.WAIT,
           params: {}, timestamp: Date.now(),
         };
+      }
+    }
+
+    // ⛔ Mobile robots: NEVER place on cutting_board directly — only Bob does that
+    if (this.roleTypeName !== 'Bob' && action.actionType === ActionType.PLACE) {
+      const target = (action.params.target as string || '').toLowerCase();
+      if (target.includes('cutting_board') || target.includes('tray')) {
+        console.log(`[Agent ${this.name}] Blocked place() on ${target}. Mobile robots cannot place on final target. Forcing place on Bob's table.`);
+        action.params.target = "Bob's table";
       }
     }
 

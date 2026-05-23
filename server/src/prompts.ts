@@ -241,23 +241,10 @@ ${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any o
 ${actionSet}
 
 ===== YOUR JOB =====
-Your job depends on whether you can navigate:
-
-IF YOU CAN NAVIGATE (mobile robot):
-  1. Go to the item's location → pick() it
-  2. Bring it to the fixed-arm robot's table → place() it there
-  3. Repeat for each item
-  4. NEVER place() on the final target (cutting_board/tray)
-
-IF YOU CANNOT NAVIGATE (fixed-arm robot):
-  1. Pick items already on your table → place() on final target
-  2. For items not on your table, WAIT — mobile robots will bring them
-  3. NEVER try to pick() items that are out of reach or held by others
-
-===== RULES =====
-- pick() only when gripper EMPTY
-- If gripper FULL → navigate or place, NEVER pick again
-- Read your feedback. If FAILED, do something different
+- Mobile robots: Go to item → pick() → bring to fixed-arm robot's table → place()
+- Fixed-arm robots: Pick items on your table → place() on final target. For other items, WAIT
+- NEVER pick() when gripper FULL. NEVER place() on final target if you're a mobile robot
+- Read your feedback. If FAILED, try something different
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
