@@ -701,7 +701,7 @@ export class SimEnvironment {
           } else {
             // If placing on Bob's table, put items within Bob's reach (0.7m from 8.5,5.85)
             const targetLower = target.toLowerCase();
-            if (targetLower.includes("bob's table") || targetLower.includes('table_new_2')) {
+            if (targetLower.includes('bob') || targetLower.includes('table_new_2')) {
               this.scene.objects[objName].posX = 8.5;
               this.scene.objects[objName].posY = 5.3;
             } else {

@@ -262,15 +262,26 @@ export class DynaHMRCEngine {
         ? `On Bob's table (delivered): [${onBobTable.join(', ')}]`
         : 'Nothing on Bob\'s table yet';
 
-      // Item locations: tell robots which items are on which table
-      const itemLocations: Record<string, Record<string, string>> = {
-        make_sandwich: { bread_0: 'table_new_2 (Bob can reach)', bacon: 'table_new_1', bread_1: 'table_new_1' },
-        sort_solids: { small_red_cube: 'scattered' },
-        pack_objects: { fork: 'kitchen_cabinet', apple: 'source_table_2', book: 'bookcase', soap: 'wall_shelf' },
-      };
-      const locations = itemLocations[this.taskType] || {};
-      const locationStr = Object.entries(locations)
-        .map(([item, loc]) => `${item}:${loc}`).join(', ');
+      // Dynamic item locations: check items' actual positions vs original
+      const dynamicLocations: string[] = [];
+      for (const t of this.sim.taskTargets) {
+        const obj = this.sim.scene.objects[t];
+        if (!obj) continue;
+        let loc = 'unknown';
+        if (this.sim.placedObjects.includes(t)) {
+          loc = 'on cutting_board ✅';
+        } else if (Object.values(this.sim.robotGrippers).includes(t)) {
+          loc = 'being carried';
+        } else if (Math.abs(obj.posX - 8.5) < 0.3 && Math.abs(obj.posY - 5.3) < 0.3) {
+          loc = "on Bob's table (delivered)";
+        } else if (obj.posY < 5) {
+          loc = 'on table_new_1';
+        } else {
+          loc = 'on table_new_2';
+        }
+        dynamicLocations.push(`${t}:${loc}`);
+      }
+      const locationStr = dynamicLocations.join(', ');
 
       const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
 

@@ -18,6 +18,7 @@ export class RobotAgent {
   taskPlan = '';
   campaignSpeech = '';
   currentPlan = '';
+  failedPickItems: Set<string> = new Set(); // items Bob tried to pick but couldn't reach
 
   private roleTypeName: string;
 
@@ -155,13 +156,23 @@ export class RobotAgent {
     // ⛔ Mobile robots: never wait or communicate when actionable steps remain
     if (this.roleTypeName !== 'Bob') {
       const lastType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
-      if (action.actionType === ActionType.WAIT || (action.actionType === ActionType.COMMUNICATE && lastType === ActionType.COMMUNICATE)) {
-        console.log(`[Agent ${this.name}] Blocked ${action.actionType}(). Mobile robots must act, not wait. Forcing navigate.`);
-        action = {
-          robotName: this.name, actionType: ActionType.NAVIGATE,
-          params: { target: 'table_new_1' },
-          timestamp: Date.now(),
-        };
+      const lastTarget = this.actionHistory.length > 0 ? (this.actionHistory[this.actionHistory.length - 1].params.target as string || '') : '';
+      const currentTarget = action.params.target as string || '';
+      
+      // Block wait
+      if (action.actionType === ActionType.WAIT) {
+        console.log(`[Agent ${this.name}] Blocked wait(). Forcing navigate.`);
+        action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_1' }, timestamp: Date.now() };
+      }
+      // Block repeat communicate
+      else if (action.actionType === ActionType.COMMUNICATE && lastType === ActionType.COMMUNICATE) {
+        console.log(`[Agent ${this.name}] Repeated communicate(). Forcing navigate.`);
+        action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_1' }, timestamp: Date.now() };
+      }
+      // Block repeat navigate to same target
+      else if (action.actionType === ActionType.NAVIGATE && lastType === ActionType.NAVIGATE && lastTarget === currentTarget) {
+        console.log(`[Agent ${this.name}] Repeated navigate to ${currentTarget}. Forcing pick.`);
+        action = { robotName: this.name, actionType: ActionType.PICK, params: { object: 'bacon' }, timestamp: Date.now() };
       }
     }
 
@@ -177,16 +188,24 @@ export class RobotAgent {
       }
     }
 
-    // ⛔ Bob: never try to pick items that are not on his table
-    const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
+    // ⛔ Bob: never try to pick items he previously failed to reach
+    const pickTarget = action.params.object as string || '';
     if (this.roleTypeName === 'Bob' && action.actionType === ActionType.PICK && !this.status.gripperOccupied) {
+      // Check if this item was already failed before
+      if (this.failedPickItems.has(pickTarget)) {
+        console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}) — already failed to reach it before. Forcing wait.`);
+        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+      }
+      // Check the last feedback for failures
+      const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
       if (lastFeedback.includes('out of reach') || lastFeedback.includes('already being held') || lastFeedback.includes('gripper is already occupied')) {
-        // Bob keeps trying invalid picks — force wait instead
-        console.log(`[Agent ${this.name}] Blocked repeated invalid pick(). Last feedback: ${lastFeedback.slice(0, 50)}. Forcing wait.`);
-        action = {
-          robotName: this.name, actionType: ActionType.WAIT,
-          params: {}, timestamp: Date.now(),
-        };
+        // Remember this item and force wait
+        const failedItem = this.feedbackHistory[this.feedbackHistory.length - 1].details?.error_code === 'GRIPPER_OCCUPIED'
+          ? this.feedbackHistory[this.feedbackHistory.length - 1].details?.current_object as string || ''
+          : pickTarget;
+        if (failedItem) this.failedPickItems.add(failedItem);
+        console.log(`[Agent ${this.name}] Blocked invalid pick(). Added ${failedItem} to failed list.`);
+        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
       }
     }
 
