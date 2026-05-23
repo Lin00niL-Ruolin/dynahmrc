@@ -303,45 +303,37 @@ def setup_scene1(client, scene_json_path=None):
     except Exception as e:
         print(f"  ⚠️ 案板: {e}")
 
-    # 9. ham_top — 火腿片（肉色）在桌子一上
-    print("\n--- ham_top ---")
+    # 9. 食物物品（3件，堆叠到案板上）
+    # 桌子二上的物品（Bob 可以够到）
+    print("\n--- ham_bottom (桌子二) ---")
     try:
-        ham_half = [0.08, 0.03, 0.005]
-        ham_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=ham_half)
-        ham_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=ham_half, rgbaColor=[0.92, 0.25, 0.15, 1.0])
-        ham_id = p.createMultiBody(0.1, ham_col, ham_vis, [8.5, 4, 0.86], p.getQuaternionFromEuler([0, 0, 0.3]))
-        setattr(client, "ham_top", ham_id)
-        print(f"  ✓ ham_top @ (8.5, 4, 0.86) — 桌子一")
-    except Exception as e:
-        print(f"  ⚠️ ham_top: {e}")
-
-    # 10. 面包片在两张桌子上
-    print("\n--- 面包片 ---")
-    try:
-        bread_half = [0.07, 0.07, 0.012]
-        bread_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bread_half)
-        bread_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=bread_half, rgbaColor=[0.75, 0.6, 0.4, 1.0])
-
-        # bread_bottom 在桌子二上
-        bb = p.createMultiBody(0.05, bread_col, bread_vis, [8.2, 5.85, 0.86])
-        setattr(client, "bread_bottom", bb)
-        print(f"  ✓ bread_bottom @ (8.2, 5.85, 0.86) — 桌子二")
-
-        # bread_top 在桌子一上
-        bt = p.createMultiBody(0.05, bread_col, bread_vis, [8.55, 4.2, 0.86], p.getQuaternionFromEuler([0, 0, 0.1]))
-        setattr(client, "bread_top", bt)
-        print(f"  ✓ bread_top @ (8.55, 4.2, 0.86) — 桌子一")
-    except Exception as e:
-        print(f"  ⚠️ 面包片: {e}")
-
-    # 10b. ham_bottom 在桌子二上
-    print("\n--- ham_bottom ---")
-    try:
-        ham2 = p.createMultiBody(0.1, ham_col, ham_vis, [8.2, 5.5, 0.86], p.getQuaternionFromEuler([0, 0, -0.1]))
-        setattr(client, "ham_bottom", ham2)
+        meat_half = [0.08, 0.03, 0.005]
+        meat_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=meat_half)
+        ham_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=meat_half, rgbaColor=[0.92, 0.25, 0.15, 1.0])
+        ham_bottom = p.createMultiBody(0.1, meat_col, ham_vis, [8.2, 5.5, 0.86], p.getQuaternionFromEuler([0, 0, -0.1]))
+        setattr(client, "ham_bottom", ham_bottom)
         print(f"  ✓ ham_bottom @ (8.2, 5.5, 0.86) — 桌子二")
     except Exception as e:
         print(f"  ⚠️ ham_bottom: {e}")
+
+    # 桌子一上的物品（需要其他机器人送到案板，Bob 够不到）
+    print("\n--- bacon (桌子一) ---")
+    try:
+        bacon_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=meat_half, rgbaColor=[0.92, 0.25, 0.15, 1.0])
+        bacon = p.createMultiBody(0.1, meat_col, bacon_vis, [8.5, 4, 0.86], p.getQuaternionFromEuler([0, 0, 0.3]))
+        setattr(client, "bacon", bacon)
+        print(f"  ✓ bacon @ (8.5, 4, 0.86) — 桌子一")
+    except Exception as e:
+        print(f"  ⚠️ bacon: {e}")
+
+    print("\n--- ham_top (桌子一) ---")
+    try:
+        ham_top_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=meat_half, rgbaColor=[0.85, 0.30, 0.20, 1.0])
+        ham_top = p.createMultiBody(0.1, meat_col, ham_top_vis, [8.55, 4.2, 0.86], p.getQuaternionFromEuler([0, 0, 0.1]))
+        setattr(client, "ham_top", ham_top)
+        print(f"  ✓ ham_top @ (8.55, 4.2, 0.86) — 桌子一")
+    except Exception as e:
+        print(f"  ⚠️ ham_top: {e}")
     except Exception as e:
         print(f"  ⚠️ 面包片: {e}")
 

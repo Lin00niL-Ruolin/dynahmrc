@@ -59,31 +59,45 @@ function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: stri
   };
 
   // Leader vote extraction
+  const ROBOT_NAMES = new Set(['Alice', 'Bob', 'David', 'Lucy']);
   if (stage === 'leader_election') {
-    // 匹配各种格式：Leader: Alice, 3) **Leader:** Alice, **Leader:**\nAlice
-    const voteRegex = /\d*[\.\)]?\s*\*{0,2}Leader\*{0,2}\s*:\s*\*{0,2}\s*(\w+)/i;
+    // 策略1: 找结尾处的 **Leader:** 名 或 Leader: 名
+    const voteRegex = /(?:^|[\n.])\s*\d*[\.\)]?\s*\*{0,2}Leader\*{0,2}\s*:\s*\*{0,2}\s*(\w+)/i;
     const voteMatch = content.match(voteRegex);
     if (voteMatch) {
       const name = voteMatch[1];
-      const reasons = content
-        .replace(voteRegex, '')
-        .replace(/^\d+[\)\.]\s*/gm, '')
-        .replace(/\*{0,2}(Thoughts?|Reasons?)\*{0,2}\s*:.*/g, '')
-        .trim();
-      return { 
-        key: `🗳️ I vote for **${name}**`,
-        detail: reasons 
-      };
+      // 只接受已知的机器人名
+      if (ROBOT_NAMES.has(name)) {
+        const reasons = content
+          .replace(voteRegex, '')
+          .replace(/^\d+[\)\.]\s*/gm, '')
+          .replace(/\*{0,2}(Thoughts?|Reasons?)\*{0,2}\s*:.*/g, '')
+          .trim();
+        return { 
+          key: `🗳️ I vote for **${name}**`,
+          detail: reasons 
+        };
+      }
     }
-    // 尝试换行格式：Leader: 单独一行，名字在下一行
+    // 策略2: 换行格式（Leader: 单独一行，名字在下一行）
     const lines = content.split('\n').filter(l => l.trim());
     for (let i = 0; i < lines.length; i++) {
       if (/^\d*[\.\)]?\s*\*{0,2}Leader\*{0,2}\s*:?\s*$/i.test(lines[i].trim())) {
         if (i + 1 < lines.length) {
           const nameMatch = lines[i + 1].trim().match(/^(\w+)/);
-          if (nameMatch) {
+          if (nameMatch && ROBOT_NAMES.has(nameMatch[1])) {
             return { key: `🗳️ I vote for **${nameMatch[1]}**`, detail: content };
           }
+        }
+      }
+    }
+    // 策略3: 全文搜索已知机器人名在 "Leader" 附近
+    for (const robotName of ROBOT_NAMES) {
+      const idx = content.lastIndexOf(robotName);
+      if (idx > 0) {
+        const before = content.slice(Math.max(0, idx - 30), idx);
+        if (/Leader/i.test(before)) {
+          return { key: `🗳️ I vote for **${robotName}**`, detail: content };
         }
       }
     }

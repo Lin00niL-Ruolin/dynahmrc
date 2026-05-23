@@ -213,17 +213,50 @@ export class RobotAgent {
   }
 
   private extractLeader(content: string): string {
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim().toLowerCase();
-      if (trimmed.startsWith('leader')) {
-        const namePart = line.includes(':') ? line.split(':')[1].trim() : '';
-        for (const name of ['Alice', 'Bob', 'David', 'Lucy']) {
-          if (namePart.toLowerCase().includes(name.toLowerCase())) {
-            return name;
+    const ROBOTS = ['Alice', 'Bob', 'David', 'Lucy'];
+
+    // 策略1: 匹配 **Leader:** 名 或 Leader: 名（处理 markdown 粗体）
+    const leaderRegex = /\*{0,2}Leader\*{0,2}\s*:\s*\*{0,2}\s*(\w+)/i;
+    const leaderMatch = content.match(leaderRegex);
+    if (leaderMatch) {
+      const name = leaderMatch[1];
+      if (ROBOTS.includes(name)) return name;
+      // 检查名字是否被包含在另一个词中
+      for (const r of ROBOTS) {
+        if (name.toLowerCase().includes(r.toLowerCase())) return r;
+      }
+    }
+
+    // 策略2: 换行格式（Leader: 单独一行，名字在下一行）
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim().replace(/^\d*[\.\)]?\s*/, '').replace(/\*+/g, '').toLowerCase();
+      if (trimmed === 'leader' || trimmed.startsWith('leader:')) {
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1].trim();
+          for (const r of ROBOTS) {
+            if (nextLine.toLowerCase().includes(r.toLowerCase())) return r;
           }
+        }
+        // 或者当前行冒号后直接有名字
+        const afterColon = lines[i].split(':')[1]?.trim() || '';
+        for (const r of ROBOTS) {
+          if (afterColon.toLowerCase().includes(r.toLowerCase())) return r;
         }
       }
     }
+
+    // 策略3: 全文找最后一个出现的机器人名（前面有 Leader 关键词）
+    for (const r of ROBOTS) {
+      const idx = content.lastIndexOf(r);
+      if (idx > 0) {
+        const before = content.slice(Math.max(0, idx - 40), idx).toLowerCase();
+        if (before.includes('leader')) return r;
+      }
+    }
+
+    // 真正的 fallback: 用第一个机器人（不硬编码 Alice）
+    console.warn(`[extractLeader] Could not extract leader from: ${content.slice(0, 100)}...`);
     return 'Alice';
   }
 
