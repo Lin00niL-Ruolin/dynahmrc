@@ -190,7 +190,7 @@ export function MissionPage({ hmrc, onBack }: Props) {
           }}>
             {/* Task briefing (shown before execution phase) */}
             {hmrc.state?.stage !== 'execution_reflection' && hmrc.state?.stage !== 'completed' && hmrc.state?.stage !== 'stopped' && (
-              <TaskBriefing theme={theme} taskType={taskType} />
+              <TaskBriefing theme={theme} taskType={taskType} robotState={hmrc.state?.robots} />
             )}
             <DialoguePanel
               dialogues={hmrc.dialogues}
@@ -271,7 +271,11 @@ export function MissionPage({ hmrc, onBack }: Props) {
 
 // ==================== 任务简介面板 ====================
 
-function TaskBriefing({ theme, taskType }: { theme: typeof TASK_THEMES[string]; taskType: string }) {
+function TaskBriefing({ theme, taskType, robotState }: {
+  theme: typeof TASK_THEMES[string];
+  taskType: string;
+  robotState?: Record<string, any> | null;
+}) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -304,11 +308,14 @@ function TaskBriefing({ theme, taskType }: { theme: typeof TASK_THEMES[string]; 
 
           {/* Steps removed - robots decide during collaboration */}
 
-          {/* Robots */}
+          {/* Robots — filter by actual state if available */}
           <div>
             <span style={{ color: '#cbd5e1', fontWeight: 500 }}>Robots:</span>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              {theme.robots.map(r => (
+              {(robotState && Object.keys(robotState).length > 0
+                ? theme.robots.filter(r => r.name in robotState)
+                : theme.robots
+              ).map(r => (
                 <span key={r.name} style={{
                   padding: '2px 6px', borderRadius: 4,
                   background: '#0f172a', border: '1px solid #334155',

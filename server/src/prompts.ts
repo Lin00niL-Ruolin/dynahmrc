@@ -237,26 +237,23 @@ Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (ham_bottom, b
 (Only the actions YOU can perform are listed below)
 ${ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice}
 
-=== COORDINATION RULES ===
-1. Bob (fixed arm) can ONLY reach items on table_new_2 (ham_bottom). He CANNOT reach table_new_1 — bacon and ham_top must be brought to him by mobile robots.
-2. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and go find a different one.
-3. If you are a mobile robot, bring items to Bob's table for final assembly.
-4. If you are Bob (fixed arm), wait for others to bring items to you.
-5. Communicate important findings to the team.
+=== COORDINATION RULES (ALL TASKS) ===
+1. Bob (fixed arm) does the FINAL operation. All items must be brought to Bob's table first, then Bob places them.
+2. Exception: If an item is ALREADY on Bob's table, Bob can pick it directly without waiting for delivery.
+3. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and find a different one.
+4. If you are a mobile robot: navigate to the item → pick it up → bring it to Bob's table → place it there for Bob.
+5. If you are Bob: pick items already on your table directly. For items elsewhere, wait for them to be delivered.
+6. Communicate important findings to the team.
 
 === TASK-SPECIFIC EXECUTION STEPS ===
-${taskType === 'make_sandwich' ? `STEP 1: Navigate to table_new_2 to find ham_bottom (Bob can pick this directly)
-STEP 2: Navigate to table_new_1 to find bacon and ham_top (only mobile robots)
-STEP 3: pick() ingredients and bring them to cutting_board
-STEP 4: stack them on cutting_board — any order is fine`
-: taskType === 'sort_solids' ? `STEP 1: Explore the scene to find the small_red_cube (check shelf_table, sofa, floor areas)
-STEP 2: pick() the small_red_cube
-STEP 3: Navigate to table_2 where the large colored cubes are located
-STEP 4: place(small_red_cube, large_red_cube) to complete the sorting`
+${taskType === 'make_sandwich' ? `STEP 1: Check if ham_bottom is on Bob's table (table_new_2) — if yes, Bob can pick it directly
+STEP 2: Mobile robots: go to table_new_1, pick bacon & ham_top, bring them to Bob's table
+STEP 3: Bob: once items arrive at your table, pick & stack them on cutting_board (any order)`
+: taskType === 'sort_solids' ? `STEP 1: Mobile robots: find the small_red_cube around the scene, pick it up, bring to Bob's table
+STEP 2: Bob: once small_red_cube arrives, place it on the matching large_red_cube on table_2`
 : `STEP 1: Find each item: fork at kitchen_cabinet, apple at source_table_2, book at bookcase, soap at wall_shelf
-STEP 2: pick() each item
-STEP 3: Navigate to Bob's table (packing_table / source_table_1) and place() the item there
-STEP 4: Bob takes items from table and places them into the tray`
+STEP 2: pick() each item and bring to Bob's table
+STEP 3: Bob: once items arrive at your table, pick them and place into the tray`
 }
 
 ===== CRITICAL RULES — READ THIS! =====
@@ -269,7 +266,7 @@ STEP 4: Bob takes items from table and places them into the tray`
 Output ONLY these two lines:
 Thoughts: [your reasoning]
 Contents: [EXACTLY ONE function call, e.g. navigate(table_0) or pick(apple) or place(apple, tray)]
-`;}]}
+`;
 }
 
 export function executionUser(

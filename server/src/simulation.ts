@@ -120,8 +120,8 @@ export class SimEnvironment {
         ['bookshelf_2', 0.5, 1.5, 0.8, 0.6, true, 'open'],
         ['bookshelf_3', 0.5, 2.5, 0.8, 0.6, true, 'open'],
         // Bob's table area (top-right, x=5..10, y=4..8)
-        ['table_bob', 8.5, 5.5, 1.0, 0.6, false],
-        ['table_extra', 8.5, 4, 1.0, 0.6, false],
+        ['table_new_2', 8.5, 5.5, 1.0, 0.6, false],
+        ['table_new_1', 8.5, 4, 1.0, 0.6, false],
         ['chair_bob_1', 8.5, 3, 0.3, 0.3, false],
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
@@ -327,9 +327,9 @@ export class SimEnvironment {
       } else if (taskType === 'sort_solids') {
         addItem('small_red_cube', 3, 2, 'table_dining');
       } else if (taskType === 'make_sandwich') {
-        addItem('ham_bottom', 8.2, 5.5, 'table_bob');
-        addItem('bacon', 8.5, 4, 'table_extra');
-        addItem('ham_top', 8.55, 4.2, 'table_extra');
+        addItem('ham_bottom', 8.2, 5.5, 'table_new_2');
+        addItem('bacon', 8.5, 4, 'table_new_1');
+        addItem('ham_top', 8.55, 4.2, 'table_new_1');
       }
 
       // Scene 1 distractors + 3D scene books
