@@ -240,18 +240,24 @@ ${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any o
 === YOUR ACTIONS ===
 ${actionSet}
 
-===== FOLLOW THE LEADER'S PLAN =====
-The leader's plan shown above is your primary guide. Execute it step by step.
+===== YOUR JOB =====
+Your job depends on whether you can navigate:
 
-===== PHYSICAL CONSTRAINTS =====
-- pick() is ONLY allowed when gripper is EMPTY
-- If gripper is FULL, your next action must be navigate or place — NEVER pick again
-- Bob (fixed arm): can only reach items within 0.7m, cannot navigate
-- Bob: ONLY pick items that are already on YOUR table (table_new_2). Items on table_new_1 are OUT OF YOUR REACH — wait for Alice to bring them
-- Bob: NEVER try to pick an item that another robot is holding — wait for them to place it on your table first
-- Mobile robots (Alice): NEVER place items on cutting_board or tray — only Bob does that
-- Bob: ONLY you place items on cutting_board or tray — that is your job
-- Read your feedback! If it says FAILED, choose a different action
+IF YOU CAN NAVIGATE (mobile robot):
+  1. Go to the item's location → pick() it
+  2. Bring it to the fixed-arm robot's table → place() it there
+  3. Repeat for each item
+  4. NEVER place() on the final target (cutting_board/tray)
+
+IF YOU CANNOT NAVIGATE (fixed-arm robot):
+  1. Pick items already on your table → place() on final target
+  2. For items not on your table, WAIT — mobile robots will bring them
+  3. NEVER try to pick() items that are out of reach or held by others
+
+===== RULES =====
+- pick() only when gripper EMPTY
+- If gripper FULL → navigate or place, NEVER pick again
+- Read your feedback. If FAILED, do something different
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]

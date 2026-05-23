@@ -262,7 +262,17 @@ export class DynaHMRCEngine {
         ? `On Bob's table (delivered): [${onBobTable.join(', ')}]`
         : 'Nothing on Bob\'s table yet';
 
-      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}`;
+      // Item locations: tell robots which items are on which table
+      const itemLocations: Record<string, Record<string, string>> = {
+        make_sandwich: { bread_0: 'table_new_2 (Bob can reach)', bacon: 'table_new_1', bread_1: 'table_new_1' },
+        sort_solids: { small_red_cube: 'scattered' },
+        pack_objects: { fork: 'kitchen_cabinet', apple: 'source_table_2', book: 'bookcase', soap: 'wall_shelf' },
+      };
+      const locations = itemLocations[this.taskType] || {};
+      const locationStr = Object.entries(locations)
+        .map(([item, loc]) => `${item}:${loc}`).join(', ');
+
+      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
 
       // Run all robot actions in parallel
       const actionResults = await Promise.all(
