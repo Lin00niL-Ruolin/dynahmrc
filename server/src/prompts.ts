@@ -218,8 +218,9 @@ export function executionSystem(
       const itemList = goals.join(', ');
       const locList = goals.map(g => {
         const color = g.replace('small_cube_', '');
+        // Positions for kitchen (scene2) layout where sort_solids runs
         const locs: Record<string, string> = {
-          red: 'table_dining (3,2)', green: 'bookcase (1,6.5)', blue: 'sofa (7.5,9.5)',
+          red: 'shelf_table (9.5,7.5)', green: 'bookcase (1,6.5)', blue: 'sofa (7.5,9.5)',
           yellow: 'table_1 (8.5,2.8)', purple: 'shelf_table (9.5,7.5)', orange: 'table_2 (5,6)',
         };
         return `${g} near ${locs[color] || 'unknown'}`;

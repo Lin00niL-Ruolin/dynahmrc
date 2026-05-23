@@ -517,7 +517,7 @@ export class SimEnvironment {
         const aliases: Record<string, string> = {
           "table_new_1": "table_1", "table_new_2": "table_2",
           "Bob's table": "table_2", "bobs table": "table_2", "bob table": "table_2",
-          "cutting_board": "cutting_board",
+          "table_dining": "table_2", "cutting_board": "cutting_board",
         };
         if (aliases[target.toLowerCase()]) {
           target = aliases[target.toLowerCase()];
