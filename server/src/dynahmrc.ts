@@ -283,6 +283,16 @@ export class DynaHMRCEngine {
         agent.addAction(action);
         this.allActions.push(action);
 
+        // Sync agent state from simulation (positions + gripper)
+        const simPos = this.sim.robotPositions[name];
+        if (simPos) {
+          agent.status.posX = simPos[0];
+          agent.status.posY = simPos[1];
+        }
+        const gripObj = this.sim.robotGrippers[name];
+        agent.status.gripperOccupied = gripObj != null;
+        agent.status.graspingObject = gripObj || null;
+
         // 如果启用 BestMan，将动作转发到 3D 仿真
         if (this.useBestMan && this.bestManStarted) {
           try {

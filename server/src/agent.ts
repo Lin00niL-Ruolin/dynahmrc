@@ -224,7 +224,18 @@ export class RobotAgent {
     }
 
     const response = await this.llm.chat(msgs);
-    return [response.thoughts, response.content, response.content];
+    
+    // Parse Summary and Plan from the response content
+    const content = response.content;
+    let summary = content;
+    let plan = content;
+    
+    const summaryMatch = content.match(/Summary:\s*([\s\S]*?)(?=\n\s*Plan:|$)/i);
+    const planMatch = content.match(/Plan:\s*([\s\S]*?)(?=\n\s*(CoT:|\n\s*Thoughts:|$))/i);
+    if (summaryMatch) summary = summaryMatch[1].trim();
+    if (planMatch) plan = planMatch[1].trim();
+    
+    return [response.thoughts, summary, plan];
   }
 
   addFeedback(feedback: Feedback): void {

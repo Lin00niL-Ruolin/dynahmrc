@@ -229,70 +229,31 @@ ${roleDescription}
 
 ===== TASK =====
 ${taskDescription}
-Team members: ${teammates}
+Team: ${teammates}
 Leader: ${leader}
-Leader's plan: ${plan}
+Plan: ${plan}
 
-Principles:
-${principles}
+=== ITEMS ===
+${info.items} at: ${info.locations}
+${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any order' : taskType === 'sort_solids' ? 'Place small cube on matching large cube' : 'Place all items into tray'}
 
-=== TASK ITEMS ===
-Items to find: ${info.items}
-Item locations: ${info.locations}
-Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (bread_0, bacon, bread_1) on top of each other on cutting_board — you decide the order' : taskType === 'sort_solids' ? 'place small_red_cube on top of large_red_cube on table_2' : 'place all four items (fork, apple, book, soap) into the tray'}
-
-=== YOUR AVAILABLE ACTIONS ===
-(Only the actions YOU can perform are listed below)
+=== YOUR ACTIONS ===
 ${actionSet}
 
-===== ⚠️ MANDATORY WORKFLOW — ALL TASKS ⚠️ =====
+===== YOUR CYCLE =====
+1. Gripper EMPTY → pick(item) — pick up an item that needs moving
+2. Gripper FULL → navigate to Bob's table → place(item, Bob's table)
+3. Repeat from step 1
 
-🚨 ONE ITEM AT A TIME. Gripper FULL → MUST place() before pick() again.
+(If you are BOB: pick items from your table → place on final target)
 
-Alice's job (make_sandwich example):
-  1. navigate(table_new_1) → pick(bacon) → navigate(table_new_2) → place(bacon, Bob's table)
-  2. navigate(table_new_1) → pick(bread_1) → navigate(table_new_2) → place(bread_1, Bob's table)
+===== RULES =====
+- pick() is ONLY allowed when gripper is EMPTY
+- After pick(), your next action MUST be navigate or place — NEVER pick again
+- Bob does final placement. Mobile robots bring items to Bob's table, NOT to the final target
+- Read your feedback! If it says FAILED, do something different
 
-Bob's job:
-  pick(item) from his table → place(item, cutting_board)
-
-CRITICAL RULES:
-  • If you already picked something, your next action is navigate or place — NOT pick.
-  • NEVER call pick() twice in a row. After one pick(), you MUST navigate or place().
-
-=== COORDINATION RULES ===
-1. Bob ALWAYS does the final placement. No one else.
-2. If an item is already on Bob's table, Bob can pick it directly.
-3. Each item only needs ONE robot to bring it.
-4. Mobile robots: bring items to Bob's table. NOT to the final target.
-5. Bob: pick from your table, place on final target.
-6. Communicate important findings to the team.
-
-=== YOUR NEXT ACTION ===
-
-Based on your gripper status, pick the EXACT action below:
-
-IF you are ALICE (or any mobile robot):
-  • Gripper empty & at table_new_1 → pick(bacon) OR pick(bread_1)
-  • Gripper empty & at table_new_2 → pick(bread_0) [but Bob should do this]
-  • Gripper full (holding something) → navigate(table_new_2) OR place(item, Bob's table)
-  • NEVER pick() when gripper is full — you must place() first.
-
-IF you are BOB:
-  • Item on your table → pick(it) → place(it, cutting_board)
-  • Gripper full → place(it, cutting_board)
-  • Nothing to do → wait()
-
-Example valid action when Alice is holding bacon: navigate(table_new_2)
-Example valid action when Alice is at Bob's table with bacon: place(bacon, Bob's table)
-Example INVALID action: pick(bacon) when already holding something
-
-===== CRITICAL RULES — READ THIS! =====
-1. YOU ARE ${robotNameClean.toUpperCase()}. Never confuse yourself with other robots.
-2. 🚨 GRIPPER RULE: If your gripper is FULL, pick() is FORBIDDEN. You MUST navigate or place().
-3. 🚨 NEVER repeat a failed action. If feedback says "FAILED" or "occupied", choose a different action.
-4. Use the Shared Task Status below before choosing what to do.
-5. MOBILE ROBOTS: bring items to Bob's table (table_new_2). BOB: place items on cutting_board.
+${taskType === 'make_sandwich' ? '=== SCENE1 ITEMS ===\nBob\'s table (table_new_2): bread_0 → Bob picks and places\nOther table (table_new_1): bacon, bread_1 → mobile robot brings to Bob' : taskType === 'sort_solids' ? '=== SCENE2 ITEMS ===\nFind small_red_cube anywhere → bring to Bob\'s table → Bob places on matching large cube' : '=== SCENE3 ITEMS ===\nfork, apple, book, soap → mobile robot brings each to Bob\'s table → Bob places into tray'}
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
