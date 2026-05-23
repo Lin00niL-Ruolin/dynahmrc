@@ -18,7 +18,7 @@ export class RobotAgent {
   taskPlan = '';
   campaignSpeech = '';
   currentPlan = '';
-  failedPickItems: Set<string> = new Set(); // items Bob tried to pick but couldn't reach
+  failedPickItems: Map<string, number> = new Map(); // item → stepCount when failed
 
   private roleTypeName: string;
 
@@ -188,24 +188,28 @@ export class RobotAgent {
       }
     }
 
-    // ⛔ Bob: never try to pick items he previously failed to reach
+    // ⛔ Bob: never try to pick items he recently failed to reach
     const pickTarget = action.params.object as string || '';
     if (this.roleTypeName === 'Bob' && action.actionType === ActionType.PICK && !this.status.gripperOccupied) {
-      // Check if this item was already failed before
-      if (this.failedPickItems.has(pickTarget)) {
-        console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}) — already failed to reach it before. Forcing wait.`);
-        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
-      }
-      // Check the last feedback for failures
-      const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
-      if (lastFeedback.includes('out of reach') || lastFeedback.includes('already being held') || lastFeedback.includes('gripper is already occupied')) {
-        // Remember this item and force wait
-        const failedItem = this.feedbackHistory[this.feedbackHistory.length - 1].details?.error_code === 'GRIPPER_OCCUPIED'
-          ? this.feedbackHistory[this.feedbackHistory.length - 1].details?.current_object as string || ''
-          : pickTarget;
-        if (failedItem) this.failedPickItems.add(failedItem);
-        console.log(`[Agent ${this.name}] Blocked invalid pick(). Added ${failedItem} to failed list.`);
-        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+      // Expire old failures (>5 actions ago — item may have moved)
+      const failedAgo = this.failedPickItems.get(pickTarget);
+      if (failedAgo !== undefined) {
+        const currentStep = this.actionHistory.length;
+        if (currentStep - failedAgo < 3) {
+          console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}) — failed ${currentStep - failedAgo} steps ago. Forcing wait.`);
+          action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+        } else {
+          // Expired — allow retry
+          this.failedPickItems.delete(pickTarget);
+        }
+      } else {
+        // Check the last feedback for failures
+        const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
+        if (lastFeedback.includes('out of reach') || lastFeedback.includes('already being held')) {
+          this.failedPickItems.set(pickTarget, this.actionHistory.length);
+          console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}). Will retry after 3 steps.`);
+          action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+        }
       }
     }
 
