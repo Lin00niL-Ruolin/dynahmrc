@@ -27,18 +27,12 @@ const TASK_THEMES: Record<string, {
     accent: '#f59e0b',
     gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
     icon: '🥪',
-    goal: 'Stack bread, lettuce, tomato, cheese, ham on cutting board in order',
+    goal: 'Stack ham_bottom, bacon, ham_top on cutting board (LLM decides order)',
     robots: [
       { name: 'Alice', role: 'Mobile Manipulation Robot', emoji: '🦾' },
       { name: 'Bob', role: 'Manipulation Robot', emoji: '🦿' },
       { name: 'David', role: 'Mobile Robot', emoji: '🚗' },
       { name: 'Lucy', role: 'Drone Robot', emoji: '🚁' },
-    ],
-    steps: [
-      'Collect ingredients (bread, lettuce, tomato, cheese, ham)',
-      'Deliver to Bob\'s cutting board',
-      'Bob assembles the sandwich in order',
-      'Place top bread to complete',
     ],
   },
   sort_solids: {

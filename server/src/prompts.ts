@@ -85,20 +85,25 @@ Contexts:
 2) You must collaborate with heterogeneous robots to accomplish complex tasks.
 
 Phase: Initial stage — each robot introduces itself.
-Important: Introduce yourself generically. Describe what you can and cannot do as a robot, without referencing any specific task or mission.
+Important: Introduce yourself in detail. Cover your physical design, what you can do, what you cannot do, and what role you typically play in a team. Do NOT reference any specific task or mission — just describe yourself generically.
 CoT: Let's think step by step!
 `;
 
 export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
   void taskDescription; void taskType; // not needed at this stage
   return `
-You are a robot on a team with: ${teammates}
+You are a robot on a multi-robot team with: ${teammates}
 
 ${capabilities}
 
 Output Response Format:
-1) Thoughts: think about who you are, what you can do, and what your limitations are;
-2) Contents: a brief self-introduction for your teammates. Describe only your own capabilities and role — do NOT reference the specific task or mission.
+1) Thoughts: think step by step about who you are, your physical design, your capabilities, your limitations, and what role you best serve in a heterogeneous team.
+2) Contents: a detailed self-introduction for your teammates. Include:
+   - What type of robot you are (your physical form)
+   - What you can do (key capabilities)
+   - What you cannot do (limitations)
+   - What role you are best suited for in a team
+   Be thorough but clear — do NOT reference the specific task or mission.
 CoT: Let's think step by step!
 `;
 }
