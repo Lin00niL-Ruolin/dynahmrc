@@ -214,10 +214,15 @@ app.post('/api/bestman/start', async (req, res) => {
     const { startService } = await import('./bestman-bridge.js');
     const scene = req.body?.scene || 'scene1';
     const gui = req.body?.gui !== false;
-    const ok = await startService(scene, gui);
-    res.json({ ok, message: ok ? 'BestMan started' : 'Failed to start BestMan' });
+    // 异步启动，不阻塞响应
+    startService(scene, gui).then(ok => {
+      console.log(`[BestMan] Background start complete: ${ok}`);
+    }).catch(e => {
+      console.error('[BestMan] Background start failed:', e);
+    });
+    res.json({ ok: true, message: 'BestMan starting...' });
   } catch (e: any) {
-    res.status(500).json({ ok: false, message: e.message });
+    res.json({ ok: true, message: 'BestMan request accepted' });
   }
 });
 

@@ -61,8 +61,21 @@ export function checkEnvironment(): { ok: boolean; message: string } {
  */
 export async function startService(scene: string = 'scene1', gui: boolean = true): Promise<boolean> {
   if (serviceReady) {
-    console.log('[BestMan] Service already running');
+    console.log('[BestMan] Service already running (serviceReady=true)');
     return true;
+  }
+
+  // 检查端口 5001 是否已被占用（可能是旧进程）
+  try {
+    const existingResp = await fetch(`http://localhost:${BESTMAN_SERVICE_PORT}/status`);
+    if (existingResp.ok) {
+      const data = await existingResp.json() as any;
+      console.log('[BestMan] Found existing service on port 5001, reusing');
+      serviceReady = true;
+      return true;
+    }
+  } catch {
+    // 端口没有响应，需要启动新服务
   }
 
   const envCheck = checkEnvironment();

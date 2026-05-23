@@ -1462,3 +1462,5 @@
 [2026-05-23 15:45:25] ✅ 运行正常 | 本轮对话: 4 条 | 阶段: self_description | 机器人: Alice, Lucy, David, Bob
 [2026-05-23 15:45:25] ✅ 运行正常 | 本轮对话: 4 条 | 阶段: self_description | 机器人: Bob, Lucy, Alice, David
 [2026-05-23 15:45:25] ✅ 运行正常 | 本轮对话: 4 条 | 阶段: self_description | 机器人: Alice, Bob, Lucy, David
+[2026-05-23 15:50:02] ⚠️ 磁盘清理 (92%)
+[2026-05-23 15:59:18] ✅ 运行正常 | 本轮对话: 4 条 | 阶段: self_description | 机器人: Alice, Lucy, Bob, David

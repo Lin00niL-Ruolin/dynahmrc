@@ -100,20 +100,18 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
     if (selectedRobots.length === 0) return;
     setStarting(true);
 
-    // 如果勾选了 3D，先启动 BestMan 服务
+    // 如果勾选了 3D，异步启动 BestMan 服务（不阻塞任务开始）
     if (useBestMan) {
-      try {
-        const sceneMap: Record<string, string> = {
-          make_sandwich: 'scene1',
-          sort_solids: 'scene2',
-          pack_objects: 'scene3',
-        };
-        await fetch('/api/bestman/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1', gui: true }),
-        });
-      } catch {}
+      const sceneMap: Record<string, string> = {
+        make_sandwich: 'scene1',
+        sort_solids: 'scene2',
+        pack_objects: 'scene3',
+      };
+      fetch('/api/bestman/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1', gui: true }),
+      }).catch(() => {});
     }
 
     const runId = await hmrc.createRun({
