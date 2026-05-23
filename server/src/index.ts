@@ -66,7 +66,7 @@ app.get('/api/config', (_req, res) => {
 
 app.post('/api/run', (req, res) => {
   const { taskType = 'pack_objects', layout = 'kitchen', robots = [],
-          dynamicVariations = [], maxSteps = 50 } = req.body;
+          dynamicVariations = [], maxSteps = 50, useBestMan = false } = req.body;
 
   const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
@@ -97,6 +97,7 @@ app.post('/api/run', (req, res) => {
   const engine = new DynaHMRCEngine(taskType, layout, robotConfigs);
   engine.maxSteps = maxSteps;
   engine.dynamicVariations = dynamicVariations;
+  engine.useBestMan = useBestMan;
 
   engines.set(runId, engine);
   engineConnections.set(runId, new Set());

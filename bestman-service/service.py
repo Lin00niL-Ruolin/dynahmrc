@@ -61,7 +61,7 @@ class StateResponse(BaseModel):
 
 app = FastAPI(title="BestMan DynaHMRC Service", version="1.0.0")
 
-# CORS（允许 Node.js 前端跨域访问）
+# CORS(允许 Node.js 前端跨域访问)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -74,7 +74,7 @@ app.add_middleware(
 # ============ 配置加载 ============
 
 def load_yaml_config(config_path: str) -> SimpleNamespace:
-    """加载 YAML 配置文件并转换为对象（支持属性访问）"""
+    """加载 YAML 配置文件并转换为对象(支持属性访问)"""
     def dict_to_namespace(d):
         if isinstance(d, dict):
             return SimpleNamespace(**{k: dict_to_namespace(v) for k, v in d.items()})
@@ -103,8 +103,9 @@ class ServiceState:
     gripper_constraints: Dict[str, int] = {}     # robot_name → constraint_id
     step_count: int = 0
     is_initialized: bool = False
+    robot_aliases: Dict[str, str] = {}           # WebUI name → scene body name
 
-    # 已知可抓取的物品名称后缀（用于过滤场景物体）
+    # 已知可抓取的物品名称后缀(用于过滤场景物体)
     PICKABLE_NAMES = {
         'apple', 'blue_bowl', 'bowl', 'fork_0', 'fork', 'book_0', 'book',
         'soap', 'cup', 'lemon', 'bread_0', 'bacon_0', 'bread_bottom',
@@ -140,24 +141,24 @@ def initialize(req: InitRequest):
     """初始化 BestMan 并加载场景"""
     if state.is_initialized:
         return {"message": "Already initialized, call /reset to restart"}
-    
+
     try:
         print(f"\n[BestMan Service] 初始化中... 场景={req.scene}")
-        
-        # 加载配置（开发模式直接用 Config/default.yaml）
+
+        # 加载配置(开发模式直接用 Config/default.yaml)
         config_path = os.path.join(bestman_dir, req.config_path)
         cfg = load_yaml_config(config_path)
-        
+
         # 覆盖 GUI 设置
         cfg.Client.enable_GUI = req.gui
-        
-        # 创建 Client（传入 cfg.Client 子对象）
+
+        # 创建 Client(传入 cfg.Client 子对象)
         client = Client(cfg.Client)
         state.client = client
         state.is_initialized = True
-        
+
         print("[BestMan Service] Client 创建成功")
-        
+
         # 加载场景
         if req.scene == "scene1":
             scene_json = os.path.join(script_dir, "scenes", "scene1.json")
@@ -169,20 +170,37 @@ def initialize(req: InitRequest):
             setup_scene3(client)
         else:
             raise ValueError(f"Unknown scene: {req.scene}")
-        
-        # 扫描场景中的机器人
+
+        # 扫描场景中的机器人(支持多个场景的不同命名)
         print("\n[BestMan Service] 扫描场景中的机器人...")
-        robot_attrs = ['bob_arm', 'alice_base', 'alice_arm', 'david', 'drone_body', 'bob']
+        robot_attrs = [
+            'bob_arm', 'bob',           # Bob (场景1 / 其他)
+            'new_robot_base',             # Alice 移动底座 (场景1)
+            'new_robot_arm',              # Alice 手臂 (场景1)
+            'alice_base', 'alice_arm',    # Alice (场景2/3)
+            'david',                      # David (场景1)
+            'david_base',                 # David (其他场景)
+            'drone_body', 'drone',        # Lucy (场景1 / 其他)
+            'mobile_manipulator_1',       # 通用命名
+            'arm_1', 'mobile_base_1',
+        ]
         for attr in robot_attrs:
             val = getattr(client, attr, None)
-            if val is not None:
+            if val is not None and attr not in state.robots:
                 state.robots[attr] = val
                 print(f"  ✓ {attr} = {val}")
         if state.robots:
             print(f"[机器人] ✅ {', '.join(state.robots.keys())} 已注册")
+            # 名称别名映射
+            state.robot_aliases = {
+                'Alice': 'alice_base',
+                'Bob': 'bob_arm',
+                'David': 'david',
+                'Lucy': 'drone_body',
+            }
         else:
             print("[机器人] ⚠️ 未找到任何机器人")
-        
+
         # 扫描场景中的所有可抓取物体
         print("\n[BestMan Service] 扫描场景中的可抓取物体...")
         loaded = 0
@@ -202,25 +220,25 @@ def initialize(req: InitRequest):
                 state.scene_objects[name] = val
                 loaded += 1
         print(f"[场景] ✅ 已注册 {loaded} 个可抓取物体")
-        
+
         # 步进仿真让物体稳定
         print("\n[BestMan Service] 步进仿真...")
         for _ in range(10):
             client.run(10)
-        
+
         return {
             "message": f"Scene '{req.scene}' initialized successfully",
             "gui": req.gui,
             "robots": list(state.robots.keys()),
             "objects": list(state.scene_objects.keys()),
         }
-        
+
         return {
             "message": f"Scene '{req.scene}' initialized successfully",
             "gui": req.gui,
             "robots": list(state.robots.keys()),
         }
-    
+
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
@@ -230,20 +248,43 @@ def initialize(req: InitRequest):
 
 @app.post("/act")
 def execute_action(req: ActRequest):
-    """执行机器人动作 — 真实 PyBullet 控制"""
+    """执行机器人动作 - 真实 PyBullet 控制"""
     if not state.is_initialized:
         raise HTTPException(status_code=400, detail="Not initialized. Call /init first.")
-    
+
     action = req.action
     robot_id = req.robot_id
     params = req.params
-    
+
     print(f"[动作] {robot_id} → {action} {params}")
-    
+
     try:
         state.step_count += 1
         result = {"success": True, "robot": robot_id, "action": action, "step": state.step_count}
-        
+
+        # 机器人解析函数（支持别名和场景1的命名）
+        def _resolve_robot(rid: str):
+            # 1. 直接匹配
+            body = state.robots.get(rid)
+            if body is not None:
+                return rid, body
+            # 2. 通过别名映射
+            alias = state.robot_aliases.get(rid)
+            if alias:
+                body = state.robots.get(alias)
+                if body is not None:
+                    return alias, body
+            # 3. 场景1的 new_robot 系列
+            if rid == 'Alice':
+                for k in ['new_robot_base', 'new_robot']:
+                    body = state.robots.get(k)
+                    if body: return k, body
+            # 4. 后缀试探
+            for suffix in ['_arm', '_base', '']:
+                body = state.robots.get(rid + suffix)
+                if body: return rid + suffix, body
+            return None, None
+
         if action == "pick":
             target = params.get("target", params.get("object", ""))
             # 查找物体
@@ -256,17 +297,10 @@ def execute_action(req: ActRequest):
                         break
             if body_id is None:
                 return {"success": False, "message": f"未知物体: {target}", "action": action}
-            
-            # 查找机器人
-            robot_body = state.robots.get(robot_id)
+
+            resolved_name, robot_body = _resolve_robot(robot_id)
             if robot_body is None:
-                # 尝试 robot_id + '_arm' 或 robot_id + '_base'
-                for suffix in ['_arm', '_base', '']:
-                    robot_body = state.robots.get(robot_id + suffix)
-                    if robot_body:
-                        break
-            if robot_body is None:
-                return {"success": False, "message": f"未知机器人: {robot_id}", "action": action}
+                return {"success": False, "message": f"未知机器人: {robot_id}，可用: {list(state.robots.keys())}", "action": action}
             
             # 已抓起对象先释放
             if robot_id in state.gripper_constraints:
@@ -286,16 +320,19 @@ def execute_action(req: ActRequest):
                 parentFramePosition=offset,
                 childFramePosition=[0, 0, 0],
             )
-            state.gripper_constraints[robot_id] = constraint_id
+            state.gripper_constraints[resolved_name] = constraint_id
             result["message"] = f"{robot_id} picked {target}"
             print(f"  ✓ 抓起 {target} (body={body_id}) → 约束#{constraint_id}")
-        
+
         elif action == "place":
             target = params.get("target", "")
-            # 释放约束
-            if robot_id in state.gripper_constraints:
-                p.removeConstraint(state.gripper_constraints[robot_id])
-                del state.gripper_constraints[robot_id]
+            # 释放约束（尝试所有可能的 key）
+            for rk in [robot_id] + list(state.robot_aliases.values()):
+                if rk in state.gripper_constraints:
+                    p.removeConstraint(state.gripper_constraints[rk])
+                    del state.gripper_constraints[rk]
+                    print(f"  ✓ 释放约束: {rk}")
+                    break
             # 获取要放置的物体
             obj_name = params.get("object", "")
             body_id = state.scene_objects.get(obj_name)
@@ -318,45 +355,60 @@ def execute_action(req: ActRequest):
         
         elif action == "navigate":
             target = params.get("target", "")
-            robot_body = state.robots.get(robot_id)
-            if robot_body is None:
-                for suffix in ['_arm', '_base', '']:
-                    robot_body = state.robots.get(robot_id + suffix)
-                    if robot_body:
-                        break
+            resolved_name, robot_body = _resolve_robot(robot_id)
             if target and robot_body:
-                # 已知家具位置
+                # 已知家具位置（匹配 scene1 布局）
                 known_pos = {
-                    'fridge': [9.4, 0.5, 0], 'table_dining': [3, 2, 0],
-                    'table_bob': [8.5, 5.5, 0], 'cutting_board': [8.5, 5.5, 0.86],
-                    'counter_elementa': [7.4, 0.5, 0], 'counter_elementb': [5.9, 0.5, 0],
+                    'fridge': [9.4, 0.5, 0],
+                    'table_dining': [3, 2, 0],
+                    'table_bob': [8.5, 5.5, 0],
+                    'cutting_board': [8.5, 5.5, 0.86],
+                    'counter_elementa': [7.4, 0.5, 0],
+                    'counter_elementb': [5.9, 0.5, 0],
+                    'table_new_1': [8.5, 4, 0.86],
+                    'table_new_2': [8.5, 5.5, 0.86],
+                    'bookcase': [3, 7.5, 0],
+                    'sofa': [1.5, 6, 0],
+                    'bathtub': [8, 7, 0],
+                    'sink_area': [8, 3, 0],
+                    'cabinate': [0.5, 7, 0],
                 }
                 tgt = target.lower()
-                if tgt in known_pos:
-                    pos = known_pos[tgt]
+                # 先尝试精确匹配
+                pos = known_pos.get(tgt)
+                if pos is None:
+                    # 模糊匹配
+                    for key, val in known_pos.items():
+                        if tgt in key or key in tgt:
+                            pos = val
+                            break
+                if pos:
                     p.resetBasePositionAndOrientation(robot_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
                     print(f"  ✓ 导航到 {target} @ {pos}")
+                else:
+                    # Fallback: 用目标名的坐标
+                    print(f"  ⚠️ 未知位置: {target}, 跳过")
             
             if robot_id not in state.robot_positions:
                 state.robot_positions[robot_id] = [0.0, 0.0, 0.0]
             result["message"] = f"{robot_id} navigated to {target}"
-        
+
         elif action == "wait":
             result["message"] = f"{robot_id} is waiting"
-        
+
         elif action == "communicate":
             content = params.get("content", "")
             result["message"] = f"{robot_id} said: {content}"
-        
+
         else:
             result["message"] = f"{robot_id} executed {action} (simulated)"
-        
+
         # 步进仿真
         if state.client:
             state.client.run(5)
-        
+
         return result
-    
+
     except Exception as e:
         import traceback
         print(f"[动作错误] {traceback.format_exc()}")
@@ -365,10 +417,10 @@ def execute_action(req: ActRequest):
 
 @app.get("/state")
 def get_full_state():
-    """获取完整状态 (已存在的实现，维持不变)"""
+    """获取完整状态 (已存在的实现,维持不变)"""
     if not state.is_initialized:
         return StateResponse()
-    
+
     return StateResponse(
         robots=state.robot_positions,
         objects={name: obj_id for name, obj_id in state.scene_objects.items()},
@@ -389,14 +441,14 @@ def reset_scene():
     """重置场景"""
     if state.client:
         state.client.disconnect()
-    
+
     state.client = None
     state.robots = {}
     state.robot_positions = {}
     state.scene_objects = {}
     state.step_count = 0
     state.is_initialized = False
-    
+
     return {"message": "Reset complete"}
 
 
@@ -415,7 +467,7 @@ if __name__ == "__main__":
     print("  BestMan DynaHMRC 微服务")
     print("  端口: 5001")
     print("="*60)
-    
+
     uvicorn.run(
         "service:app",
         host="0.0.0.0",

@@ -93,6 +93,7 @@ export function useDynaHMRC() {
     robots?: string[];
     dynamicVariations?: string[];
     maxSteps?: number;
+    useBestMan?: boolean;
   }) => {
     addDebug('Creating run...');
     try {
@@ -106,6 +107,7 @@ export function useDynaHMRC() {
           robots: (config.robots || ['Alice', 'Bob', 'David', 'Lucy']).map(name => ({ name })),
           dynamicVariations: config.dynamicVariations || [],
           maxSteps: config.maxSteps || 50,
+          useBestMan: config.useBestMan || false,
         }),
       });
 

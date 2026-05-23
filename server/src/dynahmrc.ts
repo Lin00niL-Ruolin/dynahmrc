@@ -25,6 +25,8 @@ export class DynaHMRCEngine {
   dynamicVariations: string[] = [];
   dynamicStep = 3;
 
+  useBestMan = false;
+  private bestManStarted = false;
   agents: Record<string, RobotAgent> = {};
   sim: SimEnvironment;
 
@@ -82,6 +84,28 @@ export class DynaHMRCEngine {
     this.running = true;
     this.sim.reset(this.taskType, this.robotConfigs);
 
+    // 如果启用 BestMan，启动服务
+    if (this.useBestMan && !this.bestManStarted) {
+      try {
+        const { startService } = await import('./bestman-bridge.js');
+        const ok = await startService(this.layout, true);
+        this.bestManStarted = ok;
+        if (ok) {
+          console.log('[DynaHMRC] BestMan 3D simulation started ✅');
+          await this.emitDialogue({
+            stage: DynaHMRCStage.SELF_DESCRIPTION,
+            robotName: '[SYSTEM]',
+            robotType: RobotType.ALICE,
+            thoughts: '',
+            content: '🎮 BestMan 3D 仿真已启动，PyBullet 窗口已打开',
+            timestamp: Date.now(),
+          });
+        }
+      } catch (e) {
+        console.warn('[DynaHMRC] BestMan start failed:', e);
+      }
+    }
+
     try {
       await this.stageSelfDescription();
       if (!this.running) return;
@@ -99,6 +123,16 @@ export class DynaHMRCEngine {
     } finally {
       this.stage = DynaHMRCStage.COMPLETED;
       this.running = false;
+
+      // 如果启用了 BestMan，清理资源
+      if (this.useBestMan && this.bestManStarted) {
+        try {
+          const { stopService } = await import('./bestman-bridge.js');
+          stopService();
+          this.bestManStarted = false;
+        } catch { /* ignore */ }
+      }
+
       await this.emitState();
     }
   }
@@ -232,6 +266,26 @@ export class DynaHMRCEngine {
         agent.addFeedback(feedback);
         agent.addAction(action);
         this.allActions.push(action);
+
+        // 如果启用 BestMan，将动作转发到 3D 仿真
+        if (this.useBestMan && this.bestManStarted) {
+          try {
+            const { sendAction } = await import('./bestman-bridge.js');
+            const actParams: Record<string, any> = { ...action.params };
+            // 映射动作类型名
+            const actTypeMap: Record<string, string> = {
+              'navigate': 'navigate',
+              'open': 'pick',       // open 在 3D 中暂不支持
+              'pick': 'pick',
+              'place': 'place',
+              'move': 'navigate',
+              'communicate': 'communicate',
+              'wait': 'wait',
+            };
+            const bmAction = actTypeMap[action.actionType] || action.actionType;
+            await sendAction(name, bmAction, actParams);
+          } catch { /* BestMan error - non-fatal */ }
+        }
 
         await this.emitDialogue({
           stage: DynaHMRCStage.EXECUTION_REFLECTION,

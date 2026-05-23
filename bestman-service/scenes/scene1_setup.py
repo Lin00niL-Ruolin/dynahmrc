@@ -358,11 +358,90 @@ def setup_scene1(client, scene_json_path=None):
     except Exception as e:
         print(f"  ⚠️ 面包片: {e}")
 
+    # 11. David — 纯移动底座 (segbot 无手臂) @ (4, 6)
+    print("\n--- David 移动底座 ---")
+    dx, dy = 4.0, 6.0
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+        bestman_dir = os.path.join(workspace_dir, 'BestMan')
+        cwd = os.getcwd()
+        os.chdir(bestman_dir)
+
+        david_id = client.load_object(
+            obj_name="david",
+            model_path='Asset/Robot/mobile_manipulator/base/segbot/urdf/segbot.urdf',
+            object_position=[dx, dy, 0],
+            object_orientation=[0, 0, 0],
+            scale=1.0, fixed_base=True
+        )
+        setattr(client, "david", david_id)
+        print(f"[机器人] ✅ David 移动底座 @ ({dx}, {dy})")
+        os.chdir(cwd)
+    except Exception as e:
+        print(f"[机器人] ⚠️ David: {e}")
+
+    # 12. Lucy — 无人机 (几何体) @ (3, 2)
+    print("\n--- Lucy 无人机 ---")
+    lx, ly, lz = 3.0, 2.0, 0.5
+    try:
+        # 主体：扁长方体
+        body_half = [0.2, 0.2, 0.05]
+        body_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=body_half)
+        body_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=body_half, rgbaColor=[0.2, 0.5, 0.8, 1.0])
+
+        # 四个旋翼支柱 (十字形)
+        arm_half = [0.25, 0.02, 0.01]
+        arm_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=arm_half, rgbaColor=[0.5, 0.5, 0.5, 1.0])
+        arm2_half = [0.02, 0.25, 0.01]
+        arm2_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=arm2_half, rgbaColor=[0.5, 0.5, 0.5, 1.0])
+
+        # 旋翼（四个小圆片用圆柱体近似）
+        rotor_half = [0.12, 0.02, 0.005]
+        rotor_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=rotor_half, rgbaColor=[0.9, 0.9, 0.9, 0.6])
+        rotor2_half = [0.02, 0.12, 0.005]
+        rotor2_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=rotor2_half, rgbaColor=[0.9, 0.9, 0.9, 0.6])
+
+        # 组合成一个多体
+        lucy_id = p.createMultiBody(
+            baseMass=0.5,
+            baseCollisionShapeIndex=body_col,
+            baseVisualShapeIndex=body_vis,
+            basePosition=[lx, ly, lz],
+            baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
+        )
+
+        # 添加支柱 (作为视觉形状，无碰撞)
+        for angle in [0, 45, 90, 135]:
+            rad = math.radians(angle)
+            ax = 0.25 * math.cos(rad)
+            ay = 0.25 * math.sin(rad)
+            # 支柱端点 (旋翼位置)
+            rotor_pos = [lx + ax, ly + ay, lz]
+            p.addUserDebugLine(
+                [lx, ly, lz],
+                [lx + ax * 1.8, ly + ay * 1.8, lz],
+                [0.5, 0.5, 0.5],
+                lineWidth=2
+            )
+            # 旋翼圆盘 (小立方体近似)
+            p.addUserDebugLine(
+                [lx + ax * 1.6, ly + ay * 1.6, lz],
+                [lx + ax * 2.0, ly + ay * 2.0, lz],
+                [0.9, 0.9, 0.9],
+                lineWidth=4
+            )
+
+        setattr(client, "drone_body", lucy_id)
+        print(f"[机器人] ✅ Lucy 无人机 @ ({lx}, {ly}, {lz})")
+    except Exception as e:
+        print(f"[机器人] ⚠️ Lucy: {e}")
+
     for _ in range(50):
         p.stepSimulation()
 
     print("\n" + "=" * 60)
-    print("  场景1 搭建完成！")
+    print("  场景1 搭建完成！(Alice @ new_robot, Bob @ bob_arm, David, Lucy)")
     print("=" * 60)
 
 

@@ -25,29 +25,35 @@ const ROBOT_EMOJIS: Record<string, string> = {
 // ============ Key content extraction ============
 
 function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: string } {
-  const { stage, content, robotName } = dialogue;
+  const { stage, content } = dialogue;
 
   // Helper: extract the 'Contents:' portion from LLM output (skip Thoughts/Reasons headers)
   const extractContents = (txt: string): string => {
     const lines = txt.split('\n');
-    // Find the Contents section: look for lines after 'Contents:' or '2) Contents:' etc.
+    // Find the Contents section: look for lines after 'Contents:' or '2) **Contents**:' etc.
     let inContent = false;
     const contentLines: string[] = [];
+    // Match section headers with optional number prefix, bold markers **, and colon
+    const isContentsHeader = (s: string) => /^\s*\d*[\.\)]?\s*\*{0,2}Contents\*{0,2}\s*[:\-]?/i.test(s);
+    const isBreakHeader = (s: string) => /^\s*\d*[\.\)]?\s*\*{0,2}(Thoughts?|Reasons?|Leader|Summary|Plan)\*{0,2}\s*[:\-]?/i.test(s);
+
     for (const line of lines) {
       const clean = line.trim();
-      // Detect content section headers
-      if (/^\s*\d*[\.\)]?\s*Contents/i.test(clean) || /^Contents/i.test(clean)) {
+      if (!clean) continue;
+      if (isContentsHeader(clean)) {
         inContent = true;
-        const afterColon = line.replace(/^[^:]*:\s*/, '');
-        if (afterColon) contentLines.push(afterColon);
+        // Strip the header prefix, keep the text after colon/dash
+        const afterHeader = clean.replace(/^\s*\d*[\.\)]?\s*\*{0,2}Contents\*{0,2}\s*[:\-]?\s*/, '');
+        if (afterHeader) contentLines.push(afterHeader);
         continue;
       }
-      // Skip other section headers
-      if (/^\s*\d*[\.\)]?\s*(Thoughts?|Reasons?|Leader|Summary|Plan)/i.test(clean)) {
+      if (isBreakHeader(clean)) {
         inContent = false;
         continue;
       }
-      if (inContent && clean) contentLines.push(line);
+      if (inContent) {
+        contentLines.push(line);
+      }
     }
     return contentLines.join('\n').trim() || txt; // fallback to full text
   };

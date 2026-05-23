@@ -19,6 +19,7 @@ export function ConfigPanel({ config, onRun, running }: Props) {
   const [layout, setLayout] = useState('kitchen');
   const [selectedRobots, setSelectedRobots] = useState(['Alice', 'Bob', 'David', 'Lucy']);
   const [maxSteps, setMaxSteps] = useState(50);
+  const [useBestMan, setUseBestMan] = useState(false);
 
   const allRobots = ['Alice', 'Bob', 'David', 'Lucy'];
 
@@ -35,6 +36,7 @@ export function ConfigPanel({ config, onRun, running }: Props) {
       layout,
       robots: selectedRobots,
       maxSteps,
+      useBestMan,
     });
   };
 
@@ -99,6 +101,24 @@ export function ConfigPanel({ config, onRun, running }: Props) {
         <input type="range" min={10} max={100} value={maxSteps}
           onChange={e => setMaxSteps(Number(e.target.value))}
           style={{ width: '100%', accentColor: '#3b82f6' }} />
+      </div>
+
+      {/* 3D BestMan Toggle */}
+      <div style={{ marginBottom: 12 }}>
+        <label style={{
+          display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+          color: useBestMan ? '#22d3ee' : '#94a3b8',
+        }}>
+          <input type="checkbox" checked={useBestMan}
+            onChange={e => setUseBestMan(e.target.checked)}
+            style={{ accentColor: '#22d3ee' }} />
+          🎮 3D BestMan 仿真
+        </label>
+        <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          {useBestMan
+            ? '执行时自动启动 PyBullet 3D 窗口'
+            : '使用 2D Canvas 仿真（更快）'}
+        </div>
       </div>
 
       {/* Run Button */}
