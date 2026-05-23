@@ -204,7 +204,7 @@ def setup_scene1(client, scene_json_path=None):
     # 6. 固定机械臂 (UR5e) 在 table_new_2 (8.5, 5.8) 上
     print("\n--- 固定机械臂 ---")
     bob_arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
-    tx, ty = 8.5, 5.9
+    tx, ty = 8.5, 5.85
     table_top_z = 0.86
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
