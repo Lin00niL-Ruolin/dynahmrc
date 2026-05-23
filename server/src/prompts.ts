@@ -257,7 +257,7 @@ ${taskType === 'make_sandwich' ? '=== SCENE1 ITEMS ===\nBob\'s table (table_new_
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
-Contents: [EXACTLY ONE function call, e.g. navigate(table_0) or pick(apple) or place(apple, tray)]
+Contents: [EXACTLY ONE function call, e.g. ${robotNameClean === 'Bob' ? 'pick(item) or place(item, target) or communicate(msg, recipient)' : 'navigate(target) or pick(item) or place(item, target)'}]
 `;
 }
 

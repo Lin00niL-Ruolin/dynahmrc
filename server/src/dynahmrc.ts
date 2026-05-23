@@ -253,7 +253,16 @@ export class DynaHMRCEngine {
       const unclaimedStr = remainingStr.length > 0
         ? `Unclaimed items: [${remainingStr.join(', ')}]`
         : 'All items placed!';
-      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${unclaimedStr}`;
+      // On Bob's table: items that have been placed on table_new_2 but not on cutting_board yet
+      const onBobTable = this.sim.taskTargets.filter(t => 
+        !this.sim.placedObjects.includes(t) && 
+        !Object.values(this.sim.robotGrippers).includes(t)
+      ).filter(t => t !== 'bread_0'); // bread_0 is originally on Bob's table
+      const bobTableStr = onBobTable.length > 0
+        ? `On Bob's table (delivered): [${onBobTable.join(', ')}]`
+        : 'Nothing on Bob\'s table yet';
+
+      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}`;
 
       // Run all robot actions in parallel
       const actionResults = await Promise.all(

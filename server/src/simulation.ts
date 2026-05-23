@@ -611,6 +611,18 @@ export class SimEnvironment {
           };
         }
         
+        // Check if another robot is already holding this item
+        for (const [otherName, heldObj] of Object.entries(this.robotGrippers)) {
+          if (otherName !== robotName && heldObj === objName) {
+            return {
+              actionType: ActionType.PICK,
+              success: false,
+              description: `Pick failed: ${objName} is already being held by ${otherName}. Choose a different item or wait for ${otherName} to place it.`,
+              details: { error_code: 'ALREADY_HELD', holder: otherName },
+            };
+          }
+        }
+
         const dx = pos[0] - obj.posX;
         const dy = pos[1] - obj.posY;
         const dist = Math.sqrt(dx * dx + dy * dy);
