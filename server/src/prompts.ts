@@ -47,8 +47,9 @@ Limitations:
 `,
 };
 
-export const ATOMIC_ACTIONS = `
-Available Actions:
+// Per-robot-type atomic action sets (论文 Table I)
+export const ROBOT_ACTION_SETS: Record<string, string> = {
+  Alice: `
 1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
 2. open(<container_name>) - Open a hinged container (drawer, cabinet, etc.)
 3. pick(<object_name>) - Pick up a specified object
@@ -56,7 +57,26 @@ Available Actions:
 5. move(<delta_x>, <delta_y>) - Adjust position by small offsets
 6. communicate(<content>, <recipient>) - Send a message to another robot
 7. wait() - Wait for one time step
-`;
+`,
+  Bob: `
+1. pick(<object_name>) - Pick up a specified object
+2. place(<object_name>, <target_location>) - Place held object at a target
+3. communicate(<content>, <recipient>) - Send a message to another robot
+4. wait() - Wait for one time step
+`,
+  David: `
+1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
+2. communicate(<content>, <recipient>) - Send a message to another robot
+3. wait() - Wait for one time step
+`,
+  Lucy: `
+1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
+2. pick(<object_name>) - Pick up a specified object
+3. place(<object_name>, <target_location>) - Place held object at a target
+4. communicate(<content>, <recipient>) - Send a message to another robot
+5. wait() - Wait for one time step
+`,
+};
 
 // Stage 1: Self-Description
 export const SELF_DESCRIPTION_SYSTEM = `
@@ -173,6 +193,7 @@ export function executionSystem(
   plan: string,
   principles: string,
   taskType?: string,
+  robotName?: string,
 ): string {
   // Task-specific item and placement info
   const taskSteps: Record<string, { items: string; locations: string; target: string }> = {
@@ -212,21 +233,15 @@ Items to find: ${info.items}
 Item locations: ${info.locations}
 Place target: ${taskType === 'make_sandwich' ? 'place bread_bottom -> ham -> bread_top on cutting_board in order' : taskType === 'sort_solids' ? 'place small_red_cube on top of large_red_cube on table_2' : 'place all four items (fork, apple, book, soap) into the tray'}
 
-=== AVAILABLE ACTIONS ===
-1. navigate(<furniture_name>) - Move to furniture to get close to objects. Example: navigate(table_0)
-2. open(<container_name>) - Open a container to see what's inside. Example: open(fridge)
-3. pick(<object_name>) - Pick up an item (must be within 2m). Example: pick(apple)
-4. place(<object_name>, <target>) - Place held object at target to COMPLETE THE TASK. Example: place(apple, tray)
-5. move(<dx>, <dy>) - Adjust position slightly. Example: move(0.5, -0.3)
-6. communicate(<message>, <recipient>) - Share info with team. Example: communicate(I found apple at fridge!, Alice)
-7. wait() - Do nothing this step.
+=== YOUR AVAILABLE ACTIONS ===
+(Only the actions YOU can perform are listed below)
+${ROBOT_ACTION_SETS[robotName || 'Alice'] || ROBOT_ACTION_SETS.Alice}
 
 === COORDINATION RULES ===
-1. David (wheeled scout) can ONLY navigate and communicate - CANNOT pick/place/open.
-2. Bob (fixed arm) is mounted on his table - he CANNOT navigate or move at all. He can only pick/place items within arm's reach of his table.
-3. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and go find a different one.
-4. Alice and Lucy: you are the main transporters. Collect items and bring them to Bob's table.
-5. Alice: you can also open containers (fridge, cabinets).
+1. Each item only needs ONE robot to bring it. If you see another robot already picking an item, leave it and go find a different one.
+2. If you are a mobile robot, bring items to Bob's table for final assembly.
+3. If you are Bob (fixed arm), wait for others to bring items to you.
+4. Communicate important findings to the team.
 
 === TASK-SPECIFIC EXECUTION STEPS ===
 ${taskType === 'make_sandwich' ? `STEP 1: Navigate to table_bob area where bread_bottom and bread_top are located

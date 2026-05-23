@@ -60,16 +60,32 @@ function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: stri
 
   // Leader vote extraction
   if (stage === 'leader_election') {
-    const voteMatch = content.match(/Leader:\s*(\w+)/i);
+    // 匹配各种格式：Leader: Alice, 3) **Leader:** Alice, **Leader:**\nAlice
+    const voteRegex = /\d*[\.\)]?\s*\*{0,2}Leader\*{0,2}\s*:\s*\*{0,2}\s*(\w+)/i;
+    const voteMatch = content.match(voteRegex);
     if (voteMatch) {
+      const name = voteMatch[1];
       const reasons = content
-        .replace(/Leader:\s*\w+/i, '')
+        .replace(voteRegex, '')
         .replace(/^\d+[\)\.]\s*/gm, '')
+        .replace(/\*{0,2}(Thoughts?|Reasons?)\*{0,2}\s*:.*/g, '')
         .trim();
       return { 
-        key: `🗳️ I vote for **${voteMatch[1]}**`,
+        key: `🗳️ I vote for **${name}**`,
         detail: reasons 
       };
+    }
+    // 尝试换行格式：Leader: 单独一行，名字在下一行
+    const lines = content.split('\n').filter(l => l.trim());
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\d*[\.\)]?\s*\*{0,2}Leader\*{0,2}\s*:?\s*$/i.test(lines[i].trim())) {
+        if (i + 1 < lines.length) {
+          const nameMatch = lines[i + 1].trim().match(/^(\w+)/);
+          if (nameMatch) {
+            return { key: `🗳️ I vote for **${nameMatch[1]}**`, detail: content };
+          }
+        }
+      }
     }
     return { key: '🗳️ Casting vote...', detail: content };
   }

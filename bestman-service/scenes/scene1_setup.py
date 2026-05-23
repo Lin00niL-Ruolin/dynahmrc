@@ -339,11 +339,11 @@ def setup_scene1(client, scene_json_path=None):
             baseMass=0.05,
             baseCollisionShapeIndex=bread_col,
             baseVisualShapeIndex=bread_vis,
-            basePosition=[8.2, 5.1, 0.86],  # 桌子二上，不在案板上
+            basePosition=[8.2, 5.85, 0.86],  # 桌子二上
             baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
         )
         setattr(client, "bread_0", bread_id)
-        print(f"  ✓ 面包片 (14cmx14cm) @ (8.2, 5.1, 0.86) — 桌子二")
+        print(f"  ✓ 面包片 (14cmx14cm) @ (8.2, 5.85, 0.86) — 桌子二")
 
         # 再一片面包在桌子一上
         bread2_id = p.createMultiBody(

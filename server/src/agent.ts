@@ -124,6 +124,7 @@ export class RobotAgent {
       plan,
       this.getPrinciples(),
       this.taskType,
+      this.roleTypeName,
     );
 
     const userContent = prompts.executionUser(
