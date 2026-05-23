@@ -152,15 +152,27 @@ export class RobotAgent {
     const response = await this.llm.chat(msgs);
     let action = this.parseAction(response.content);
 
-    // ⛔ Mobile robots: if the last action was also communicate, force navigate instead
-    if (this.roleTypeName !== 'Bob' && action.actionType === ActionType.COMMUNICATE) {
-      const lastActionType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
-      if (lastActionType === ActionType.COMMUNICATE) {
-        console.log(`[Agent ${this.name}] Repeated communicate(). Forcing navigate to table_new_1.`);
+    // ⛔ Mobile robots: never wait or communicate when actionable steps remain
+    if (this.roleTypeName !== 'Bob') {
+      const lastType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
+      if (action.actionType === ActionType.WAIT || (action.actionType === ActionType.COMMUNICATE && lastType === ActionType.COMMUNICATE)) {
+        console.log(`[Agent ${this.name}] Blocked ${action.actionType}(). Mobile robots must act, not wait. Forcing navigate.`);
         action = {
           robotName: this.name, actionType: ActionType.NAVIGATE,
           params: { target: 'table_new_1' },
           timestamp: Date.now(),
+        };
+      }
+    }
+
+    // ⛔ Bob: never communicate twice in a row — force wait instead
+    if (this.roleTypeName === 'Bob' && action.actionType === ActionType.COMMUNICATE) {
+      const lastType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
+      if (lastType === ActionType.COMMUNICATE) {
+        console.log(`[Agent ${this.name}] Repeated communicate(). Forcing wait.`);
+        action = {
+          robotName: this.name, actionType: ActionType.WAIT,
+          params: {}, timestamp: Date.now(),
         };
       }
     }
