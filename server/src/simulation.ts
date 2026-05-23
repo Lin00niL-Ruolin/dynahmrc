@@ -322,17 +322,14 @@ export class SimEnvironment {
         addItem('bread_1', 8.55, 4.2, 'table_new_1');
       }
 
-      // Scene 1 distractors + 3D scene books
-      const distractors: Array<[string, number, number, string?]> = [
-        ['phone', 8.7, 0.5],
-        ['toy_duck', 1.5, 7],
-        // Books on bookshelf_1 matching scene1.json (book_holder, book_1, book_2, book_3)
-        ['book_holder', 0.3, 0.5, 'bookshelf_1'],
-        ['book_1', 0.4, 0.7, 'bookshelf_1'],
-        ['book_2', 0.6, 0.7, 'bookshelf_1'],
-        ['book_3', 0.8, 0.5, 'bookshelf_1'],
+      // Books on bookshelf_1 matching scene1.json
+      const books: Array<[string, number, number]> = [
+        ['book_holder', 0.3, 0.5],
+        ['book_1', 0.4, 0.7],
+        ['book_2', 0.6, 0.7],
+        ['book_3', 0.8, 0.5],
       ];
-      for (const [name, x, y, container] of distractors) {
+      for (const [name, x, y] of books) {
         if (!this.scene.objects[name]) {
           this.scene.objects[name] = {
             name, category: 'item',
@@ -340,9 +337,6 @@ export class SimEnvironment {
             isContainer: false, isOpen: false, contains: [],
             standPoseX: null, standPoseY: null,
           };
-          if (container && this.scene.objects[container]) {
-            this.scene.objects[container].contains.push(name);
-          }
         }
       }
 
@@ -365,8 +359,6 @@ export class SimEnvironment {
       // Scene 2 distractors
       const distractors: Array<[string, number, number]> = [
         ['book', 1, 6.5],
-        ['toy_duck', 7.5, 9],
-        ['phone', 9.5, 7.5],
         ['lemon', 5, 1.5],
       ];
       for (const [name, x, y] of distractors) {
@@ -401,8 +393,6 @@ export class SimEnvironment {
         ['lemon', 5.5, 1.0],       // near fridge (from scene3.json)
         ['cup', 4.15, 4.2],        // on source_table_2 (from scene3.json)
         ['book_0', 7.5, 5.8],      // on bookcase (from scene3.json)
-        ['toy_duck', 1.5, 9.4],    // near bathtub
-        ['phone', 8.6, 0.42],      // near sofa
       ];
       for (const [name, x, y] of distractors) {
         if (!this.scene.objects[name]) {
@@ -436,9 +426,7 @@ export class SimEnvironment {
       }
 
       const distractors: Array<[string, number, number]> = [
-        ['phone', 2, 2],
         ['book', 7, 3],
-        ['toy_duck', 8, 8],
       ];
       for (const [name, x, y] of distractors) {
         if (!this.scene.objects[name]) {
