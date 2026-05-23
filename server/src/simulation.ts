@@ -178,12 +178,12 @@ export class SimEnvironment {
         // Right wall shelf
         ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
         ['blackboard', 7, 0.15, 0.15, 2.0, false],
-                ['large_red_cube', 3, 5.3, 0.35, 0.35, false],
-        ['large_green_cube', 3, 5, 0.35, 0.35, false],
-        ['large_blue_cube', 3, 4.7, 0.35, 0.35, false],
-        ['large_yellow_cube', 2.5, 5.3, 0.35, 0.35, false],
-        ['large_purple_cube', 2.5, 5, 0.35, 0.35, false],
-        ['large_orange_cube', 2.5, 4.7, 0.35, 0.35, false],
+                ['cube_red', 3, 5.3, 0.35, 0.35, false],
+        ['cube_green', 3, 5, 0.35, 0.35, false],
+        ['cube_blue', 3, 4.7, 0.35, 0.35, false],
+        ['cube_yellow', 2.5, 5.3, 0.35, 0.35, false],
+        ['cube_purple', 2.5, 5, 0.35, 0.35, false],
+        ['cube_orange', 2.5, 4.7, 0.35, 0.35, false],
         ['tray', 3, 4.7, 0.3, 0.3, false],
         // Floor rug
         ['rug', 6, 2, 0.6, 0.6, false],
@@ -315,7 +315,7 @@ export class SimEnvironment {
         addItem('book', 0.5, 0.5, 'bookshelf_1');
         addItem('soap', 5.9, 0.5, 'counter_elementB');
       } else if (taskType === 'sort_solids') {
-        addItem('small_red_cube', 3, 2, 'table_dining');
+        addItem('small_cube_red', 3, 2, 'table_dining');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_0', 8.2, 5.85, 'table_new_2');
         addItem('bacon', 8.5, 4, 'table_new_1');
@@ -349,7 +349,7 @@ export class SimEnvironment {
         addItem('apple', 3, 5, 'table_2');
       } else if (taskType === 'sort_solids') {
         // Small red cube scattered in scene, large cubes already on table_2
-        addItem('small_red_cube', 9.5, 7.5, 'shelf_table');
+        addItem('small_cube_red', 9.5, 7.5, 'shelf_table');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
         addItem('ham', 1, 4, 'table_1');
@@ -381,7 +381,7 @@ export class SimEnvironment {
         addItem('book', 7.5, 5.8, 'bookcase');                // book_0 on bookcase
         addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
       } else if (taskType === 'sort_solids') {
-        addItem('small_red_cube', 2, 4, 'source_table_1');
+        addItem('small_cube_red', 2, 4, 'source_table_1');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 8, 3, 'packing_table');
         addItem('ham', 3.1, 1.6, 'kitchen_counter');
@@ -440,23 +440,7 @@ export class SimEnvironment {
       }
     }
 
-    // Colored sorting panels — only for sort_solids tasks
-    if (taskType === 'sort_solids') {
-      const panelPositions: Record<string, Array<[string, number, number]>> = {
-        'scene1': [['red_panel', 1.5, 2.5], ['blue_panel', 2.5, 2.5], ['green_panel', 3.5, 2.5]],
-        'kitchen': [['red_panel', 1.5, 8], ['blue_panel', 2.5, 8], ['green_panel', 3.5, 8]],
-        'living_room': [['red_panel', 5, 2], ['blue_panel', 6, 2], ['green_panel', 7, 2]],
-      };
-      const panels = panelPositions[this.layoutName] || [];
-      for (const [name, px, py] of panels) {
-        this.scene.objects[name] = {
-          name, category: 'furniture',
-          posX: px, posY: py, width: 0.4, height: 0.3,
-          isContainer: false, isOpen: false, contains: [],
-          standPoseX: px + 0.5, standPoseY: py,
-        };
-      }
-    }
+    // Colored sorting panels removed — they only existed in 2D, not in 3D BestMan
   }
 
   isManipulator(name: string): boolean {
@@ -680,7 +664,7 @@ export class SimEnvironment {
         // Determine if this is a final target placement
         const _finalTargets: Record<string, string[]> = {
           make_sandwich: ['cutting_board'],
-          sort_solids: ['large_red_cube', 'large_green_cube', 'large_blue_cube', 'red_panel', 'blue_panel', 'green_panel'],
+          sort_solids: ['cube_red', 'cube_green', 'cube_blue', 'cube_yellow', 'cube_purple', 'cube_orange'],
           pack_objects: ['tray'],
         };
         const _validTargets = _finalTargets[this.taskType] || [];

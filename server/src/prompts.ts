@@ -119,7 +119,7 @@ CoT: Let's think step by step!
 
 const TASK_ALLOCATION_HINTS: Record<string, string> = {
   make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob\'s table, Bob can reach). bacon and bread_1 on table_new_1 (need transport).',
-  sort_solids: 'This is a SORTING mission. Find the small_red_cube scattered in the scene and place it on the large_red_cube on table_2. Mobile robots search and transport, Bob does precision placement.',
+  sort_solids: 'This is a SORTING mission. Find the small_cube_red scattered in the scene and place it on the cube_red on table_2. Mobile robots search and transport, Bob does precision placement.',
   pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Each robot picks ONE different item - do NOT pick what another robot already has. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
 };
 
@@ -199,9 +199,9 @@ export function executionSystem(
       target: 'cutting_board',
     },
     sort_solids: {
-      items: 'small_red_cube',
-      locations: 'small_red_cube scattered somewhere in the scene (check shelf_table, sofa, bookcase, floor areas). 6 large colored cubes (red/green/blue/yellow/purple/orange) are on table_2.',
-      target: 'large_red_cube on table_2',
+      items: 'small_cube_red',
+      locations: 'small_cube_red scattered somewhere in the scene (check shelf_table, sofa, bookcase, floor areas). 6 large colored cubes (red/green/blue/yellow/purple/orange) are on table_2.',
+      target: 'cube_red on table_2',
     },
     pack_objects: {
       items: 'fork, apple, book, soap',
@@ -348,7 +348,7 @@ CoT: Let's think step by step!
 
 const REFLECTION_TASK_HINTS: Record<string, string> = {
   make_sandwich: 'Task: Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob can reach), bacon and bread_1 on table_new_1 (need transport).',
-  sort_solids: 'Task: Find small_red_cube and place on large_red_cube. Search floor/shelf areas for the small cube, then bring to table_2.',
+  sort_solids: 'Task: Find small_cube_red and place on cube_red. Search floor/shelf areas for the small cube, then bring to table_2.',
   pack_objects: 'Task: Pack fork, apple, book, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
 };
 
@@ -382,7 +382,7 @@ CoT: Let's think step by step!
 
 const LEADER_REFLECTION_HINTS: Record<string, string> = {
   make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. Bob can reach bread_0 (table_new_2). Mobile robots fetch bacon & bread_1 (table_new_1) and bring them to Bob.',
-  sort_solids: 'The SORTING mission needs small_red_cube on large_red_cube. Assign scouts to find the small cube, and Bob for precision placement.',
+  sort_solids: 'The SORTING mission needs small_cube_red on cube_red. Assign scouts to find the small cube, and Bob for precision placement.',
   pack_objects: 'The PACKING mission needs fork, apple, book, soap in tray. Assign each item to a different robot, Bob places from table into tray.',
 };
 
@@ -423,6 +423,6 @@ export const TASK_DESCRIPTIONS: Record<string, string> = {
 
 export const TASK_GOALS: Record<string, string[]> = {
   make_sandwich: ['bread_0', 'bacon', 'bread_1'],
-  sort_solids: ['small_red_cube'],
+  sort_solids: ['small_cube_red'],
   pack_objects: ['fork', 'apple', 'book', 'soap'],
 };

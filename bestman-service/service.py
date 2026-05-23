@@ -110,7 +110,7 @@ class ServiceState:
         'apple', 'blue_bowl', 'bowl', 'fork_0', 'fork', 'book_0', 'book',
         'soap', 'cup', 'lemon', 'bacon', 'bread_0', 'bread_1', 'bacon_0',
         'lettuce', 'tomato', 'cheese',
-        'red_cube', 'blue_sphere', 'green_cylinder', 'tray',
+        'small_cube_red', 'cube_red', 'cube_green', 'cube_blue', 'cube_yellow', 'cube_purple', 'cube_orange', 'tray',
         'phone', 'toy_duck', 'egg',
     }
 
