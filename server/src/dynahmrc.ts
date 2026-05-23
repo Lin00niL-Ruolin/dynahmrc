@@ -95,10 +95,16 @@ export class DynaHMRCEngine {
       const pairTexts = pairs.map(p => `${p.small} → ${p.large}`);
       this.taskDescription = `Match ${count} pair(s): ${pairTexts.join(', ')}. Mobile robots find the small cubes and bring them to Bob's table. Bob places each on its matching large cube.`;
       this.sim.taskTargets = pairs.map(p => p.small);
-      const { TASK_DESCRIPTIONS, TASK_GOALS } = await import('./prompts.js');
-      TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
-      TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
-      console.log(`[DynaHMRC] Sort task: ${pairTexts.join(', ')}`);
+      const allPrompts = await import('./prompts.js');
+      allPrompts.TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
+      allPrompts.TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
+      // Update static hints to match randomized colors
+      const first = pairs[0];
+      const pairList = pairs.map(p => `${p.small} → ${p.large}`).join(', ');
+      allPrompts.TASK_ALLOCATION_HINTS['sort_solids'] = `Match: ${pairList}. Mobile robots search and transport, Bob does precision placement.`;
+      allPrompts.REFLECTION_TASK_HINTS['sort_solids'] = `Task: Place ${pairList}. Mobile robots find and bring to Bob's table, Bob places on matching large cube.`;
+      allPrompts.LEADER_REFLECTION_HINTS['sort_solids'] = `Match ${pairList}. Bob can reach his table. Mobile robots fetch small cubes and bring to Bob.`;
+      console.log(`[DynaHMRC] Sort task: ${pairList}`);
     }
 
     // 如果启用 BestMan，启动服务

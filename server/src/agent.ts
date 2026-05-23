@@ -159,6 +159,11 @@ export class RobotAgent {
       const lastTarget = this.actionHistory.length > 0 ? (this.actionHistory[this.actionHistory.length - 1].params.target as string || '') : '';
       const currentTarget = action.params.target as string || '';
       
+      // Block repeat navigate to same target or already there
+      if (action.actionType === ActionType.NAVIGATE && lastType === ActionType.NAVIGATE && lastTarget === currentTarget) {
+        console.log(`[Agent ${this.name}] Repeated navigate to ${currentTarget}. Forcing wait.`);
+        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+      }
       // Block wait
       if (action.actionType === ActionType.WAIT) {
         console.log(`[Agent ${this.name}] Blocked wait(). Forcing navigate.`);
@@ -171,8 +176,8 @@ export class RobotAgent {
       }
       // Block repeat navigate to same target
       else if (action.actionType === ActionType.NAVIGATE && lastType === ActionType.NAVIGATE && lastTarget === currentTarget) {
-        console.log(`[Agent ${this.name}] Repeated navigate to ${currentTarget}. Forcing pick.`);
-        action = { robotName: this.name, actionType: ActionType.PICK, params: { object: 'bacon' }, timestamp: Date.now() };
+        console.log(`[Agent ${this.name}] Repeated/already-there navigate. Forcing wait.`);
+        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
       }
     }
 

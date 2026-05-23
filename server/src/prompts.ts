@@ -257,15 +257,62 @@ ${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any o
 === YOUR ACTIONS ===
 ${actionSet}
 
-===== YOUR JOB =====
-- Mobile robots: Go to item → pick() → bring to fixed-arm robot's table → place()
-- Fixed-arm robots: Pick items on your table → place() on final target. For other items, WAIT
-- NEVER pick() when gripper FULL. NEVER place() on final target if you're a mobile robot
+${(() => {
+    const isMobile = robotNameClean !== 'Bob';
+    const example = isMobile ? 'navigate(target) or pick(item) or place(item, target)' : 'pick(item) or place(item, target) or communicate(msg, recipient)';
+    
+    const workflows: Record<string, string> = {
+      make_sandwich: `=== SANDWICH WORKFLOW ===
+Items: bread_0 (on table_new_2, Bob can reach), bacon and bread_1 (on table_new_1, need transport)
+Final target: cutting_board (only Bob places here)
+
+Mobile robots: go to table_new_1 → pick bacon/bread_1 → bring to table_new_2 → place on table_new_2
+Bob: pick items from table_new_2 → place on cutting_board`,
+
+      sort_solids: `=== SORT WORKFLOW ===
+Items: ${info.items} ${info.items.includes(',') ? `(scattered around scene)` : `(scattered around scene)`}
+Final target: matching colored cube (only Bob places here)
+Locations: ${info.locations}
+
+Mobile robots: find the small cube → pick() → bring to Bob's table (table_2) → place on table_2
+Bob: pick small cube from table_2 → place on matching large cube`,
+
+      pack_objects: `=== PACK WORKFLOW ===
+Items: fork, apple, book, soap (scattered around furniture)
+Final target: tray (only Bob places here)
+
+Mobile robots: find an item → pick() → bring to Bob's table → place on Bob's table
+Bob: pick items from table → place into tray`
+    };
+    
+    return `
+===== IDENTITY =====
+You are ${robotNameClean}.
+
+${roleDescription}
+
+===== TASK =====
+${taskDescription}
+Leader: ${leader}
+Plan: ${plan}
+
+=== YOUR ACTIONS ===
+${actionSet}
+
+${workflows[taskType || 'pack_objects'] || workflows.pack_objects}
+
+===== RULES =====
+- pick() ONLY when gripper EMPTY
+- If gripper FULL → navigate or place — NEVER pick again
+- ${isMobile ? 'NEVER place on final target — only Bob does that' : 'Only you place items on the final target'}
+- ${isMobile ? '' : 'You CANNOT navigate. Items not on your table must be brought to you.'}
 - Read your feedback. If FAILED, try something different
 
-Output ONLY these two lines:
-Thoughts: [your reasoning]
-Contents: [EXACTLY ONE function call, e.g. ${robotNameClean === 'Bob' ? 'pick(item) or place(item, target) or communicate(msg, recipient)' : 'navigate(target) or pick(item) or place(item, target)'}]
+Output ONLY:
+Thoughts: [reasoning]
+Contents: [one action, e.g. ${example}]
+`;
+  })()}
 `;
 }
 
