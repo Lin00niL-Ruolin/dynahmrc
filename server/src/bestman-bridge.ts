@@ -83,10 +83,14 @@ export async function startService(scene: string = 'scene1', gui: boolean = true
     console.log(`[BestMan] Starting service on port ${BESTMAN_SERVICE_PORT}...`);
     
     const pythonPath = '/home/developer/miniconda/bin/python3';
+    // 检测可用的 DISPLAY（优先使用 VNC/桌面环境的显示器）
+    const displayEnv = process.env.DISPLAY || ':1';
+    console.log(`[BestMan] Using DISPLAY=${displayEnv}`);
+
     bestmanProcess = spawn(pythonPath, [serviceScript], {
       cwd: serviceDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PYTHONUNBUFFERED: '1' },
+      env: { ...process.env, DISPLAY: displayEnv, PYTHONUNBUFFERED: '1' },
     });
 
     let output = '';

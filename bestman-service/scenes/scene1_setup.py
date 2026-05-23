@@ -204,7 +204,7 @@ def setup_scene1(client, scene_json_path=None):
     # 6. 固定机械臂 (UR5e) 在 table_new_2 (8.5, 5.8) 上
     print("\n--- 固定机械臂 ---")
     bob_arm_path = 'Asset/Robot/mobile_manipulator/arm/ufactory/urdf/xarm6.urdf'
-    tx, ty = 8.5, 6.0
+    tx, ty = 8.5, 5.9
     table_top_z = 0.86
     try:
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -381,59 +381,32 @@ def setup_scene1(client, scene_json_path=None):
     except Exception as e:
         print(f"[机器人] ⚠️ David: {e}")
 
-    # 12. Lucy — 无人机 (几何体) @ (3, 2)
-    print("\n--- Lucy 无人机 ---")
-    lx, ly, lz = 3.0, 2.0, 0.5
+    # 12. Lucy — 无人机 (场景三风格, 放在 obj_name=table 的桌子上面)
+    print("\n--- Lucy 无人机 (场景三风格) ---")
+    cx, cy = 3.0, 2.0
+    hover_z = 0.86  # 桌子高度
     try:
-        # 主体：扁长方体
-        body_half = [0.2, 0.2, 0.05]
-        body_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=body_half)
-        body_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=body_half, rgbaColor=[0.2, 0.5, 0.8, 1.0])
+        body_half = [0.05, 0.04, 0.025]
+        col = p.createCollisionShape(p.GEOM_BOX, halfExtents=body_half)
+        vis = p.createVisualShape(p.GEOM_BOX, halfExtents=body_half, rgbaColor=[0.2, 0.2, 0.2, 1])
+        body_id = p.createMultiBody(0.05, col, vis, [cx, cy, hover_z])
+        setattr(client, "drone_body", body_id)
 
-        # 四个旋翼支柱 (十字形)
-        arm_half = [0.25, 0.02, 0.01]
-        arm_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=arm_half, rgbaColor=[0.5, 0.5, 0.5, 1.0])
-        arm2_half = [0.02, 0.25, 0.01]
-        arm2_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=arm2_half, rgbaColor=[0.5, 0.5, 0.5, 1.0])
+        arm_len = 0.12
+        arm_half = [arm_len, 0.01, 0.005]
+        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+            a_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=arm_half)
+            a_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=arm_half, rgbaColor=[0.5, 0.5, 0.5, 1])
+            arm_id = p.createMultiBody(0, a_col, a_vis, [cx+dx*arm_len, cy+dy*arm_len, hover_z])
+            setattr(client, f"drone_arm_{dx}_{dy}", arm_id)
 
-        # 旋翼（四个小圆片用圆柱体近似）
-        rotor_half = [0.12, 0.02, 0.005]
-        rotor_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=rotor_half, rgbaColor=[0.9, 0.9, 0.9, 0.6])
-        rotor2_half = [0.02, 0.12, 0.005]
-        rotor2_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=rotor2_half, rgbaColor=[0.9, 0.9, 0.9, 0.6])
-
-        # 组合成一个多体
-        lucy_id = p.createMultiBody(
-            baseMass=0.5,
-            baseCollisionShapeIndex=body_col,
-            baseVisualShapeIndex=body_vis,
-            basePosition=[lx, ly, lz],
-            baseOrientation=p.getQuaternionFromEuler([0, 0, 0])
-        )
-
-        # 添加支柱 (作为视觉形状，无碰撞)
-        for angle in [0, 45, 90, 135]:
-            rad = math.radians(angle)
-            ax = 0.25 * math.cos(rad)
-            ay = 0.25 * math.sin(rad)
-            # 支柱端点 (旋翼位置)
-            rotor_pos = [lx + ax, ly + ay, lz]
-            p.addUserDebugLine(
-                [lx, ly, lz],
-                [lx + ax * 1.8, ly + ay * 1.8, lz],
-                [0.5, 0.5, 0.5],
-                lineWidth=2
-            )
-            # 旋翼圆盘 (小立方体近似)
-            p.addUserDebugLine(
-                [lx + ax * 1.6, ly + ay * 1.6, lz],
-                [lx + ax * 2.0, ly + ay * 2.0, lz],
-                [0.9, 0.9, 0.9],
-                lineWidth=4
-            )
-
-        setattr(client, "drone_body", lucy_id)
-        print(f"[机器人] ✅ Lucy 无人机 @ ({lx}, {ly}, {lz})")
+        rotor_half = [0.04, 0.04, 0.003]
+        for dx, dy in [(1,0), (-1,0), (0,1), (0,-1)]:
+            r_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=rotor_half)
+            r_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=rotor_half, rgbaColor=[0.8, 0.8, 0.9, 0.6])
+            rotor_id = p.createMultiBody(0, r_col, r_vis, [cx+dx*arm_len, cy+dy*arm_len, hover_z+0.02])
+            setattr(client, f"drone_rotor_{dx}_{dy}", rotor_id)
+        print(f"[机器人] ✅ Lucy 无人机 (场景三风格) @ ({cx}, {cy}) 桌面上方 z={hover_z}")
     except Exception as e:
         print(f"[机器人] ⚠️ Lucy: {e}")
 

@@ -83,6 +83,7 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
     }
   };
   const [maxSteps, setMaxSteps] = useState(50);
+  const [useBestMan, setUseBestMan] = useState(false);
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
@@ -98,11 +99,29 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
   const handleStartMission = async () => {
     if (selectedRobots.length === 0) return;
     setStarting(true);
+
+    // 如果勾选了 3D，先启动 BestMan 服务
+    if (useBestMan) {
+      try {
+        const sceneMap: Record<string, string> = {
+          make_sandwich: 'scene1',
+          sort_solids: 'scene2',
+          pack_objects: 'scene3',
+        };
+        await fetch('/api/bestman/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1', gui: true }),
+        });
+      } catch {}
+    }
+
     const runId = await hmrc.createRun({
       taskType,
       layout,
       robots: selectedRobots,
       maxSteps,
+      useBestMan,
     });
     setStarting(false);
     if (runId) {
@@ -325,6 +344,36 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
             </div>
           </div>
         </section>
+
+        {/* 3D BestMan Toggle */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          marginBottom: 16, paddingTop: 4,
+        }}>
+          <label style={{
+            display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+            padding: '8px 16px', borderRadius: 8,
+            background: useBestMan ? '#0a3d3b' : '#1e293b',
+            border: `1px solid ${useBestMan ? '#22d3ee' : '#334155'}`,
+            transition: 'all 0.2s',
+          }}>
+            <input
+              type="checkbox"
+              checked={useBestMan}
+              onChange={e => setUseBestMan(e.target.checked)}
+              style={{ accentColor: '#22d3ee', width: 16, height: 16 }}
+            />
+            <span style={{
+              fontSize: 14, fontWeight: 500,
+              color: useBestMan ? '#22d3ee' : '#94a3b8',
+            }}>
+              🎮 3D BestMan 仿真
+            </span>
+          </label>
+          <span style={{ fontSize: 11, color: '#64748b', maxWidth: 200 }}>
+            {useBestMan ? 'PyBullet 3D 窗口将在任务启动后弹出' : '勾选后使用 3D PyBullet 仿真'}
+          </span>
+        </div>
 
         {/* Start Mission Button */}
         <div style={{ textAlign: 'center', paddingTop: 8 }}>

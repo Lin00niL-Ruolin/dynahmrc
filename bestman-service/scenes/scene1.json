@@ -80,11 +80,6 @@
         "scale": 1.0,
         "fixed_base": false
     },
-
-
-
-
-
     {
         "obj_name": "chair_3",
         "model_path": "Asset/Scene/Object/URDF_models/furniture_chair/model.urdf",
