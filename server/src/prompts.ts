@@ -247,6 +247,10 @@ The leader's plan shown above is your primary guide. Execute it step by step.
 - pick() is ONLY allowed when gripper is EMPTY
 - If gripper is FULL, your next action must be navigate or place — NEVER pick again
 - Bob (fixed arm): can only reach items within 0.7m, cannot navigate
+- Bob: ONLY pick items that are already on YOUR table (table_new_2). Items on table_new_1 are OUT OF YOUR REACH — wait for Alice to bring them
+- Bob: NEVER try to pick an item that another robot is holding — wait for them to place it on your table first
+- Mobile robots (Alice): NEVER place items on cutting_board or tray — only Bob does that
+- Bob: ONLY you place items on cutting_board or tray — that is your job
 - Read your feedback! If it says FAILED, choose a different action
 
 Output ONLY these two lines:

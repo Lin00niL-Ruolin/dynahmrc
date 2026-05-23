@@ -699,8 +699,15 @@ export class SimEnvironment {
               this.scene.objects[objName].posY = pos[1];
             }
           } else {
-            this.scene.objects[objName].posX = pos[0] + 0.3;
-            this.scene.objects[objName].posY = pos[1];
+            // If placing on Bob's table, put items within Bob's reach (0.7m from 8.5,5.85)
+            const targetLower = target.toLowerCase();
+            if (targetLower.includes("bob's table") || targetLower.includes('table_new_2')) {
+              this.scene.objects[objName].posX = 8.5;
+              this.scene.objects[objName].posY = 5.3;
+            } else {
+              this.scene.objects[objName].posX = pos[0] + 0.3;
+              this.scene.objects[objName].posY = pos[1];
+            }
           }
         }
         
