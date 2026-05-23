@@ -663,22 +663,35 @@ export class SimEnvironment {
           };
         }
         
-        this.robotGrippers[robotName] = null;
-        if (this.scene.objects[objName]) {
-          this.scene.objects[objName].posX = pos[0] + 0.3;
-          this.scene.objects[objName].posY = pos[1];
-        }
-        
-        // Only count as task progress if placed on the FINAL TARGET
-        const finalTargets: Record<string, string[]> = {
+        // Determine if this is a final target placement
+        const _finalTargets: Record<string, string[]> = {
           make_sandwich: ['cutting_board'],
           sort_solids: ['large_red_cube', 'large_green_cube', 'large_blue_cube', 'red_panel', 'blue_panel', 'green_panel'],
           pack_objects: ['tray'],
         };
-        const validTargets = finalTargets[this.taskType] || [];
-        const targetIsFinal = validTargets.some(t => target.toLowerCase().includes(t.toLowerCase()));
+        const _validTargets = _finalTargets[this.taskType] || [];
+        const _targetIsFinal = _validTargets.some(t => target.toLowerCase().includes(t.toLowerCase()));
         
-        if (targetIsFinal && this.taskTargets.includes(objName) && !this.placedObjects.includes(objName)) {
+        this.robotGrippers[robotName] = null;
+        if (this.scene.objects[objName]) {
+          // If placing on final target, stack at same position (not side by side)
+          if (_targetIsFinal) {
+            const _finalObj = this.scene.objects['cutting_board'] || this.scene.objects['tray'] || null;
+            if (_finalObj) {
+              this.scene.objects[objName].posX = _finalObj.posX;
+              this.scene.objects[objName].posY = _finalObj.posY;
+            } else {
+              this.scene.objects[objName].posX = pos[0] + 0.3;
+              this.scene.objects[objName].posY = pos[1];
+            }
+          } else {
+            this.scene.objects[objName].posX = pos[0] + 0.3;
+            this.scene.objects[objName].posY = pos[1];
+          }
+        }
+        
+        // Only count as task progress if placed on the FINAL TARGET
+        if (_targetIsFinal && this.taskTargets.includes(objName) && !this.placedObjects.includes(objName)) {
           this.placedObjects.push(objName);
         }
         
