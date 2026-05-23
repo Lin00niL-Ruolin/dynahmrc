@@ -109,7 +109,7 @@ export class SimEnvironment {
         ['fridge', 9.4, 0.5, 0.8, 0.8, true, 'close'],
         ['counter_elementA', 7.4, 0.5, 0.8, 0.6, false],
         ['counter_elementB', 5.9, 0.5, 0.8, 0.6, false],
-        ['dishwasher', 8.6, 0.5, 0.6, 0.6, false],
+        ['elementC', 8.6, 0.5, 0.6, 0.6, false],
         ['microwave', 8.1, 0.3, 0.6, 0.6, true, 'close'],
         // Dining table (center-left, x=0..5, y=0..4)
         ['table_dining', 3, 2, 1.0, 0.6, false],
@@ -162,14 +162,14 @@ export class SimEnvironment {
       // Furniture from scene2.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
         // Kitchen counters/cabinets along bottom wall (y=0..2)
-        ['cabinet_elementB', 1, 0.55, 0.8, 0.6, true, 'close'],
+        ['elementB1', 1, 0.55, 0.8, 0.6, true, 'close'],
         ['counter_elementA', 2.5, 1.48, 0.8, 0.6, false],
         ['microwave', 3.2, 1.1, 0.6, 0.4, true, 'close'],
-        ['dishwasher', 3.7, 0.35, 0.6, 0.4, false],
+        ['elementC', 3.7, 0.35, 0.6, 0.4, false],
         ['fridge', 4.5, 1.06, 0.8, 0.8, true, 'close'],
         // Tables
-        ['table_1', 1, 4, 1.2, 0.8, false],
-        ['table_2', 3, 5, 1.2, 0.8, false],
+        ['table1', 1, 4, 1.2, 0.8, false],
+        ['table2', 3, 5, 1.2, 0.8, false],
         // Left area furniture
         ['bookcase', 1, 6.5, 0.8, 0.6, true, 'open'],
         // Top area (L alcove)
@@ -177,7 +177,7 @@ export class SimEnvironment {
         ['bed', 8, 9, 1.5, 1.0, false],
         // Right wall shelf
         ['shelf_table', 9.5, 7.5, 1.0, 3.0, false],
-        ['blackboard', 7, 0.15, 0.15, 2.0, false],
+        ['black_board', 7, 0.15, 0.15, 2.0, false],
                 ['cube_red', 3, 5.3, 0.35, 0.35, false],
         ['cube_green', 3, 5, 0.35, 0.35, false],
         ['cube_blue', 3, 4.7, 0.35, 0.35, false],
@@ -223,7 +223,7 @@ export class SimEnvironment {
         ['kitchen_cabinet', 1.2, 0.55, 0.8, 0.6, true, 'close'],
         ['kitchen_counter', 3.1, 1.6, 0.8, 0.6, false],
         ['microwave', 3.8, 1.1, 0.6, 0.4, true, 'close'],
-        ['dishwasher', 4.6, 0.43, 0.6, 0.4, false],
+        ['elementC', 4.6, 0.43, 0.6, 0.4, false],
         ['fridge', 5.5, 1.06, 0.8, 0.8, true, 'close'],
         ['cabinet_2', 7.3, 0.55, 0.8, 0.6, true, 'close'],
         ['sofa', 8.6, 0.42, 1.5, 0.8, false],
@@ -319,9 +319,9 @@ export class SimEnvironment {
         // 3D scene also has cubes at: green(1,6.5), blue(7.5,9.5), yellow(8.5,2.8), purple(9.5,7.5), orange(5,6)
         addItem('small_cube_green', 1, 6.5, 'bookcase');
         addItem('small_cube_blue', 7.5, 9.5, 'sofa');
-        addItem('small_cube_yellow', 8.5, 2.8, 'table_1');
+        addItem('small_cube_yellow', 8.5, 2.8, 'table1');
         addItem('small_cube_purple', 9.5, 7.5, 'shelf_table');
-        addItem('small_cube_orange', 5, 6, 'table_2');
+        addItem('small_cube_orange', 5, 6, 'table2');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_0', 8.2, 5.85, 'table_new_2');
         addItem('bacon', 8.5, 4, 'table_new_1');
@@ -351,19 +351,19 @@ export class SimEnvironment {
       if (taskType === 'pack_objects') {
         addItem('bowl', 2.5, 1.48, 'counter_elementA');
         addItem('fork', 4.5, 1.06, 'fridge');
-        addItem('soap', 1, 4, 'table_1');
-        addItem('apple', 3, 5, 'table_2');
+        addItem('soap', 1, 4, 'table1');
+        addItem('apple', 3, 5, 'table2');
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 9.5, 7.5, 'shelf_table');
         addItem('small_cube_green', 1, 6.5, 'bookcase');
         addItem('small_cube_blue', 7.5, 9.5, 'sofa');
-        addItem('small_cube_yellow', 8.5, 2.8, 'table_1');
+        addItem('small_cube_yellow', 8.5, 2.8, 'table1');
         addItem('small_cube_purple', 9.5, 7.5, 'shelf_table');
-        addItem('small_cube_orange', 5, 6, 'table_2');
+        addItem('small_cube_orange', 5, 6, 'table2');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
-        addItem('ham', 1, 4, 'table_1');
-        addItem('bread_top', 3, 5, 'table_2');
+        addItem('ham', 1, 4, 'table1');
+        addItem('bread_top', 3, 5, 'table2');
       }
 
       // Scene 2 distractors
@@ -395,7 +395,7 @@ export class SimEnvironment {
         addItem('small_cube_green', 8, 8, 'bathtub');
         addItem('small_cube_blue', 9.5, 7.5, 'shelf_table');
         addItem('small_cube_yellow', 9, 1.5, 'counter_elementa');
-        addItem('small_cube_purple', 5.5, 4.36, 'table_1');
+        addItem('small_cube_purple', 5.5, 4.36, 'table1');
         addItem('small_cube_orange', 8.5, 2.7, 'sink');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 8, 3, 'packing_table');
@@ -515,9 +515,9 @@ export class SimEnvironment {
         let target = action.params.target as string;
         // Alias map: common name variations
         const aliases: Record<string, string> = {
-          "table_new_1": "table_1", "table_new_2": "table_2",
-          "Bob's table": "table_2", "bobs table": "table_2", "bob table": "table_2",
-          "table_dining": "table_2", "cutting_board": "cutting_board",
+          "table_new_1": "table1", "table_1": "table1", "table_new_2": "table2", "table_2": "table2",
+          "Bob's table": "table2", "bobs table": "table2", "bob table": "table2",
+          "table_dining": "table2", "cutting_board": "cutting_board",
         };
         if (aliases[target.toLowerCase()]) {
           target = aliases[target.toLowerCase()];
@@ -721,7 +721,7 @@ export class SimEnvironment {
           } else {
             // If placing on Bob's table, put items within Bob's reach
             const targetLower = target.toLowerCase();
-            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table_2') && !targetLower.includes('table_20'))) {
+            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table2') && !targetLower.includes('table_20'))) {
               // Place near Bob's actual position (within his 0.7m reach)
               const bobPos = this.robotPositions['Bob'] || [4, 4];
               this.scene.objects[objName].posX = bobPos[0] + 0.3;
@@ -853,7 +853,7 @@ export class SimEnvironment {
       // Mark area near cabinets as restricted (use layout-appropriate target)
       const zoneObj = this.scene.objects['cabinet']
         || this.scene.objects['bookshelf_1']
-        || this.scene.objects['cabinet_elementB']
+        || this.scene.objects['elementB1']
         || this.scene.objects['kitchen_cabinet'];
       if (zoneObj) {
         const zx = zoneObj.posX;
