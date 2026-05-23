@@ -120,15 +120,13 @@ function extractKeyContent(dialogue: RobotDialogue): { key: string; detail: stri
 
   // Task allocation: highlight the collaboration plan / task assignments
   if (stage === 'task_allocation_bidding') {
-    // Extract the plan portion (before campaign speech)
-    const planText = content.split(/Campaign Speech/i)[0] || content;
-    const plan = extractContents(planText);
-    if (plan && plan.length > 20) {
-      // Take the key assignments (bullet points or role assignments)
-      const cleaned = plan.replace(/^\d+[\)\.\]\s]*/gm, '').trim();
-      return { key: `📋 ${cleaned}`, detail: content };
-    }
-    return { key: `📋 ${content.slice(0, 120)}`, detail: content };
+    // Try to extract plan portion (before campaign speech)
+    const beforeCampaign = content.split(/Campaign Speech/i)[0] || content;
+    const planPortion = extractContents(beforeCampaign);
+    const displayText = planPortion && planPortion.length > 20
+      ? planPortion.replace(/^\d+[\)\.\]\s]*/gm, '').trim()
+      : content.replace(/^.*?Contents?:\s*/is, '').replace(/^\d+[\)\.\]\s]*/gm, '').trim().slice(0, 200);
+    return { key: `📋 ${displayText}`, detail: content };
   }
 
   // Reflection

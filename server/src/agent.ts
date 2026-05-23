@@ -150,7 +150,40 @@ export class RobotAgent {
     ];
 
     const response = await this.llm.chat(msgs);
-    const action = this.parseAction(response.content);
+    let action = this.parseAction(response.content);
+
+    // ⛔ Physical constraint: can't pick() while already holding something
+    if (this.status.gripperOccupied && action.actionType === ActionType.PICK) {
+      const held = this.status.graspingObject || 'item';
+      console.log(`[Agent ${this.name}] Physical constraint: holding ${held}, pick() blocked.`);
+      
+      if (this.roleTypeName === 'Bob') {
+        // Bob: force place on cutting_board
+        action = {
+          robotName: this.name, actionType: ActionType.PLACE,
+          params: { object: held, target: 'cutting_board' },
+          timestamp: Date.now(),
+        };
+      } else {
+        // Check if already at Bob's table (table_new_2 @ 8.5, 5.5)
+        const atBobTable = Math.abs(this.status.posX - 8.5) < 1.5 && Math.abs(this.status.posY - 5.5) < 1.5;
+        if (atBobTable) {
+          // Already there — force place on Bob's table
+          action = {
+            robotName: this.name, actionType: ActionType.PLACE,
+            params: { object: held, target: "Bob's table" },
+            timestamp: Date.now(),
+          };
+        } else {
+          // Not at Bob's table — navigate there first
+          action = {
+            robotName: this.name, actionType: ActionType.NAVIGATE,
+            params: { target: 'table_new_2' },
+            timestamp: Date.now(),
+          };
+        }
+      }
+    }
 
     if (response.thoughts) {
       this.currentPlan = response.thoughts;
