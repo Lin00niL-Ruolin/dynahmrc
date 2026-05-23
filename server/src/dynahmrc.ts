@@ -371,7 +371,17 @@ export class DynaHMRCEngine {
 
   private async doReflection(): Promise<void> {
     const agentNames = this.robotConfigs.map(([name]) => name);
-    const taskStatus = `Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects`;
+
+    // Build detailed task status with placed items, remaining items, and gripper states
+    const placedStr = this.sim.placedObjects.length > 0 ? this.sim.placedObjects.join(', ') : 'none';
+    const remainingStr = this.sim.taskTargets.filter(t => !this.sim.placedObjects.includes(t)).join(', ') || 'none';
+    const gripStrs = agentNames.map(n => {
+      const g = this.sim.robotGrippers[n];
+      return `${n}:${g ? `holding ${g}` : 'empty'}`;
+    }).join(', ');
+    const taskStatus = `Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects on cutting_board: [${placedStr}]
+Remaining: [${remainingStr}]
+Grippers: ${gripStrs}`;
 
     const reflections: Record<string, { summary: string; plan: string }> = {};
 
