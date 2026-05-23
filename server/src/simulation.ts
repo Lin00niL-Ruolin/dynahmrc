@@ -317,9 +317,9 @@ export class SimEnvironment {
       } else if (taskType === 'sort_solids') {
         addItem('small_red_cube', 3, 2, 'table_dining');
       } else if (taskType === 'make_sandwich') {
-        addItem('ham_bottom', 8.2, 5.5, 'table_new_2');
+        addItem('bread_0', 8.2, 5.85, 'table_new_2');
         addItem('bacon', 8.5, 4, 'table_new_1');
-        addItem('ham_top', 8.55, 4.2, 'table_new_1');
+        addItem('bread_1', 8.55, 4.2, 'table_new_1');
       }
 
       // Scene 1 distractors + 3D scene books

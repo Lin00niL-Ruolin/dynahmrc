@@ -126,6 +126,7 @@ export class RobotAgent {
       this.getPrinciples(),
       this.taskType,
       this.roleTypeName,
+      this.status.gripperOccupied,
     );
 
     const userContent = prompts.executionUser(

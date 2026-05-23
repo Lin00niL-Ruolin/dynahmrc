@@ -118,7 +118,7 @@ CoT: Let's think step by step!
 `;
 
 const TASK_ALLOCATION_HINTS: Record<string, string> = {
-  make_sandwich: 'Stack 3 ingredients: ham_bottom, bacon, ham_top on cutting_board. ham_bottom is on table_new_2 (Bob\'s table). bacon and ham_top are on table_new_1 (far table). Bob can only reach table_new_2 items — mobile robots must bring table_new_1 items to Bob.',
+  make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob\'s table, Bob can reach). bacon and bread_1 on table_new_1 (need transport).',
   sort_solids: 'This is a SORTING mission. Find the small_red_cube scattered in the scene and place it on the large_red_cube on table_2. Mobile robots search and transport, Bob does precision placement.',
   pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Each robot picks ONE different item - do NOT pick what another robot already has. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
 };
@@ -189,12 +189,13 @@ export function executionSystem(
   principles: string,
   taskType?: string,
   robotName?: string,
+  gripperOccupied?: boolean,
 ): string {
   // Task-specific item and placement info
   const taskSteps: Record<string, { items: string; locations: string; target: string }> = {
     make_sandwich: {
-      items: 'ham_bottom, bacon, ham_top',
-      locations: 'ham_bottom on table_new_2 (8.2, 5.5), bacon on table_new_1 (8.5, 4), ham_top on table_new_1 (8.55, 4.2)',
+      items: 'bread_0, bacon, bread_1',
+      locations: 'bread_0 on table_new_2 (8.2, 5.85), bacon on table_new_1 (8.5, 4), bread_1 on table_new_1 (8.55, 4.2)',
       target: 'cutting_board',
     },
     sort_solids: {
@@ -212,6 +213,13 @@ export function executionSystem(
   const info = taskSteps[taskType || 'pack_objects'] || taskSteps.pack_objects;
 
   const robotNameClean = robotName || 'Alice';
+
+  // 动态过滤可用动作：如果夹爪满了，移除 pick 选项
+  let actionSet = ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice;
+  if (gripperOccupied) {
+    // 移除包含 pick() 的行及其编号
+    actionSet = actionSet.replace(/^\d+\.\s*pick\(.*\n?/gm, '');
+  }
 
   return `
 ===== IDENTITY =====
@@ -231,36 +239,26 @@ ${principles}
 === TASK ITEMS ===
 Items to find: ${info.items}
 Item locations: ${info.locations}
-Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (ham_bottom, bacon, ham_top) on top of each other on cutting_board — you decide the order' : taskType === 'sort_solids' ? 'place small_red_cube on top of large_red_cube on table_2' : 'place all four items (fork, apple, book, soap) into the tray'}
+Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (bread_0, bacon, bread_1) on top of each other on cutting_board — you decide the order' : taskType === 'sort_solids' ? 'place small_red_cube on top of large_red_cube on table_2' : 'place all four items (fork, apple, book, soap) into the tray'}
 
 === YOUR AVAILABLE ACTIONS ===
 (Only the actions YOU can perform are listed below)
-${ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice}
+${actionSet}
 
 ===== ⚠️ MANDATORY WORKFLOW — ALL TASKS ⚠️ =====
 
-🚨 EACH ROBOT CAN ONLY HOLD ONE ITEM AT A TIME. You must pick → carry → place, one item per trip.
+🚨 ONE ITEM AT A TIME. Gripper FULL → MUST place() before pick() again.
 
-There are TWO roles with DIFFERENT jobs:
+Alice's job (make_sandwich example):
+  1. navigate(table_new_1) → pick(bacon) → navigate(table_new_2) → place(bacon, Bob's table)
+  2. navigate(table_new_1) → pick(bread_1) → navigate(table_new_2) → place(bread_1, Bob's table)
 
-📦 Mobile robots (Alice, Lucy, David — anyone who can navigate):
-  Your job: fetch items → bring to Bob's table → PLACE ON BOB'S TABLE (not on cutting_board)
-  ✗ NEVER place items directly on cutting_board
-  ✗ NEVER pick a second item while already holding one
-  ✓ Always place on Bob's table (table_new_2 / table_new_1 depending on task)
+Bob's job:
+  pick(item) from his table → place(item, cutting_board)
 
-🦾 Bob (fixed arm on his table):
-  Your job: take items from your table → place on the final target (cutting_board / tray / etc.)
-  ✓ Pick items already on your table
-  ✓ Place them on the final target
-  ✗ Never navigate (you can't move)
-  ✗ Never pick a second item while already holding one
-
-Concrete example (make_sandwich):
-  1. Alice brings bacon from table_new_1 → places on Bob's table ✅
-  2. Bob picks bacon from his table → places on cutting_board ✅
-  3. Alice must NOT place bacon directly on cutting_board ❌
-  4. Alice must NOT pick ham_top while still holding bacon ❌
+CRITICAL RULES:
+  • If you already picked something, your next action is navigate or place — NOT pick.
+  • NEVER call pick() twice in a row. After one pick(), you MUST navigate or place().
 
 === COORDINATION RULES ===
 1. Bob ALWAYS does the final placement. No one else.
@@ -270,26 +268,31 @@ Concrete example (make_sandwich):
 5. Bob: pick from your table, place on final target.
 6. Communicate important findings to the team.
 
-=== YOUR NEXT ACTION (based on what you are holding) ===
+=== YOUR NEXT ACTION ===
 
-IF you are a MOBILE ROBOT (Alice, Lucy, David):
-  • Gripper EMPTY → pick an item that hasn't been taken yet
-  • Gripper FULL → navigate to Bob's table, then place(item, Bob's table)
-  • Never pick() while already holding something
+Based on your gripper status, pick the EXACT action below:
+
+IF you are ALICE (or any mobile robot):
+  • Gripper empty & at table_new_1 → pick(bacon) OR pick(bread_1)
+  • Gripper empty & at table_new_2 → pick(bread_0) [but Bob should do this]
+  • Gripper full (holding something) → navigate(table_new_2) OR place(item, Bob's table)
+  • NEVER pick() when gripper is full — you must place() first.
 
 IF you are BOB:
-  • Something on your table to place → pick() it, then place() on final target
-  • Gripper FULL → place() what you are holding on final target
-  • Nothing to do → wait() for items to arrive
+  • Item on your table → pick(it) → place(it, cutting_board)
+  • Gripper full → place(it, cutting_board)
+  • Nothing to do → wait()
+
+Example valid action when Alice is holding bacon: navigate(table_new_2)
+Example valid action when Alice is at Bob's table with bacon: place(bacon, Bob's table)
+Example INVALID action: pick(bacon) when already holding something
 
 ===== CRITICAL RULES — READ THIS! =====
-1. YOU ARE ${robotNameClean.toUpperCase()}. Do NOT confuse yourself with other robots.
-2. 🚨 DECISION RULE: Read your gripper status before choosing an action:
-   - Gripper EMPTY → pick() is allowed
-   - Gripper FULL → pick() is FORBIDDEN. You MUST navigate or place() instead.
-3. READ your Feedback. If it says "FAILED" or "already occupied", NEVER repeat the same action.
-4. Use the Shared Task Status below to know what other robots are doing.
-5. WORKFLOW: Mobile robots bring items to BOB'S TABLE. Bob places on FINAL TARGET. Mobile robots NEVER place on final target.
+1. YOU ARE ${robotNameClean.toUpperCase()}. Never confuse yourself with other robots.
+2. 🚨 GRIPPER RULE: If your gripper is FULL, pick() is FORBIDDEN. You MUST navigate or place().
+3. 🚨 NEVER repeat a failed action. If feedback says "FAILED" or "occupied", choose a different action.
+4. Use the Shared Task Status below before choosing what to do.
+5. MOBILE ROBOTS: bring items to Bob's table (table_new_2). BOB: place items on cutting_board.
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
@@ -325,9 +328,9 @@ ${feedbackHistory || 'No feedback yet.'}
 ${sharedStatus || 'No shared status'}
 
 === YOUR STATUS ===
-- Current position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
+- Position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
 - Gripper: ${gripperStatus}
-${graspingObject !== 'nothing' ? `- ⛔ HOLDING: ${graspingObject} → You CANNOT pick. You MUST navigate to Bob's table and place().` : '- ✅ Gripper empty → you CAN pick something'}
+${graspingObject !== 'nothing' ? `- ⛔ HOLDING: ${graspingObject} → pick() FORBIDDEN. Your ONLY options: navigate(table_new_2) or place(${graspingObject}, Bob's table)` : '- ✅ Gripper empty → you may pick()'}
 
 Recent Actions:
 ${actionHistory}
@@ -392,7 +395,7 @@ CoT: Let's think step by step!
 `;
 
 const REFLECTION_TASK_HINTS: Record<string, string> = {
-  make_sandwich: 'Task: Stack ham_bottom, bacon, ham_top on cutting_board. ham_bottom on table_new_2 (Bob can reach), bacon and ham_top on table_new_1 (need transport).',
+  make_sandwich: 'Task: Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob can reach), bacon and bread_1 on table_new_1 (need transport).',
   sort_solids: 'Task: Find small_red_cube and place on large_red_cube. Search floor/shelf areas for the small cube, then bring to table_2.',
   pack_objects: 'Task: Pack fork, apple, book, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
 };
@@ -426,7 +429,7 @@ CoT: Let's think step by step!
 }
 
 const LEADER_REFLECTION_HINTS: Record<string, string> = {
-  make_sandwich: 'Stack ham_bottom, bacon, ham_top on cutting_board. Bob can reach ham_bottom (table_new_2). Mobile robots fetch bacon & ham_top (table_new_1) and bring them to Bob.',
+  make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. Bob can reach bread_0 (table_new_2). Mobile robots fetch bacon & bread_1 (table_new_1) and bring them to Bob.',
   sort_solids: 'The SORTING mission needs small_red_cube on large_red_cube. Assign scouts to find the small cube, and Bob for precision placement.',
   pack_objects: 'The PACKING mission needs fork, apple, book, soap in tray. Assign each item to a different robot, Bob places from table into tray.',
 };
@@ -461,13 +464,13 @@ CoT: Let's think step by step!
 }
 
 export const TASK_DESCRIPTIONS: Record<string, string> = {
-  make_sandwich: 'Stack ham_bottom, bacon, ham_top on top of each other on the cutting board (any order).',
+  make_sandwich: 'Stack bread_0, bacon, bread_1 on top of each other on the cutting board (any order).',
   sort_solids: 'Find the small red cube scattered in the scene, bring it to table_2, and place it on top of the matching large red cube.',
   pack_objects: 'Pack four items (fork, apple, book, soap) into the tray.',
 };
 
 export const TASK_GOALS: Record<string, string[]> = {
-  make_sandwich: ['ham_bottom', 'bacon', 'ham_top'],
+  make_sandwich: ['bread_0', 'bacon', 'bread_1'],
   sort_solids: ['small_red_cube'],
   pack_objects: ['fork', 'apple', 'book', 'soap'],
 };
