@@ -238,11 +238,15 @@ Place target: ${taskType === 'make_sandwich' ? 'stack all 3 items (ham_bottom, b
 ${ROBOT_ACTION_SETS[robotNameClean] || ROBOT_ACTION_SETS.Alice}
 
 ===== ⚠️ MANDATORY WORKFLOW — ALL TASKS ⚠️ =====
+
+🚨 EACH ROBOT CAN ONLY HOLD ONE ITEM AT A TIME. You must pick → carry → place, one item per trip.
+
 There are TWO roles with DIFFERENT jobs:
 
 📦 Mobile robots (Alice, Lucy, David — anyone who can navigate):
   Your job: fetch items → bring to Bob's table → PLACE ON BOB'S TABLE (not on cutting_board)
   ✗ NEVER place items directly on cutting_board
+  ✗ NEVER pick a second item while already holding one
   ✓ Always place on Bob's table (table_new_2 / table_new_1 depending on task)
 
 🦾 Bob (fixed arm on his table):
@@ -250,11 +254,13 @@ There are TWO roles with DIFFERENT jobs:
   ✓ Pick items already on your table
   ✓ Place them on the final target
   ✗ Never navigate (you can't move)
+  ✗ Never pick a second item while already holding one
 
 Concrete example (make_sandwich):
   1. Alice brings bacon from table_new_1 → places on Bob's table ✅
   2. Bob picks bacon from his table → places on cutting_board ✅
   3. Alice must NOT place bacon directly on cutting_board ❌
+  4. Alice must NOT pick ham_top while still holding bacon ❌
 
 === COORDINATION RULES ===
 1. Bob ALWAYS does the final placement. No one else.
@@ -264,24 +270,26 @@ Concrete example (make_sandwich):
 5. Bob: pick from your table, place on final target.
 6. Communicate important findings to the team.
 
-=== TASK-SPECIFIC EXECUTION STEPS ===
-${taskType === 'make_sandwich' ? `Alice: ham_bottom is on Bob's table. Do not pick it — Bob handles it.
-Alice: take ONE trip per item. First go to table_new_1, pick bacon, bring to Bob's table, place on Bob's table.
-Then go back to table_new_1, pick ham_top, bring to Bob's table, place on Bob's table.
-Bob: pick items from your table and stack them on cutting_board.`
-: taskType === 'sort_solids' ? `Mobile robot: pick up small_red_cube, bring to Bob's table, place on Bob's table (not on the colored cube).
-Bob: pick small_red_cube from your table, place on matching large_red_cube.`
-: `Mobile robots: ONE item per trip. Pick it → Bob's table → place. Go back for the next item.
-Bob: pick items from your table, place into tray.`
-}
+=== YOUR NEXT ACTION (based on what you are holding) ===
+
+IF you are a MOBILE ROBOT (Alice, Lucy, David):
+  • Gripper EMPTY → pick an item that hasn't been taken yet
+  • Gripper FULL → navigate to Bob's table, then place(item, Bob's table)
+  • Never pick() while already holding something
+
+IF you are BOB:
+  • Something on your table to place → pick() it, then place() on final target
+  • Gripper FULL → place() what you are holding on final target
+  • Nothing to do → wait() for items to arrive
 
 ===== CRITICAL RULES — READ THIS! =====
 1. YOU ARE ${robotNameClean.toUpperCase()}. Do NOT confuse yourself with other robots.
-2. READ your Feedback after every action. If it says "FAILED" or "gripper already occupied", do NOT repeat the same action — choose a different one.
-3. If your gripper is occupied, you MUST place() what you are holding before you can pick() anything else.
-4. Use the Shared Task Status below to know what other robots are doing before you act.
-5. Never pick() an item that another robot is already holding or has already placed.
-6. WORKFLOW: Mobile robots bring items to BOB'S TABLE. Bob places items on the FINAL TARGET. Mobile robots NEVER place on the final target.
+2. 🚨 DECISION RULE: Read your gripper status before choosing an action:
+   - Gripper EMPTY → pick() is allowed
+   - Gripper FULL → pick() is FORBIDDEN. You MUST navigate or place() instead.
+3. READ your Feedback. If it says "FAILED" or "already occupied", NEVER repeat the same action.
+4. Use the Shared Task Status below to know what other robots are doing.
+5. WORKFLOW: Mobile robots bring items to BOB'S TABLE. Bob places on FINAL TARGET. Mobile robots NEVER place on final target.
 
 Output ONLY these two lines:
 Thoughts: [your reasoning]
@@ -319,7 +327,7 @@ ${sharedStatus || 'No shared status'}
 === YOUR STATUS ===
 - Current position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
 - Gripper: ${gripperStatus}
-${graspingObject !== 'nothing' ? `- Currently holding: ${graspingObject} ⚠️ You must place() it before picking anything else!` : ''}
+${graspingObject !== 'nothing' ? `- ⛔ HOLDING: ${graspingObject} → You CANNOT pick. You MUST navigate to Bob's table and place().` : '- ✅ Gripper empty → you CAN pick something'}
 
 Recent Actions:
 ${actionHistory}

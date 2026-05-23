@@ -126,10 +126,6 @@ export class SimEnvironment {
         ['chair_bob_2', 7.5, 5, 0.3, 0.3, false],
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         ['tray', 8.8, 5.5, 0.3, 0.3, false],
-        // Colored sorting panels for sort_solids task
-        ['red_panel', 1.5, 2.5, 0.4, 0.3, false],
-        ['blue_panel', 2.5, 2.5, 0.4, 0.3, false],
-        ['green_panel', 3.5, 2.5, 0.4, 0.3, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
         ['toilet', 1.5, 7, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
@@ -188,10 +184,7 @@ export class SimEnvironment {
         ['large_yellow_cube', 2.5, 5.3, 0.35, 0.35, false],
         ['large_purple_cube', 2.5, 5, 0.35, 0.35, false],
         ['large_orange_cube', 2.5, 4.7, 0.35, 0.35, false],
-        ['tray', 3, 4.7, 0.3, 0.3, false], // Colored sorting panels for sort_solids task
-        ['red_panel', 1.5, 8, 0.4, 0.3, false],
-        ['blue_panel', 2.5, 8, 0.4, 0.3, false],
-        ['green_panel', 3.5, 8, 0.4, 0.3, false],
+        ['tray', 3, 4.7, 0.3, 0.3, false],
         // Floor rug
         ['rug', 6, 2, 0.6, 0.6, false],
       ];
@@ -244,10 +237,7 @@ export class SimEnvironment {
         ['bathtub', 1.5, 9.4, 1.0, 0.6, false],
         ['sink_base', 4.7, 9.5, 0.8, 0.6, false],
         ['tray', 8, 2.7, 0.3, 0.3, false],
-        // Colored sorting panels for sort_solids task
-        ['red_panel', 5, 2, 0.4, 0.3, false],
-        ['blue_panel', 6, 2, 0.4, 0.3, false],
-        ['green_panel', 7, 2, 0.4, 0.3, false],
+        // (colored panels moved to addTaskObjects — only for sort_solids)
         // Floor items
         ['rug', 8, 2.4, 0.6, 0.6, false],
       ];
@@ -459,6 +449,24 @@ export class SimEnvironment {
             standPoseX: null, standPoseY: null,
           };
         }
+      }
+    }
+
+    // Colored sorting panels — only for sort_solids tasks
+    if (taskType === 'sort_solids') {
+      const panelPositions: Record<string, Array<[string, number, number]>> = {
+        'scene1': [['red_panel', 1.5, 2.5], ['blue_panel', 2.5, 2.5], ['green_panel', 3.5, 2.5]],
+        'kitchen': [['red_panel', 1.5, 8], ['blue_panel', 2.5, 8], ['green_panel', 3.5, 8]],
+        'living_room': [['red_panel', 5, 2], ['blue_panel', 6, 2], ['green_panel', 7, 2]],
+      };
+      const panels = panelPositions[this.layoutName] || [];
+      for (const [name, px, py] of panels) {
+        this.scene.objects[name] = {
+          name, category: 'furniture',
+          posX: px, posY: py, width: 0.4, height: 0.3,
+          isContainer: false, isOpen: false, contains: [],
+          standPoseX: px + 0.5, standPoseY: py,
+        };
       }
     }
   }
