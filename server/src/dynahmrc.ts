@@ -398,9 +398,11 @@ export class DynaHMRCEngine {
       const g = this.sim.robotGrippers[n];
       return `${n}:${g ? `holding ${g}` : 'empty'}`;
     }).join(', ');
-    const taskStatus = `Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects on cutting_board: [${placedStr}]
+    const isDone = this.sim.taskCompleted;
+    const taskStatus = `${isDone ? '✅ TASK COMPLETE - ' : ''}Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects on cutting_board: [${placedStr}]
 Remaining: [${remainingStr}]
-Grippers: ${gripStrs}`;
+Grippers: ${gripStrs}
+${isDone ? 'NOTE: All objects are already placed and stacked. No further action needed.' : ''}`;
 
     const reflections: Record<string, { summary: string; plan: string }> = {};
 

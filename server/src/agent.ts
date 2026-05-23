@@ -152,6 +152,19 @@ export class RobotAgent {
     const response = await this.llm.chat(msgs);
     let action = this.parseAction(response.content);
 
+    // ⛔ Bob: never try to pick items that are not on his table
+    const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
+    if (this.roleTypeName === 'Bob' && action.actionType === ActionType.PICK && !this.status.gripperOccupied) {
+      if (lastFeedback.includes('out of reach') || lastFeedback.includes('already being held') || lastFeedback.includes('gripper is already occupied')) {
+        // Bob keeps trying invalid picks — force wait instead
+        console.log(`[Agent ${this.name}] Blocked repeated invalid pick(). Last feedback: ${lastFeedback.slice(0, 50)}. Forcing wait.`);
+        action = {
+          robotName: this.name, actionType: ActionType.WAIT,
+          params: {}, timestamp: Date.now(),
+        };
+      }
+    }
+
     // ⛔ Physical constraint: can't pick() while already holding something
     if (this.status.gripperOccupied && action.actionType === ActionType.PICK) {
       const held = this.status.graspingObject || 'item';
