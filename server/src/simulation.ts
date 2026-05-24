@@ -127,7 +127,7 @@ export class SimEnvironment {
         ['cutting_board', 8.5, 5.5, 0.4, 0.4, false],
         ['tray', 8.8, 5.5, 0.3, 0.3, false],
         // Bathroom area (top-left, x=0..5, y=4..8)
-        ['toilet', 1.5, 7, 0.6, 0.6, false],
+        ['toilet', 7.0, 8, 0.6, 0.6, false],
         ['bathtub', 1.0, 7, 0.6, 0.6, false],
       ];
       for (const f of furniture) {
@@ -161,12 +161,12 @@ export class SimEnvironment {
       // Scene 2: 10m x 10m L-shaped room matching 3D BestMan scene2 layout (Sort Solids)
       // Furniture from scene2.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
-        // Kitchen counters/cabinets along bottom wall (y=0..2)
-        ['elementB1', 1, 0.55, 0.8, 0.6, true, 'close'],
-        ['counter_elementA', 2.5, 1.48, 0.8, 0.6, false],
-        ['microwave', 3.2, 1.1, 0.6, 0.4, true, 'close'],
-        ['elementC', 3.7, 0.35, 0.6, 0.4, false],
-        ['fridge', 4.5, 1.06, 0.8, 0.8, true, 'close'],
+        // Kitchen counters/cabinets along bottom wall (y=0..2) — aligned to 3D BestMan scene2
+        ['elementB1', 1, 0.5, 0.8, 0.6, true, 'close'],
+        ['counter_elementA', 2.5, 0.5, 0.8, 0.6, false],
+        ['microwave', 3.2, 0.3, 0.6, 0.4, true, 'close'],
+        ['elementC', 3.7, 0.5, 0.6, 0.4, false],
+        ['fridge', 4.5, 0.5, 0.8, 0.8, true, 'close'],
         // Tables
         ['table1', 1, 4, 1.2, 0.8, false],
         ['table2', 3, 5, 1.2, 0.8, false],
@@ -219,14 +219,14 @@ export class SimEnvironment {
       // Scene 3: 10m x 10m room matching 3D BestMan scene3 layout (Pack Objects)
       // Furniture from scene3.json
       const furniture: Array<[string, number, number, number, number, boolean, string?, string[]?]> = [
-        // Kitchen line along bottom (y=0..2)
-        ['kitchen_cabinet', 1.2, 0.55, 0.8, 0.6, true, 'close'],
-        ['kitchen_counter', 3.1, 1.6, 0.8, 0.6, false],
-        ['microwave', 3.8, 1.1, 0.6, 0.4, true, 'close'],
-        ['elementC', 4.6, 0.43, 0.6, 0.4, false],
-        ['fridge', 5.5, 1.06, 0.8, 0.8, true, 'close'],
-        ['cabinet_2', 7.3, 0.55, 0.8, 0.6, true, 'close'],
-        ['sofa', 8.6, 0.42, 1.5, 0.8, false],
+        // Kitchen line along bottom (y=0..2) — aligned to 3D BestMan scene3
+        ['kitchen_cabinet', 1.2, 0.5, 0.8, 0.6, true, 'close'],
+        ['kitchen_counter', 3.1, 0.5, 0.8, 0.6, false],
+        ['microwave', 3.8, 0.3, 0.6, 0.4, true, 'close'],
+        ['dishwasher', 4.6, 0.7, 0.6, 0.4, false],
+        ['fridge', 5.5, 0.5, 0.8, 0.8, true, 'close'],
+        ['cabinet_2', 7.3, 0.6, 0.8, 0.6, true, 'close'],
+        ['sofa', 8.6, 0.8, 1.5, 0.8, false],
         // Tables and chairs (center area)
         ['packing_table', 8, 3, 1.2, 0.8, false],
         ['source_table_1', 2, 4, 1.0, 0.8, false],
@@ -236,10 +236,12 @@ export class SimEnvironment {
         // Bathroom area (top area)
         ['bathtub', 1.5, 9.4, 1.0, 0.6, false],
         ['sink_base', 4.7, 9.5, 0.8, 0.6, false],
-        ['tray', 8, 2.7, 0.3, 0.3, false],
+        ['sink', 4.7, 9.6, 0.4, 0.4, false],
+        ['tray', 2.0, 4.0, 0.3, 0.3, false],
         // (colored panels moved to addTaskObjects — only for sort_solids)
         // Floor items
         ['rug', 8, 2.4, 0.6, 0.6, false],
+        ['blue_bowl', 6.9, 0.6, 0.3, 0.3, false],
       ];
       for (const f of furniture) {
         objects[f[0]] = {
@@ -389,7 +391,7 @@ export class SimEnvironment {
         addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
         addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
         addItem('book', 7.5, 5.8, 'bookcase');                // book_0 on bookcase
-        addItem('soap', 3.5, 1.8, 'kitchen_counter');            // soap on kitchen counter
+        addItem('soap', 5.7, 6.0, 'sink_base');            // soap near sink (matching 3D scene3)
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 2, 4, 'source_table_1');
         addItem('small_cube_green', 8, 8, 'bathtub');
