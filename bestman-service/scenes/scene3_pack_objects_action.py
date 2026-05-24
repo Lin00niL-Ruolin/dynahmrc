@@ -43,7 +43,7 @@ def load_yaml_config(config_path):
 def setup_scene3_local(client):
     """初始化场景3（living_room）"""
     import json
-    scene_json = os.path.join(script_dir, "scenes", "scene3.json")
+    scene_json = os.path.join(script_dir, "scene3.json")
     if os.path.exists(scene_json):
         with open(scene_json) as f:
             data = json.load(f)

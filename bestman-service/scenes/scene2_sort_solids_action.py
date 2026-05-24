@@ -55,7 +55,7 @@ print("[1/3] 连接 PyBullet (GUI模式)...")
 client = Client(cfg.Client)
 
 print("[2/3] 加载场景2 (kitchen/sort_solids)...")
-scene_json = os.path.join(script_dir, "scenes", "scene2.json")
+scene_json = os.path.join(script_dir, "scene2.json")
 setup_scene2(client, scene_json)
 
 print("[3/3] 初始化完成，开始播放动作...")
