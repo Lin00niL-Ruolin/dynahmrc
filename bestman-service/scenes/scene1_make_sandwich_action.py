@@ -67,18 +67,22 @@ scene_json = os.path.join(script_dir, "scene1.json")
 setup_scene1(client, scene_json)
 
 print("[3/3] 初始化完成，开始播放动作...")
-time.sleep(1)
 
-# 设置相机视角
+# 设置相机视角 — 全局视图
+for _ in range(30):
+    p.stepSimulation()
 try:
     p.resetDebugVisualizerCamera(
-        cameraDistance=8,
+        cameraDistance=10,
         cameraYaw=45,
-        cameraPitch=-30,
+        cameraPitch=-35,
         cameraTargetPosition=[5, 4, 0]
     )
 except:
     pass
+
+print("\n观察 PyBullet 窗口！机器人即将开始移动...")
+time.sleep(3)
 
 # 获取机器人 body_id
 robot_bodies = {}
@@ -142,6 +146,9 @@ def navigate(robot_name, target_name):
     if pos is None:
         print(f"  ⚠️ 未知目标 {target_name}")
         return False
+    # 记下移动前位置
+    old_pos = p.getBasePositionAndOrientation(body)[0]
+    # 移动
     p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
     # 同时移动配对部件（底座→手臂）
     paired_key = ROBOT_PAIRS.get(key)
@@ -149,9 +156,18 @@ def navigate(robot_name, target_name):
         paired_body = robot_bodies.get(paired_key)
         if paired_body is not None:
             p.resetBasePositionAndOrientation(paired_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-    for _ in range(20):
+    # 步进仿真 & 刷新 GUI
+    for _ in range(30):
         p.stepSimulation()
-    print(f"  ✓ {robot_name} → {target_name}")
+    # 刷新相机对准移动位置
+    try:
+        p.resetDebugVisualizerCamera(
+            cameraDistance=6, cameraYaw=45, cameraPitch=-30,
+            cameraTargetPosition=[pos[0], pos[1], 0]
+        )
+    except:
+        pass
+    print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({pos[0]:.1f},{pos[1]:.1f})")
     return True
 
 
