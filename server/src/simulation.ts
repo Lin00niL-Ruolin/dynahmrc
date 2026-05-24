@@ -518,8 +518,10 @@ export class SimEnvironment {
         const bobTable = this.layoutName === 'living_room' ? 'source_table_1'
           : this.layoutName === 'kitchen' ? 'table2'
           : 'table_new_2';
+        const table1Target = this.layoutName === 'living_room' ? 'source_table_2'
+          : 'table1';
         const aliases: Record<string, string> = {
-          "table_new_1": "table1", "table_1": "table1",
+          "table_new_1": table1Target, "table_1": table1Target,
           "table_new_2": bobTable, "table_2": bobTable, "table2": bobTable,
           "Bob's table": bobTable, "bobs table": bobTable, "bob table": bobTable,
           "table_dining": bobTable, "cutting_board": "cutting_board",
