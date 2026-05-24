@@ -79,6 +79,7 @@ export class DynaHMRCEngine {
     state.collaborationPlan = this.collaborationPlan;
     state.dialogues = this.dialogues;
     state.actions = this.allActions;
+    state.paused = this.paused;
     await this.emit({ type: 'state', data: state as any });
   }
 
