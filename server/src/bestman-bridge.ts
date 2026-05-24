@@ -196,14 +196,8 @@ export async function sendAction(
 
   try {
     // 映射机器人名称到 BestMan 中的 ID
-    const robotMap: Record<string, string> = {
-      'Alice': 'alice_base',
-      'Bob': 'bob_arm',
-      'David': 'david',
-      'Lucy': 'drone_body',
-    };
-
-    const robotId = robotMap[robotName] || robotName;
+    // 直接发原始机器人名，让服务端通过别名映射解析
+    const robotId = robotName;
 
     const resp = await fetch(`${BESTMAN_SERVICE_URL}/act`, {
       method: 'POST',
