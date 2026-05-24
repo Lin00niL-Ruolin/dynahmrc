@@ -154,6 +154,25 @@ export class RobotAgent {
     const response = await this.llm.chat(msgs);
     let action = this.parseAction(response.content);
 
+    // ⛔ 机器人能力约束：不允许的操作直接拦截
+    const FORBIDDEN_ACTIONS: Record<string, ActionType[]> = {
+      'David': [ActionType.PICK, ActionType.PLACE, ActionType.OPEN, ActionType.MOVE],
+      'Lucy': [ActionType.OPEN],
+      'Alice': [],
+      'Bob': [ActionType.NAVIGATE, ActionType.OPEN, ActionType.MOVE],
+    };
+    const blocked = FORBIDDEN_ACTIONS[this.roleTypeName] || [];
+    if (blocked.includes(action.actionType)) {
+      console.log(`[Agent ${this.name}] Capability constraint: ${this.roleTypeName} cannot ${action.actionType}. Forcing communicate.`);
+      action = {
+        robotName: this.name, actionType: ActionType.COMMUNICATE,
+        params: { content: `I cannot ${action.actionType}. ${
+          this.roleTypeName === 'David' ? 'I am a navigation-only robot. Please handle object manipulation.' : ''
+        }`, recipient: '*' },
+        timestamp: Date.now(),
+      };
+    }
+
     // ⛔ Mobile robots: never wait or communicate when actionable steps remain
     if (this.roleTypeName !== 'Bob') {
       const lastType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
