@@ -219,11 +219,18 @@ export class RobotAgent {
       }
     }
 
-    // ⛔ Mobile robots: NEVER place on cutting_board directly — only Bob does that
+    // ⛔ Non-Bob robots: NEVER place on ANY final target — only Bob does that
+    const FINAL_TARGETS: Record<string, string[]> = {
+      make_sandwich: ['cutting_board'],
+      sort_solids: ['cube_red', 'cube_green', 'cube_blue', 'cube_yellow', 'cube_purple', 'cube_orange'],
+      pack_objects: ['tray'],
+    };
     if (this.roleTypeName !== 'Bob' && action.actionType === ActionType.PLACE) {
       const target = (action.params.target as string || '').toLowerCase();
-      if (target.includes('cutting_board') || target.includes('tray')) {
-        console.log(`[Agent ${this.name}] Blocked place() on ${target}. Mobile robots cannot place on final target. Forcing place on Bob's table.`);
+      const validTargets = FINAL_TARGETS[this.taskType] || FINAL_TARGETS.pack_objects;
+      const isFinal = validTargets.some(t => target.includes(t.toLowerCase()));
+      if (isFinal) {
+        console.log(`[Agent ${this.name}] Blocked place() on final target "${target}". Non-Bob robots cannot place on final target. Forcing place on Bob's table.`);
         action.params.target = "Bob's table";
       }
     }
