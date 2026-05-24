@@ -120,7 +120,7 @@ CoT: Let's think step by step!
 export const TASK_ALLOCATION_HINTS: Record<string, string> = {
   make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob\'s table, Bob can reach). bacon and bread_1 on table_new_1 (need transport).',
   sort_solids: 'This is a SORTING mission. Find the small_cube_red scattered in the scene and place it on the cube_red on table_2. Mobile robots search and transport, Bob does precision placement.',
-  pack_objects: 'This is a PACKING mission. Items: fork, apple, book, soap. Each robot picks ONE different item - do NOT pick what another robot already has. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
+  pack_objects: 'This is a PACKING mission. Items: fork_0, apple, book_0, soap. Each robot picks ONE different item - do NOT pick what another robot already has. Mobile robots find items and bring to Bob\'s table. Bob places them into the tray one by one.',
 };
 
 export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
@@ -204,8 +204,8 @@ export function executionSystem(
       target: 'cube_red on table_2',
     },
     pack_objects: {
-      items: 'fork, apple, book, soap',
-      locations: 'fork on kitchen_cabinet (1.2, 0.55), apple on source_table_2 (4.15, 4), book on bookcase (7.5, 5.5), soap on wall_shelf (5.7, 6)',
+      items: 'fork_0, apple, book_0, soap',
+      locations: 'fork_0 on kitchen_cabinet (1.2, 0.55), apple on source_table_2 (4.15, 4), book_0 on bookcase (7.5, 5.5), soap on wall_shelf (5.7, 6)',
       target: 'tray',
     },
   };
@@ -278,7 +278,7 @@ Mobile robots: find the small cube → pick() → bring to Bob's table (table_2)
 Bob: pick small cube from table_2 → place on matching large cube`,
 
       pack_objects: `=== PACK WORKFLOW ===
-Items: fork, apple, book, soap (scattered around furniture)
+Items: fork_0, apple, book_0, soap (scattered around furniture)
 Final target: tray (only Bob places here)
 
 Mobile robots: find an item → pick() → bring to Bob's table → place on Bob's table
@@ -413,7 +413,7 @@ CoT: Let's think step by step!
 export const REFLECTION_TASK_HINTS: Record<string, string> = {
   make_sandwich: 'Task: Stack bread_0, bacon, bread_1 on cutting_board. bread_0 on table_new_2 (Bob can reach), bacon and bread_1 on table_new_1 (need transport).',
   sort_solids: 'Task: Find small_cube_red and place on cube_red. Search floor/shelf areas for the small cube, then bring to table_2.',
-  pack_objects: 'Task: Pack fork, apple, book, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
+  pack_objects: 'Task: Pack fork_0, apple, book_0, soap into tray. Others bring items to Bob on the table, Bob places into tray.',
 };
 
 export function reflectionParticipantUser(
@@ -447,7 +447,7 @@ CoT: Let's think step by step!
 export const LEADER_REFLECTION_HINTS: Record<string, string> = {
   make_sandwich: 'Stack bread_0, bacon, bread_1 on cutting_board. Bob can reach bread_0 (table_new_2). Mobile robots fetch bacon & bread_1 (table_new_1) and bring them to Bob.',
   sort_solids: 'The SORTING mission needs small_cube_red on cube_red. Assign scouts to find the small cube, and Bob for precision placement.',
-  pack_objects: 'The PACKING mission needs fork, apple, book, soap in tray. Assign each item to a different robot, Bob places from table into tray.',
+  pack_objects: 'The PACKING mission needs fork_0, apple, book_0, soap in tray. Assign each item to a different robot, Bob places from table into tray.',
 };
 
 export const REFLECTION_LEADER_SYSTEM = `
@@ -482,11 +482,11 @@ CoT: Let's think step by step!
 export const TASK_DESCRIPTIONS: Record<string, string> = {
   make_sandwich: 'Stack bread_0, bacon, bread_1 on top of each other on the cutting board (any order).',
   sort_solids: 'Find the small red cube scattered in the scene, bring it to table_2, and place it on top of the matching large red cube.',
-  pack_objects: 'Pack four items (fork, apple, book, soap) into the tray.',
+  pack_objects: 'Pack four items (fork_0, apple, book_0, soap) into the tray.',
 };
 
 export const TASK_GOALS: Record<string, string[]> = {
   make_sandwich: ['bread_0', 'bacon', 'bread_1'],
   sort_solids: ['small_cube_red'],
-  pack_objects: ['fork', 'apple', 'book', 'soap'],
+  pack_objects: ['fork_0', 'apple', 'book_0', 'soap'],
 };

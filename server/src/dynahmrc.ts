@@ -309,7 +309,7 @@ export class DynaHMRCEngine {
           const originals: Record<string, Record<string, string>> = {
             make_sandwich: { bread_0: 'table_new_2', bacon: 'table_new_1', bread_1: 'table_new_1' },
             sort_solids: { small_cube_red: 'scattered' },
-            pack_objects: { fork: 'kitchen_cabinet', apple: 'source_table_2', book: 'bookcase', soap: 'wall_shelf' },
+            pack_objects: { fork_0: 'kitchen_cabinet', apple: 'source_table_2', book_0: 'bookcase', soap: 'wall_shelf' },
           };
           let atRobotTable = '';
           for (const [rName, rPos] of Object.entries(this.sim.robotPositions)) {
