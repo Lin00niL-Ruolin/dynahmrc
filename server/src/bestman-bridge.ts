@@ -68,13 +68,8 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
   try {
     const existingCheck = await fetch(`${BESTMAN_SERVICE_URL}/`);
     if (existingCheck.ok) {
-      console.log('[BestMan] Found running service, reinitializing...');
-      // 强制重新初始化场景（不断开 PyBullet GUI）
-      const initOk = await initScene(scene, useGui, true);
-      if (initOk) {
-        serviceReady = true;
-        return true;
-      }
+      console.log('[BestMan] Found running service, reusing as-is');
+      return true;
     }
   } catch {}
   console.log('[BestMan] No existing service found, starting new one...');
