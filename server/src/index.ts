@@ -217,15 +217,13 @@ app.post('/api/bestman/start', async (req, res) => {
   try {
     const { startService } = await import('./bestman-bridge.js');
     const scene = req.body?.scene || 'scene1';
-    // 让 startService 自动检测 GUI（有 DISPLAY 才启动窗口）
-    startService(scene).then(ok => {
-      console.log(`[BestMan] Background start complete: ${ok}`);
-    }).catch(e => {
-      console.error('[BestMan] Background start failed:', e);
-    });
-    res.json({ ok: true, message: 'BestMan starting...' });
+    // 等待服务完全就绪
+    const ok = await startService(scene);
+    console.log(`[BestMan] Start complete: ${ok}`);
+    res.json({ ok, message: ok ? 'BestMan ready' : 'BestMan start failed' });
   } catch (e: any) {
-    res.json({ ok: true, message: 'BestMan request accepted' });
+    console.error('[BestMan] Start error:', e);
+    res.json({ ok: false, message: `BestMan error: ${e.message}` });
   }
 });
 
