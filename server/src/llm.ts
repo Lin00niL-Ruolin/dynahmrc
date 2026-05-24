@@ -16,34 +16,41 @@ export class DeepSeekClient {
   async chat(
     messages: LLMMessage[],
     temperature = 0.7,
-    maxTokens = 2048,
+    maxTokens = 1024,
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
       return this.mockResponse(messages);
     }
 
     try {
-      const response = await fetch(DEEPSEEK_API_URL, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      try {
+        const response = await fetch(DEEPSEEK_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: this.model,
+            messages,
+            temperature,
+            max_tokens: maxTokens,
+          }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`DeepSeek API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json() as any;
+        const raw = data.choices[0].message.content;
+        return this.parseResponse(raw);
+      } finally {
+        clearTimeout(timeout);
       }
-
-      const data = await response.json() as any;
-      const raw = data.choices[0].message.content;
-      return this.parseResponse(raw);
     } catch (error) {
       console.error('[ERROR] DeepSeek API call failed:', error);
       return this.mockResponse(messages);
