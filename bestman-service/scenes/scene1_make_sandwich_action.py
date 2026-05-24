@@ -129,13 +129,39 @@ TABLE_POS = {
     'cutting_board': [8.5, 5.5, 0.86],
 }
 
-# 机器人初始位置（记录手臂 Z 偏移）
-ARM_Z_OFFSET = {}
-for rk, body_id in robot_bodies.items():
-    if rk == 'new_robot_arm':
-        pos = p.getBasePositionAndOrientation(body_id)[0]
-        ARM_Z_OFFSET['arm'] = pos[2]  # 约 1.02m
-        print(f"  手臂初始 Z={pos[2]:.2f}")
+# 用固定约束把机械臂绑定在底座上
+ARM_CONSTRAINT = None
+def fix_arm_to_base():
+    """创建固定约束，让手臂跟随底座移动"""
+    global ARM_CONSTRAINT
+    base = robot_bodies.get('new_robot_base')
+    arm = robot_bodies.get('new_robot_arm')
+    if base is not None and arm is not None:
+        # 获取手臂相对底座的偏移
+        base_pos = p.getBasePositionAndOrientation(base)[0]
+        arm_pos = p.getBasePositionAndOrientation(arm)[0]
+        offset = [arm_pos[i] - base_pos[i] for i in range(3)]
+        try:
+            ARM_CONSTRAINT = p.createConstraint(
+                parentBodyUniqueId=base, parentLinkIndex=-1,
+                childBodyUniqueId=arm, childLinkIndex=-1,
+                jointType=p.JOINT_FIXED,
+                jointAxis=[0, 0, 0],
+                parentFramePosition=[0, 0, 0],
+                childFramePosition=offset,
+            )
+            print(f"  ✅ 手臂约束 #{ARM_CONSTRAINT} (偏移: {[f'{x:.2f}' for x in offset]})")
+            for _ in range(50):
+                p.stepSimulation()
+            return True
+        except Exception as e:
+            print(f"  ⚠️ 约束创建失败: {e}")
+    else:
+        print(f"  ⚠️ 找不到底座({base})或手臂({arm})")
+    return False
+
+# 执行约束
+fix_arm_to_base()
 
 
 def get_pos(name):
@@ -155,7 +181,7 @@ def get_arm_z():
 
 
 def navigate_to(robot_name, target_key):
-    """导航到硬编码坐标点"""
+    """导航到硬编码坐标点（手臂通过约束自动跟随）"""
     key = ROBOT_NAME_MAP.get(robot_name)
     if not key:
         print(f"  ⚠️ 未知机器人名 {robot_name}")
@@ -177,12 +203,14 @@ def navigate_to(robot_name, target_key):
         p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
         print(f"  ⚠️ A* 无路径，直接瞬移")
     else:
-        paired_key = ROBOT_PAIRS.get(key)
-        paired_body = robot_bodies.get(paired_key) if paired_key else None
-        arm_z = get_arm_z()
-        navigate_along_path(p, body, path, paired_body, paired_z=arm_z, steps_per_point=8)
+        # 只移动底座！手臂通过固定约束自动跟随
+        for i in range(1, len(path)):
+            px, py = path[i]
+            p.resetBasePositionAndOrientation(body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
+            for _ in range(10):  # 多步仿真让约束起作用
+                p.stepSimulation()
     
-    for _ in range(10):
+    for _ in range(20):
         p.stepSimulation()
     
     final_pos = p.getBasePositionAndOrientation(body)[0]
