@@ -149,7 +149,7 @@ def navigate(robot_name, target_name):
         print(f"  ⚠️ A* 无路径，直接瞬移")
     else:
         paired_body = robot_bodies.get(ROBOT_PAIRS_2.get(key)) if key in ROBOT_PAIRS_2 else None
-        navigate_along_path(p, body, paired_body, path, paired_body)
+        navigate_along_path(p, body, path, paired_body, steps_per_point=8)
     
     for _ in range(10):
         p.stepSimulation()

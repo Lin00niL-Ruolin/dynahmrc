@@ -16,36 +16,70 @@ class AStarPathPlanner:
     SCENE_WALLS = {
         'scene1': [
             # 外墙（边界）
-            {'type': 'rect', 'x': 5, 'y': 0, 'w': 10, 'h': 0.2},    # bottom
-            {'type': 'rect', 'x': 5, 'y': 8, 'w': 10, 'h': 0.2},    # top
-            {'type': 'rect', 'x': 0, 'y': 4, 'w': 0.2, 'h': 8},     # left
-            {'type': 'rect', 'x': 10, 'y': 4, 'w': 0.2, 'h': 8},    # right
+            {'x': 5, 'y': 0, 'w': 10, 'h': 0.15},
+            {'x': 5, 'y': 8, 'w': 10, 'h': 0.15},
+            {'x': 0, 'y': 4, 'w': 0.15, 'h': 8},
+            {'x': 10, 'y': 4, 'w': 0.15, 'h': 8},
             # 内墙
-            {'type': 'rect', 'x': 5, 'y': 2.5, 'w': 0.2, 'h': 5.0},  # 垂直墙 (5,0)→(5,5)
-            {'type': 'rect', 'x': 1.5, 'y': 4, 'w': 3.0, 'h': 0.2},  # 水平墙 (0,4)→(3,4)
-            {'type': 'rect', 'x': 5, 'y': 7.5, 'w': 0.2, 'h': 1.0},  # 垂直墙 (5,7)→(5,8)
+            {'x': 5, 'y': 2.5, 'w': 0.15, 'h': 5.0},
+            {'x': 1.5, 'y': 4, 'w': 3.0, 'h': 0.15},
+            {'x': 5, 'y': 7.5, 'w': 0.15, 'h': 1.0},
+            # 场景1家具（必须避让）
+            {'x': 9.4, 'y': 0.5, 'w': 0.8, 'h': 0.8},    # fridge
+            {'x': 7.4, 'y': 0.5, 'w': 0.8, 'h': 0.6},    # elementA
+            {'x': 5.9, 'y': 0.5, 'w': 0.8, 'h': 0.6},    # elementB1
+            {'x': 8.6, 'y': 0.5, 'w': 0.6, 'h': 0.6},    # elementC
+            {'x': 8.1, 'y': 0.3, 'w': 0.6, 'h': 0.6},    # microwave
+            {'x': 3, 'y': 2, 'w': 1.2, 'h': 0.8},        # table_dining
+            {'x': 8.5, 'y': 4, 'w': 1.2, 'h': 0.8},      # table_new_1
+            {'x': 8.5, 'y': 5.5, 'w': 1.2, 'h': 0.8},    # table_new_2
+            {'x': 0.5, 'y': 0.5, 'w': 0.8, 'h': 0.6},    # bookshelf_1
+            {'x': 0.5, 'y': 1.5, 'w': 0.8, 'h': 0.6},    # bookshelf_2
+            {'x': 0.5, 'y': 2.5, 'w': 0.8, 'h': 0.6},    # bookshelf_3
         ],
         'kitchen': [
-            {'type': 'rect', 'x': 5, 'y': 0, 'w': 10, 'h': 0.2},
-            {'type': 'rect', 'x': 5, 'y': 10, 'w': 10, 'h': 0.2},
-            {'type': 'rect', 'x': 0, 'y': 5, 'w': 0.2, 'h': 10},
-            {'type': 'rect', 'x': 10, 'y': 5, 'w': 0.2, 'h': 10},
-            # L 型墙
-            {'type': 'rect', 'x': 5, 'y': 2, 'w': 0.2, 'h': 4.0},
-            {'type': 'rect', 'x': 3, 'y': 8, 'w': 6.0, 'h': 0.2},
-            {'type': 'rect', 'x': 6, 'y': 9, 'w': 0.2, 'h': 2.0},
+            {'x': 5, 'y': 0, 'w': 10, 'h': 0.15},
+            {'x': 5, 'y': 10, 'w': 10, 'h': 0.15},
+            {'x': 0, 'y': 5, 'w': 0.15, 'h': 10},
+            {'x': 10, 'y': 5, 'w': 0.15, 'h': 10},
+            {'x': 5, 'y': 2, 'w': 0.15, 'h': 4.0},
+            {'x': 3, 'y': 8, 'w': 6.0, 'h': 0.15},
+            {'x': 6, 'y': 9, 'w': 0.15, 'h': 2.0},
+            # kitchen 家具
+            {'x': 1, 'y': 0.5, 'w': 0.8, 'h': 0.6},     # elementB1
+            {'x': 2.5, 'y': 0.5, 'w': 0.8, 'h': 0.6},   # elementA
+            {'x': 3.2, 'y': 0.3, 'w': 0.6, 'h': 0.4},   # microwave
+            {'x': 3.7, 'y': 0.5, 'w': 0.6, 'h': 0.4},   # elementC
+            {'x': 4.5, 'y': 0.5, 'w': 0.8, 'h': 0.8},   # fridge
+            {'x': 1, 'y': 4, 'w': 1.4, 'h': 1.0},        # table1
+            {'x': 3, 'y': 5, 'w': 1.4, 'h': 1.0},        # table2
+            {'x': 1, 'y': 6.5, 'w': 0.8, 'h': 0.6},      # bookcase
+            {'x': 7.5, 'y': 9, 'w': 1.5, 'h': 0.8},      # sofa
         ],
         'living_room': [
-            {'type': 'rect', 'x': 5, 'y': 0, 'w': 10, 'h': 0.2},
-            {'type': 'rect', 'x': 5, 'y': 10, 'w': 10, 'h': 0.2},
-            {'type': 'rect', 'x': 0, 'y': 5, 'w': 0.2, 'h': 10},
-            {'type': 'rect', 'x': 10, 'y': 5, 'w': 0.2, 'h': 10},
-            # 隔墙
-            {'type': 'rect', 'x': 6, 'y': 1, 'w': 0.2, 'h': 2.0},
-            {'type': 'rect', 'x': 6, 'y': 6, 'w': 0.2, 'h': 4.0},
-            {'type': 'rect', 'x': 8, 'y': 6, 'w': 4.0, 'h': 0.2},
-            {'type': 'rect', 'x': 5.5, 'y': 9, 'w': 0.2, 'h': 2.0},
-            {'type': 'rect', 'x': 1.5, 'y': 8, 'w': 3.0, 'h': 0.2},
+            {'x': 5, 'y': 0, 'w': 10, 'h': 0.15},
+            {'x': 5, 'y': 10, 'w': 10, 'h': 0.15},
+            {'x': 0, 'y': 5, 'w': 0.15, 'h': 10},
+            {'x': 10, 'y': 5, 'w': 0.15, 'h': 10},
+            {'x': 6, 'y': 1, 'w': 0.15, 'h': 2.0},
+            {'x': 6, 'y': 6, 'w': 0.15, 'h': 4.0},
+            {'x': 8, 'y': 6, 'w': 4.0, 'h': 0.15},
+            {'x': 5.5, 'y': 9, 'w': 0.15, 'h': 2.0},
+            {'x': 1.5, 'y': 8, 'w': 3.0, 'h': 0.15},
+            # living_room 家具
+            {'x': 1.2, 'y': 0.5, 'w': 0.8, 'h': 0.6},   # kitchen_cabinet
+            {'x': 3.1, 'y': 0.5, 'w': 0.8, 'h': 0.6},   # kitchen_counter
+            {'x': 3.8, 'y': 0.3, 'w': 0.6, 'h': 0.4},   # microwave
+            {'x': 4.6, 'y': 0.7, 'w': 0.6, 'h': 0.4},   # dishwasher
+            {'x': 5.5, 'y': 0.5, 'w': 0.8, 'h': 0.8},   # fridge
+            {'x': 7.3, 'y': 0.6, 'w': 0.8, 'h': 0.6},   # cabinet_2
+            {'x': 8.6, 'y': 0.8, 'w': 1.5, 'h': 0.8},   # sofa
+            {'x': 8, 'y': 3, 'w': 1.4, 'h': 1.0},        # packing_table
+            {'x': 2, 'y': 4, 'w': 1.2, 'h': 1.0},        # source_table_1
+            {'x': 4, 'y': 4, 'w': 1.2, 'h': 1.0},        # source_table_2
+            {'x': 7.5, 'y': 5.5, 'w': 0.8, 'h': 0.6},   # bookcase
+            {'x': 1.5, 'y': 9.4, 'w': 1.0, 'h': 0.6},   # bathtub
+            {'x': 5.7, 'y': 6.0, 'w': 0.8, 'h': 0.3},   # wall_shelf
         ],
     }
     
@@ -161,74 +195,30 @@ class AStarPathPlanner:
         return None
 
 
-def smooth_move(pybullet_module, robot_body, target_pos, speed=0.5):
+def navigate_along_path(p, robot_body, path, paired_body=None, steps_per_point=5):
     """
-    平滑移动机器人到目标位置
-    使用线性插值，每步小幅度移动
-    
-    Args:
-        pybullet_module: pybullet 模块引用
-        robot_body: 机器人的 body ID
-        target_pos: 目标位置 [x, y, z]
-        speed: 移动速度 (m/s)，步进后自动调节
-    
-    Returns:
-        bool: 是否成功到达
-    """
-    p = pybullet_module
-    current_pos, current_orn = p.getBasePositionAndOrientation(robot_body)
-    start_pos = list(current_pos)
-    target = list(target_pos)
-    
-    # 距离
-    dx = target[0] - start_pos[0]
-    dy = target[1] - start_pos[1]
-    dz = target[2] - start_pos[2] if len(target) > 2 else 0
-    dist = math.sqrt(dx*dx + dy*dy + dz*dz)
-    
-    if dist < 0.05:
-        return True  # 已经在了
-    
-    # 插值步数（每步约0.1m）
-    steps = max(int(dist / 0.08), 5)
-    
-    for i in range(1, steps + 1):
-        t = i / steps
-        nx = start_pos[0] + dx * t
-        ny = start_pos[1] + dy * t
-        nz = (start_pos[2] + dz * t) if len(target) > 2 else start_pos[2]
-        p.resetBasePositionAndOrientation(robot_body, [nx, ny, nz], p.getQuaternionFromEuler([0, 0, 0]))
-        # 步进仿真
-        for _ in range(3):
-            p.stepSimulation()
-    
-    return True
-
-
-def navigate_along_path(p, robot_body, robot_arm_body, path, paired_body=None):
-    """
-    沿 A* 路径导航，平滑移动
+    沿 A* 路径平滑移动（慢速）
     
     Args:
         p: pybullet 模块引用
         robot_body: 机器人底座 body ID
-        robot_arm_body: 机器人手臂 body ID（如有）
-        path: A* 返回的路径点列表
+        path: A* 返回的路径点列表 [(x1,y1), (x2,y2), ...]
         paired_body: 配对的 body（如手臂跟随底座）
+        steps_per_point: 每路径点的仿真步数（越大越慢越平滑）
     """
-    if not path:
+    if not path or len(path) < 2:
         return False
     
-    for i, (px, py) in enumerate(path):
-        # 保持 Z=0（地面）
+    for i in range(1, len(path)):
+        px, py = path[i]
         p.resetBasePositionAndOrientation(robot_body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
         if paired_body is not None:
             try:
                 p.resetBasePositionAndOrientation(paired_body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
             except:
                 pass
-        # 每步仿真
-        for _ in range(2):
+        # 每步多跑几次仿真，降低移动速度
+        for _ in range(steps_per_point):
             p.stepSimulation()
     
     return True

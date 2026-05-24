@@ -165,7 +165,7 @@ def navigate(robot_name, target_name):
         # 沿路径平滑移动
         paired_key = ROBOT_PAIRS.get(key)
         paired_body = robot_bodies.get(paired_key) if paired_key else None
-        navigate_along_path(p, body, paired_body, path, paired_body)
+        navigate_along_path(p, body, path, paired_body, steps_per_point=8)
     
     # 步进仿真
     for _ in range(10):
