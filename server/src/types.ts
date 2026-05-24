@@ -97,6 +97,7 @@ export interface RobotDialogue {
   thoughts: string;
   content: string;
   timestamp: number;
+  vote?: string;
 }
 
 export interface SimulationState {
@@ -110,6 +111,7 @@ export interface SimulationState {
   actions: RobotAction[];
   taskProgress: string;
   taskCompleted: boolean;
+  paused?: boolean;
   roomWidth?: number;
   roomHeight?: number;
   restrictedZones?: Array<{ x: number; y: number; radius: number }>;
