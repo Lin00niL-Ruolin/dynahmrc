@@ -261,6 +261,19 @@ def initialize(req: InitRequest):
         for _ in range(10):
             client.run(10)
 
+        # 设置 PyBullet GUI 相机视角（对准工作区域）
+        if cfg.Client.enable_GUI:
+            try:
+                p.resetDebugVisualizerCamera(
+                    cameraDistance=10,
+                    cameraYaw=45,
+                    cameraPitch=-30,
+                    cameraTargetPosition=[4, 4, 0]
+                )
+                print("[BestMan] Camera position set")
+            except Exception as cam_err:
+                print(f"[BestMan] Camera error: {cam_err}")
+
         return {
             "message": f"Scene '{req.scene}' initialized successfully",
             "gui": req.gui,
