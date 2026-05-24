@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useDynaHMRC } from '../hooks/useDynaHMRC';
 import { DialoguePanel } from '../components/DialoguePanel';
 import { SimulationView } from '../components/SimulationView';
 import { ControlBar } from '../components/ControlBar';
 import type { SimulationState } from '../types';
 
-type ViewMode = 'split' | 'dialogue' | 'simulation' | '3d';
+type ViewMode = 'split' | 'dialogue' | 'simulation';
 
 interface Props {
   hmrc: ReturnType<typeof useDynaHMRC>;
@@ -151,8 +151,6 @@ export function MissionPage({ hmrc, onBack }: Props) {
         {/* Right: BestMan + Status + View toggle */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {/* BestMan 3D Connection */}
-          <BestManControl taskType={taskType} />
-
           <span style={{
             fontSize: 12, padding: '2px 8px', borderRadius: 4,
             background: hmrc.connected ? '#064e3b' : '#450a0a',
@@ -166,7 +164,6 @@ export function MissionPage({ hmrc, onBack }: Props) {
               { mode: 'split' as ViewMode, label: '分屏' },
               { mode: 'dialogue' as ViewMode, label: '对话' },
               { mode: 'simulation' as ViewMode, label: '仿真' },
-              { mode: '3d' as ViewMode, label: '🧊 3D' },
             ].map(opt => (
               <button key={opt.mode} onClick={() => setViewMode(opt.mode)} style={{
                 padding: '4px 8px', border: 'none', fontSize: 12,
@@ -198,11 +195,6 @@ export function MissionPage({ hmrc, onBack }: Props) {
               style={{ flex: 1, border: 'none' }}
             />
           </div>
-        )}
-
-        {/* ---- 3D Render View ---- */}
-        {viewMode === '3d' && (
-          <BestMan3DView />
         )}
 
         {/* ---- Right: Simulation + Bottom Bar ---- */}
@@ -340,71 +332,6 @@ function TaskBriefing({ theme, taskType, robotState }: {
 
 // ==================== BestMan 3D 连接控制 ====================
 
-function BestManControl({ taskType }: { taskType: string }) {
-  const [connecting, setConnecting] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [bmStatus, setBmStatus] = useState<string>('');
-
-  const checkStatus = useCallback(async () => {
-    try {
-      const resp = await fetch('/api/bestman/status');
-      const data = await resp.json();
-      setConnected(data.running || false);
-      setBmStatus(data.env || '');
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    checkStatus();
-    const interval = setInterval(checkStatus, 5000);
-    return () => clearInterval(interval);
-  }, [checkStatus]);
-
-  const handleToggle = async () => {
-    if (connected) {
-      await fetch('/api/bestman/stop', { method: 'POST' });
-      setConnected(false);
-    } else {
-      setConnecting(true);
-      try {
-        const sceneMap: Record<string, string> = {
-          make_sandwich: 'scene1',
-          sort_solids: 'scene2',
-          pack_objects: 'scene3',
-        };
-        const resp = await fetch('/api/bestman/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1' }),
-        });
-        const data = await resp.json();
-        setConnected(data.ok || false);
-      } catch {}
-      setConnecting(false);
-    }
-  };
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <button
-        onClick={handleToggle}
-        disabled={connecting || bmStatus.includes('not')}
-        title={bmStatus}
-        style={{
-          fontSize: 11, padding: '3px 8px', borderRadius: 4, border: 'none',
-          cursor: connecting ? 'wait' : 'pointer',
-          background: connected ? '#065f46' : connecting ? '#1e293b' : '#1e293b',
-          border: `1px solid ${connected ? '#10b981' : '#334155'}`,
-          color: connected ? '#6ee7b7' : '#94a3b8',
-          fontWeight: 500,
-        }}
-      >
-        {connecting ? '⟳' : connected ? '🧊 3D' : '🧊 3D Off'}
-      </button>
-    </div>
-  );
-}
-
 // ==================== 机器人状态栏 ====================
 
 const robotEmojis: Record<string, string> = {
@@ -442,63 +369,4 @@ function RobotStatusBar({ state }: { state: SimulationState | null }) {
   );
 }
 
-// ==================== BestMan 3D 视图 ====================
 
-function BestMan3DView() {
-  const [image, setImage] = useState<string | null>(null);
-
-  const fetchRender = useCallback(async () => {
-    try {
-      const resp = await fetch('/api/bestman/render');
-      const data = await resp.json();
-      if (data.image) setImage(data.image);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    fetchRender(); // initial fetch
-    const interval = setInterval(fetchRender, 2000);
-    return () => clearInterval(interval);
-  }, [fetchRender]);
-
-  return (
-    <div style={{
-      flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      background: '#0f172a',
-    }}>
-      <div style={{
-        padding: '8px 14px', background: '#1e293b',
-        borderBottom: '1px solid #334155',
-        fontSize: 13, color: '#94a3b8',
-      }}>
-        🧊 BestMan 3D 仿真视图
-        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
-          (每2秒刷新)
-        </span>
-      </div>
-
-      <div style={{
-        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        overflow: 'hidden', padding: 8,
-      }}>
-        {image ? (
-          <img src={image} alt="3D Render" style={{
-            maxWidth: '100%', maxHeight: '100%',
-            borderRadius: 8, border: '1px solid #334155',
-            objectFit: 'contain',
-          }} />
-        ) : (
-          <div style={{ textAlign: 'center', color: '#475569' }}>
-            <span style={{ fontSize: 40 }}>🧊</span>
-            <p style={{ marginTop: 8, fontSize: 13 }}>
-              BestMan 3D 服务未连接
-            </p>
-            <p style={{ fontSize: 11, color: '#334155' }}>
-              请在 Config 面板勾选 3D BestMan 仿真
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
