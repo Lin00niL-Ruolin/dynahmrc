@@ -293,6 +293,23 @@ export class RobotAgent {
       }
     }
 
+    // ⛔ Non-Bob: if holding an item and at Bob's table, force place (don't wander off)
+    if (this.roleTypeName !== 'Bob' && this.status.gripperOccupied && action.actionType === ActionType.NAVIGATE) {
+      const atBobTable = 
+        (Math.abs(this.status.posX - 8.5) < 1.5 && Math.abs(this.status.posY - 5.5) < 1.5) ||
+        (Math.abs(this.status.posX - 3.5) < 1.5 && Math.abs(this.status.posY - 5.0) < 1.5) ||
+        (Math.abs(this.status.posX - 2.5) < 1.5 && Math.abs(this.status.posY - 4.0) < 1.5);
+      if (atBobTable) {
+        const held = this.status.graspingObject || 'item';
+        console.log(`[Agent ${this.name}] Holding ${held} at Bob's table but trying to navigate. Forcing place.`);
+        action = {
+          robotName: this.name, actionType: ActionType.PLACE,
+          params: { object: held, target: "Bob's table" },
+          timestamp: Date.now(),
+        };
+      }
+    }
+
     // ⛔ Non-Bob: pending wait after placing on Bob's table
     if (this.roleTypeName !== 'Bob' && this.pendingPlaceWait > 0) {
       console.log(`[Agent ${this.name}] Pending place wait: ${this.pendingPlaceWait} steps. Forcing wait.`);
