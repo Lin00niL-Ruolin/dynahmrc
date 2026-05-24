@@ -235,6 +235,16 @@ app.post('/api/bestman/stop', async (_req, res) => {
   }
 });
 
+app.get('/api/bestman/render', async (_req, res) => {
+  try {
+    const resp = await fetch('http://localhost:5001/render');
+    const data = await resp.json() as any;
+    res.json(data);
+  } catch {
+    res.json({ image: null });
+  }
+});
+
 app.post('/api/bestman/act', async (req, res) => {
   try {
     const { sendAction } = await import('./bestman-bridge.js');

@@ -5,7 +5,7 @@ import { SimulationView } from '../components/SimulationView';
 import { ControlBar } from '../components/ControlBar';
 import type { SimulationState } from '../types';
 
-type ViewMode = 'split' | 'dialogue' | 'simulation';
+type ViewMode = 'split' | 'dialogue' | 'simulation' | '3d';
 
 interface Props {
   hmrc: ReturnType<typeof useDynaHMRC>;
@@ -166,6 +166,7 @@ export function MissionPage({ hmrc, onBack }: Props) {
               { mode: 'split' as ViewMode, label: '分屏' },
               { mode: 'dialogue' as ViewMode, label: '对话' },
               { mode: 'simulation' as ViewMode, label: '仿真' },
+              { mode: '3d' as ViewMode, label: '🧊 3D' },
             ].map(opt => (
               <button key={opt.mode} onClick={() => setViewMode(opt.mode)} style={{
                 padding: '4px 8px', border: 'none', fontSize: 12,
@@ -197,6 +198,11 @@ export function MissionPage({ hmrc, onBack }: Props) {
               style={{ flex: 1, border: 'none' }}
             />
           </div>
+        )}
+
+        {/* ---- 3D Render View ---- */}
+        {viewMode === '3d' && (
+          <BestMan3DView />
         )}
 
         {/* ---- Right: Simulation + Bottom Bar ---- */}
@@ -432,6 +438,67 @@ function RobotStatusBar({ state }: { state: SimulationState | null }) {
           {r.name === state?.leader && <span style={{ fontSize: 10 }}>👑</span>}
         </div>
       ))}
+    </div>
+  );
+}
+
+// ==================== BestMan 3D 视图 ====================
+
+function BestMan3DView() {
+  const [image, setImage] = useState<string | null>(null);
+
+  const fetchRender = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/bestman/render');
+      const data = await resp.json();
+      if (data.image) setImage(data.image);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchRender(); // initial fetch
+    const interval = setInterval(fetchRender, 2000);
+    return () => clearInterval(interval);
+  }, [fetchRender]);
+
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      background: '#0f172a',
+    }}>
+      <div style={{
+        padding: '8px 14px', background: '#1e293b',
+        borderBottom: '1px solid #334155',
+        fontSize: 13, color: '#94a3b8',
+      }}>
+        🧊 BestMan 3D 仿真视图
+        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
+          (每2秒刷新)
+        </span>
+      </div>
+
+      <div style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden', padding: 8,
+      }}>
+        {image ? (
+          <img src={image} alt="3D Render" style={{
+            maxWidth: '100%', maxHeight: '100%',
+            borderRadius: 8, border: '1px solid #334155',
+            objectFit: 'contain',
+          }} />
+        ) : (
+          <div style={{ textAlign: 'center', color: '#475569' }}>
+            <span style={{ fontSize: 40 }}>🧊</span>
+            <p style={{ marginTop: 8, fontSize: 13 }}>
+              BestMan 3D 服务未连接
+            </p>
+            <p style={{ fontSize: 11, color: '#334155' }}>
+              请在 Config 面板勾选 3D BestMan 仿真
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

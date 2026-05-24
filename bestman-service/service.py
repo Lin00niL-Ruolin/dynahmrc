@@ -8,6 +8,10 @@ import os
 import sys
 import json
 import math
+import struct
+import zlib
+import base64
+import io
 import yaml
 from typing import Dict, List, Optional, Any
 from enum import Enum
@@ -520,6 +524,58 @@ def reset_scene():
     state.is_initialized = False
 
     return {"message": "Reset complete"}
+
+
+@app.get("/render")
+def render_scene():
+    """捕获 3D 场景截图，返回 base64 PNG"""
+    if not state.is_initialized or not state.client:
+        return {"image": None}
+    try:
+        # PyBullet 相机参数
+        view_matrix = p.computeViewMatrix(
+            cameraEyePosition=[12, 6, 6],
+            cameraTargetPosition=[4, 4, 0],
+            cameraUpVector=[0, 0, 1],
+        )
+        proj_matrix = p.computeProjectionMatrixFOV(
+            fov=60, aspect=1.0, nearVal=0.1, farVal=30
+        )
+        width, height, rgbPixels, _, _ = p.getCameraImage(
+            width=480, height=360,
+            viewMatrix=view_matrix,
+            projectionMatrix=proj_matrix,
+            renderer=p.ER_BULLET_HARDWARE_OPENGL,
+        )
+        # rgbPixels 是 (height, width, 4) uint8 RGBA，转为 PNG
+        raw_data = bytes(rgbPixels)  # flattens to RGBA bytes
+        # 纯 Python PNG 编码器 (无需 PIL)
+        def _encode_png(w, h, rgba_bytes):
+            def write_chunk(chunk_type, data):
+                chunk = chunk_type + data
+                return struct.pack('>I', len(data)) + chunk + struct.pack('>I', zlib.crc32(chunk) & 0xFFFFFFFF)
+            
+            buf = io.BytesIO()
+            buf.write(b'\x89PNG\r\n\x1a\n')
+            # IHDR
+            ihdr = struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)  # 8bit RGBA
+            buf.write(write_chunk(b'IHDR', ihdr))
+            # IDAT - raw image data with filter byte per row
+            raw = b''
+            for y in range(h):
+                raw += b'\x00'  # filter: None
+                row_start = y * w * 4
+                raw += rgba_bytes[row_start:row_start + w * 4]
+            buf.write(write_chunk(b'IDAT', zlib.compress(raw)))
+            buf.write(write_chunk(b'IEND', b''))
+            return buf.getvalue()
+        
+        png_data = _encode_png(width, height, raw_data)
+        b64 = base64.b64encode(png_data).decode()
+        return {"image": f"data:image/png;base64,{b64}"}
+    except Exception as e:
+        print(f"[BestMan] Render error: {e}")
+        return {"image": None}
 
 
 @app.on_event("shutdown")
