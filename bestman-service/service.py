@@ -152,8 +152,14 @@ def initialize(req: InitRequest):
         # 覆盖 GUI 设置
         cfg.Client.enable_GUI = req.gui
 
-        # 创建 Client(传入 cfg.Client 子对象)
-        client = Client(cfg.Client)
+        # 创建 Client(传入 cfg.Client 子对象)，GUI 失败时自动切换到 DIRECT
+        try:
+            client = Client(cfg.Client)
+        except Exception as gui_err:
+            print(f"[BestMan] GUI mode failed ({gui_err}), falling back to DIRECT...")
+            cfg.Client.enable_GUI = False
+            client = Client(cfg.Client)
+            print(f"[BestMan] DIRECT mode started successfully")
         state.client = client
         state.is_initialized = True
 

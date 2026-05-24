@@ -60,9 +60,8 @@ export function checkEnvironment(): { ok: boolean; message: string } {
  * 启动 BestMan 微服务
  */
 export async function startService(scene: string = 'scene1', gui?: boolean): Promise<boolean> {
-  // 自动检测 GUI 可用性：有 DISPLAY 环境变量才用 GUI
-  const hasDisplay = !!(process.env.DISPLAY && process.env.DISPLAY !== '');
-  const useGui = gui !== undefined ? gui : hasDisplay;
+  // 默认开启 GUI（云桌面有显示器），Python 端会自动 fallback 到 DIRECT
+  const useGui = gui !== undefined ? gui : true;
   console.log(`[BestMan] Starting service, DISPLAY=${process.env.DISPLAY || '(none)'}, gui=${useGui}`);
   if (serviceReady) {
     console.log('[BestMan] Service already running (serviceReady=true)');
