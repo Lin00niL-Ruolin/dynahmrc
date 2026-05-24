@@ -417,8 +417,8 @@ export class DynaHMRCEngine {
         }
       }
 
-      // Periodic reflection every 5 steps
-      if (this.stepCount % 5 === 0 && this.running) {
+      // Periodic reflection every 10 steps (better action-to-reflection ratio)
+      if (this.stepCount % 10 === 0 && this.running) {
         await this.doReflection();
       }
 

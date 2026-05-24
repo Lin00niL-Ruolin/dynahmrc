@@ -19,6 +19,7 @@ export class RobotAgent {
   campaignSpeech = '';
   currentPlan = '';
   failedPickItems: Map<string, number> = new Map(); // item → stepCount when failed
+  pendingPlaceWait = 0; // steps to wait after placing on Bob's table
 
   private roleTypeName: string;
 
@@ -200,7 +201,7 @@ export class RobotAgent {
       const failedAgo = this.failedPickItems.get(pickTarget);
       if (failedAgo !== undefined) {
         const currentStep = this.actionHistory.length;
-        if (currentStep - failedAgo < 3) {
+        if (currentStep - failedAgo < 1) {
           console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}) — failed ${currentStep - failedAgo} steps ago. Forcing wait.`);
           action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
         } else {
@@ -212,7 +213,7 @@ export class RobotAgent {
         const lastFeedback = this.feedbackHistory.length > 0 ? this.feedbackHistory[this.feedbackHistory.length - 1].description : '';
         if (lastFeedback.includes('out of reach') || lastFeedback.includes('already being held')) {
           this.failedPickItems.set(pickTarget, this.actionHistory.length);
-          console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}). Will retry after 3 steps.`);
+          console.log(`[Agent ${this.name}] Blocked pick(${pickTarget}). Will retry next step.`);
           action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
         }
       }
@@ -260,6 +261,13 @@ export class RobotAgent {
           };
         }
       }
+    }
+
+    // ⛔ Non-Bob: pending wait after placing on Bob's table
+    if (this.roleTypeName !== 'Bob' && this.pendingPlaceWait > 0) {
+      console.log(`[Agent ${this.name}] Pending place wait: ${this.pendingPlaceWait} steps. Forcing wait.`);
+      this.pendingPlaceWait--;
+      action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
     }
 
     // ⛔ Bob: if stuck in wait() loop and objects are on his table, force pick
@@ -335,6 +343,14 @@ export class RobotAgent {
     this.feedbackHistory.push(feedback);
     if (this.feedbackHistory.length > 10) {
       this.feedbackHistory = this.feedbackHistory.slice(-10);
+    }
+    // Detect Place Success on Bob's table → set pending wait so Bob has time to pick
+    if (this.roleTypeName !== 'Bob' && feedback.success && feedback.actionType === ActionType.PLACE) {
+      const desc = feedback.description.toLowerCase();
+      if (desc.includes('bob') || desc.includes('table') || desc.includes('place success')) {
+        this.pendingPlaceWait = 2; // wait 2 steps for Bob to pick
+        console.log(`[Agent ${this.name}] Just placed on Bob's table. Will wait ${this.pendingPlaceWait} steps.`);
+      }
     }
   }
 
