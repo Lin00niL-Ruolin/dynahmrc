@@ -498,9 +498,10 @@ export class RobotAgent {
       }
       if (obj.isContainer) {
         parts.push(`state=${obj.isOpen ? 'open' : 'close'}`);
-        if (obj.contains.length > 0) {
-          parts.push(`contains=[${obj.contains.join(', ')}]`);
-        }
+      }
+      // Show contents for ANY object that has items on it (even non-container furniture like tables)
+      if (obj.contains && obj.contains.length > 0) {
+        parts.push(`contains=[${obj.contains.join(', ')}]`);
       }
       lines.push(parts.join(', '));
     }
