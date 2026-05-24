@@ -239,7 +239,8 @@ export class SimEnvironment {
         ['sink', 4.7, 9.6, 0.4, 0.4, false],
         ['tray', 2.0, 4.0, 0.3, 0.3, false],
         // (colored panels moved to addTaskObjects — only for sort_solids)
-        // Floor items
+        // Wall shelf (soap is on it) + floor items
+        ['wall_shelf', 5.7, 6.0, 0.8, 0.3, false],
         ['rug', 8, 2.4, 0.6, 0.6, false],
         ['blue_bowl', 6.9, 0.6, 0.3, 0.3, false],
       ];
@@ -391,7 +392,7 @@ export class SimEnvironment {
         addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
         addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
         addItem('book', 7.5, 5.8, 'bookcase');                // book_0 on bookcase
-        addItem('soap', 5.7, 6.0, 'sink_base');            // soap near sink (matching 3D scene3)
+        addItem('soap', 5.7, 6.0, 'wall_shelf');            // soap on wall shelf (matching 3D scene3)
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 2, 4, 'source_table_1');
         addItem('small_cube_green', 8, 8, 'bathtub');
