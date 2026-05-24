@@ -389,7 +389,7 @@ export class SimEnvironment {
         addItem('fork', 1.2, 0.55, 'kitchen_cabinet');      // fork_0
         addItem('apple', 4.15, 4, 'source_table_2');          // apple on source_table_2
         addItem('book', 7.5, 5.8, 'bookcase');                // book_0 on bookcase
-        addItem('soap', 5.7, 2, 'kitchen_counter');            // soap on wall shelf near wall4
+        addItem('soap', 3.5, 1.8, 'kitchen_counter');            // soap on kitchen counter
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 2, 4, 'source_table_1');
         addItem('small_cube_green', 8, 8, 'bathtub');
