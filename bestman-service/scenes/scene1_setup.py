@@ -194,6 +194,17 @@ def setup_scene1(client, scene_json_path=None):
                     loaded += 1
                 except Exception as e:
                     print(f"  ✗ {obj.get('obj_name', '?')}: {e}")
+                    # URDF 加载失败 → 用简单方块代替
+                    try:
+                        size = scale * 0.5
+                        col = p.createCollisionShape(p.GEOM_BOX, halfExtents=[size, size, size*0.5])
+                        vis = p.createVisualShape(p.GEOM_BOX, halfExtents=[size, size, size*0.5],
+                                                    rgbaColor=[0.5, 0.5, 0.5, 1.0])
+                        fallback_id = p.createMultiBody(0.1, col, vis, pos)
+                        print(f"    → 用方块代替 ✓")
+                        loaded += 1
+                    except:
+                        pass
 
             print(f"[场景] ✅ 已加载 {loaded}/{len(scene_data)} 个物体")
         finally:
