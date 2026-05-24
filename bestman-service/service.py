@@ -511,10 +511,23 @@ def execute_action(req: ActRequest):
                     if pos is None:
                         pos = known_pos.get('table_new_2') or known_pos.get('table2') or known_pos.get('bobs_table')
                 if pos:
+                    # 移动主机器人
                     p.resetBasePositionAndOrientation(robot_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
                     # 更新状态位置
                     state.robot_positions[robot_id] = pos
-                    # 如果机器人携带着物体，也移动物体（约束自动跟随）
+                    # 移动关联部件（底座→手臂，手臂→底座）
+                    paired_bodies = {
+                        'new_robot_base': 'new_robot_arm',
+                        'new_robot_arm': 'new_robot_base',
+                        'alice_base': 'alice_arm',
+                        'alice_arm': 'alice_base',
+                    }
+                    for rk, rv in paired_bodies.items():
+                        if rk == resolved_name:
+                            paired_body = state.robots.get(rv)
+                            if paired_body is not None:
+                                p.resetBasePositionAndOrientation(paired_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+                                print(f"    → 同时移动 {rv}")
                     print(f"  ✓ 导航到 {target} @ {pos}")
                 else:
                     print(f"  ⚠️ 未知位置: {target}, 跳过")
