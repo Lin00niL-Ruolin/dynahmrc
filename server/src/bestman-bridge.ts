@@ -64,11 +64,21 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
   const useGui = true;
   console.log(`[BestMan] Starting service with GUI=${useGui} (TigerVNC :1)`);
 
-  // 先清理旧进程
-  try { execSync('pkill -f service.py 2>/dev/null || true'); } catch {}
-  await new Promise(r => setTimeout(r, 1000));
-  serviceReady = false;
-  bestmanProcess = null;
+  // 先检查是否已有服务在运行（用户点的 🧊 3D）
+  try {
+    const existingCheck = await fetch(`${BESTMAN_SERVICE_URL}/`);
+    if (existingCheck.ok) {
+      console.log('[BestMan] Found running service, reinitializing...');
+      // 先 reset 再 init（确保场景正确）
+      await fetch(`${BESTMAN_SERVICE_URL}/reset`, { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+      const initOk = await initScene(scene, useGui);
+      if (initOk) {
+        serviceReady = true;
+        return true;
+      }
+    }
+  } catch {}
+  console.log('[BestMan] No existing service found, starting new one...');
 
   const envCheck = checkEnvironment();
   if (!envCheck.ok) {

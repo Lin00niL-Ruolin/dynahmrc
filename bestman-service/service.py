@@ -153,15 +153,19 @@ def initialize(req: InitRequest):
         config_path = os.path.join(bestman_dir, req.config_path)
         cfg = load_yaml_config(config_path)
 
-        # 覆盖 GUI 设置
-        cfg.Client.enable_GUI = req.gui
-
-        # 先尝试 GUI 模式（云桌面有 TigerVNC :1），失败则 fallback 到 DIRECT
-        try:
-            cfg.Client.enable_GUI = req.gui
-            client = Client(cfg.Client)
-        except Exception as gui_err:
-            print(f"[BestMan] GUI failed ({gui_err}), falling back to DIRECT...")
+        # 检测 DISPLAY 是否可用（避免 GUI 连接卡死）
+        has_display = os.environ.get('DISPLAY') and os.environ.get('XAUTHORITY')
+        if req.gui and has_display:
+            cfg.Client.enable_GUI = True
+            try:
+                client = Client(cfg.Client)
+                print(f"[BestMan] GUI mode started (DISPLAY={os.environ.get('DISPLAY')})")
+            except Exception as gui_err:
+                print(f"[BestMan] GUI failed ({gui_err}), falling back to DIRECT...")
+                cfg.Client.enable_GUI = False
+                client = Client(cfg.Client)
+        else:
+            print(f"[BestMan] DIRECT mode (DISPLAY={os.environ.get('DISPLAY')}, req.gui={req.gui})")
             cfg.Client.enable_GUI = False
             client = Client(cfg.Client)
         state.client = client
