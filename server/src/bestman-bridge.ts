@@ -60,9 +60,9 @@ export function checkEnvironment(): { ok: boolean; message: string } {
  * 启动 BestMan 微服务
  */
 export async function startService(scene: string = 'scene1', gui?: boolean): Promise<boolean> {
-  // 默认开启 GUI（云桌面有显示器），Python 端会自动 fallback 到 DIRECT
-  const useGui = gui !== undefined ? gui : true;
-  console.log(`[BestMan] Starting service, DISPLAY=${process.env.DISPLAY || '(none)'}, gui=${useGui}`);
+  // 强制 DIRECT 模式（稳定运行，不依赖 X 服务器）
+  const useGui = false;
+  console.log(`[BestMan] Starting service in DIRECT (headless) mode`);
 
   // 先清理旧进程
   try { execSync('pkill -f service.py 2>/dev/null || true'); } catch {}
