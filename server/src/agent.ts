@@ -491,11 +491,13 @@ export class RobotAgent {
     const lines: string[] = [];
     for (const obj of Object.values(scene.objects)) {
       const parts = [`${obj.name}: pos=(${obj.posX.toFixed(1)}, ${obj.posY.toFixed(1)})`];
+      // Category: 'furniture' (can navigate to) or 'item' (cannot navigate to, must pick)
+      parts.push(`[${obj.category}]`);
+      if (obj.standPoseX != null && obj.standPoseY != null) {
+        parts.push(`stand_pose=(${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)})`);
+      }
       if (obj.isContainer) {
         parts.push(`state=${obj.isOpen ? 'open' : 'close'}`);
-        if (obj.standPoseX != null && obj.standPoseY != null) {
-          parts.push(`stand_pose=(${obj.standPoseX.toFixed(1)}, ${obj.standPoseY.toFixed(1)})`);
-        }
         if (obj.contains.length > 0) {
           parts.push(`contains=[${obj.contains.join(', ')}]`);
         }

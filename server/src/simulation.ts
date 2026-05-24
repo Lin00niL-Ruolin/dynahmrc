@@ -570,11 +570,21 @@ export class SimEnvironment {
             details: { target: obj.name, posX: obj.standPoseX, posY: obj.standPoseY },
           };
         }
+        // Helpful failure: check if target exists as an item (not navigable)
+        const itemObj = this.scene.objects[target];
+        if (itemObj && itemObj.category === 'item') {
+          return {
+            actionType: ActionType.NAVIGATE,
+            success: false,
+            description: `Navigation Failed: "${target}" is an item (category=item), not a navigation target. Use pick("${target}") instead of navigate(). Valid navigation targets (furniture with stand_pose): ${Object.values(this.scene.objects).filter(o=>o.category==='furniture'&&o.standPoseX!=null).map(o=>o.name).join(', ')}.`,
+            details: { error_code: 'IS_ITEM' },
+          };
+        }
         return {
           actionType: ActionType.NAVIGATE,
           success: false,
-          description: `Navigation Failed: The target ${target} is either invalid (does not exist in scene graph) or exceeds map boundaries. Valid navigation targets: ${Object.values(this.scene.objects).filter(o=>o.standPoseX!=null).map(o=>o.name).join(', ')}.`,
-          details: {},
+          description: `Navigation Failed: The target "${target}" is invalid. Valid navigation targets (furniture with stand_pose): ${Object.values(this.scene.objects).filter(o=>o.category==='furniture'&&o.standPoseX!=null).map(o=>o.name).join(', ')}.`,
+          details: { error_code: 'INVALID_TARGET' },
         };
       }
 
