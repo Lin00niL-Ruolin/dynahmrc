@@ -5,6 +5,7 @@ import {
 import { RobotAgent } from './agent.js';
 import { SimEnvironment } from './simulation.js';
 import { TASK_DESCRIPTIONS, TASK_GOALS } from './prompts.js';
+import { sendAction as bestmanSendAction } from './bestman-bridge.js';
 
 type UpdateCallback = (msg: WSMessage) => Promise<void>;
 
@@ -375,12 +376,10 @@ export class DynaHMRCEngine {
         // 如果启用 BestMan，将动作转发到 3D 仿真
         if (this.useBestMan && this.bestManStarted) {
           try {
-            const { sendAction } = await import('./bestman-bridge.js');
             const actParams: Record<string, any> = { ...action.params };
-            // 映射动作类型名
             const actTypeMap: Record<string, string> = {
               'navigate': 'navigate',
-              'open': 'pick',       // open 在 3D 中暂不支持
+              'open': 'pick',
               'pick': 'pick',
               'place': 'place',
               'move': 'navigate',
@@ -388,8 +387,13 @@ export class DynaHMRCEngine {
               'wait': 'wait',
             };
             const bmAction = actTypeMap[action.actionType] || action.actionType;
-            await sendAction(name, bmAction, actParams);
-          } catch { /* BestMan error - non-fatal */ }
+            const result = await bestmanSendAction(name, bmAction, actParams);
+            if (!result.success) {
+              console.warn(`[BestMan] Action failed: ${name} ${bmAction} - ${result.message}`);
+            }
+          } catch (e: any) {
+            console.warn(`[BestMan] sendAction error: ${e.message}`);
+          }
         }
 
         await this.emitDialogue({
