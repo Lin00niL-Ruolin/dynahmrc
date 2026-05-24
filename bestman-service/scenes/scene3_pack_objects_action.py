@@ -14,7 +14,9 @@ import sys
 import time
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-workspace_dir = os.path.dirname(os.path.dirname(script_dir))
+# scene3 在 dynahmrc/bestman-service/scenes/
+# BestMan 在 workspace/BestMan/
+workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
 bestman_dir = os.path.join(workspace_dir, 'BestMan')
 sys.path.insert(0, bestman_dir)
 sys.path.insert(0, os.path.dirname(script_dir))
