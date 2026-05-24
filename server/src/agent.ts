@@ -262,6 +262,22 @@ export class RobotAgent {
       }
     }
 
+    // ⛔ Bob: if stuck in wait() loop and objects are on his table, force pick
+    if (this.roleTypeName === 'Bob' && action.actionType === ActionType.WAIT && !this.status.gripperOccupied) {
+      // Check sharedStatus for objects on Bob's table
+      const bobTableRegex = /On Bob's table \(delivered\):\s*\[([^\]]+)\]/i;
+      const match = (sharedStatus || '').match(bobTableRegex);
+      if (match && match[1].trim()) {
+        const objName = match[1].trim();
+        console.log(`[Agent ${this.name}] Bob stuck in wait loop, forcing pick(${objName}) from Bob's table.`);
+        action = {
+          robotName: this.name, actionType: ActionType.PICK,
+          params: { object: objName },
+          timestamp: Date.now(),
+        };
+      }
+    }
+
     if (response.thoughts) {
       this.currentPlan = response.thoughts;
     }
