@@ -210,7 +210,7 @@ def navigate_to(robot_name, target_key):
                 print(f"  ⚠️ 直线路径在 ({mx:.1f},{my:.1f}) 碰撞，直接瞬移")
                 break
             p.resetBasePositionAndOrientation(body, [mx, my, 0], p.getQuaternionFromEuler([0, 0, 0]))
-            for _ in range(2):
+            for _ in range(6):
                 p.stepSimulation()
         else:
             p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
@@ -223,8 +223,9 @@ def navigate_to(robot_name, target_key):
                 print(f"  ⚠️ 路径点 ({px:.1f},{py:.1f}) 碰撞，跳过")
                 continue
             p.resetBasePositionAndOrientation(body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
-            for _ in range(3):
+            for _ in range(12):
                 p.stepSimulation()
+            time.sleep(0.08)  # 每路径点暂停，看起来更平滑
     
     for _ in range(20):
         p.stepSimulation()
