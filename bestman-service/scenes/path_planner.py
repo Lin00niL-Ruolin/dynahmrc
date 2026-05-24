@@ -195,29 +195,39 @@ class AStarPathPlanner:
         return None
 
 
-def navigate_along_path(p, robot_body, path, paired_body=None, steps_per_point=5):
+def navigate_along_path(p, robot_body, path, paired_body=None, paired_z=None, steps_per_point=5):
     """
     沿 A* 路径平滑移动（慢速）
+    配对 body（如手臂）保持原始 Z 坐标不变，只移动 XY
     
     Args:
         p: pybullet 模块引用
         robot_body: 机器人底座 body ID
         path: A* 返回的路径点列表 [(x1,y1), (x2,y2), ...]
         paired_body: 配对的 body（如手臂跟随底座）
-        steps_per_point: 每路径点的仿真步数（越大越慢越平滑）
+        paired_z: 配对 body 的 Z 坐标（如不传则自动获取）
+        steps_per_point: 每路径点的仿真步数（越大越慢）
     """
     if not path or len(path) < 2:
         return False
     
+    # 如果配对 body 存在，获取/记录其 Z 坐标（保持不动）
+    arm_z = None
+    if paired_body is not None:
+        try:
+            arm_z = paired_z if paired_z is not None else p.getBasePositionAndOrientation(paired_body)[0][2]
+        except:
+            pass
+    
     for i in range(1, len(path)):
         px, py = path[i]
         p.resetBasePositionAndOrientation(robot_body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
-        if paired_body is not None:
+        if paired_body is not None and arm_z is not None:
             try:
-                p.resetBasePositionAndOrientation(paired_body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
+                # 只移动 XY，保持 Z 不变！
+                p.resetBasePositionAndOrientation(paired_body, [px, py, arm_z], p.getQuaternionFromEuler([0, 0, 0]))
             except:
                 pass
-        # 每步多跑几次仿真，降低移动速度
         for _ in range(steps_per_point):
             p.stepSimulation()
     
