@@ -340,14 +340,30 @@ def execute_action(req: ActRequest):
                 # 在目标位置创建临时支撑让物体不掉下去
                 target_pos = state.scene_objects.get(target)
                 if target_pos is None and target:
-                    # 已知位置映射
+                    # 完整的位置映射（与导航共用）
                     known_pos = {
-                        'tray': [5, 5, 0.83],
+                        'tray': [2, 4, 0.87],
                         'cutting_board': [8.5, 5.5, 0.86],
                         'table_new_2': [8.5, 5.5, 0.86],
+                        'table_new_1': [8.5, 4, 0.86],
+                        'table2': [3, 5, 0.86],
+                        'table1': [1, 4, 0.86],
+                        'source_table_1': [2, 4, 0.86],
+                        'bobs_table': [8.5, 5.5, 0.86],
+                        'bob_table': [8.5, 5.5, 0.86],
+                        'packing_table': [8, 3, 0.86],
                     }
-                    if target in known_pos:
-                        pos = known_pos[target]
+                    tgt = target.lower()
+                    pos = known_pos.get(tgt)
+                    if pos is None:
+                        # 模糊匹配
+                        for key, val in known_pos.items():
+                            if tgt in key or key in tgt:
+                                pos = val
+                                break
+                    if pos is None and ('bob' in tgt or 'source_table' in tgt):
+                        pos = [2, 4, 0.86]  # Bob's table = source_table_1
+                    if pos:
                         p.resetBasePositionAndOrientation(body_id, pos, [0, 0, 0, 1])
             
             result["message"] = f"{robot_id} placed object"
@@ -357,36 +373,89 @@ def execute_action(req: ActRequest):
             target = params.get("target", "")
             resolved_name, robot_body = _resolve_robot(robot_id)
             if target and robot_body:
-                # 已知家具位置（匹配 scene1 布局）
+                # 完整家具位置字典（覆盖全部三个场景，与2D仿真一致）
                 known_pos = {
+                    # === SCENE1 (make_sandwich) ===
                     'fridge': [9.4, 0.5, 0],
-                    'table_dining': [3, 2, 0],
-                    'table_new_2': [8.5, 5.5, 0],
-                    'cutting_board': [8.5, 5.5, 0.86],
-                    'counter_elementa': [7.4, 0.5, 0],
-                    'counter_elementb': [5.9, 0.5, 0],
+                    'elementa': [7.4, 0.5, 0],
+                    'elementb1': [5.9, 0.5, 0],
+                    'elementc': [8.6, 0.5, 0],
+                    'microwave': [8.1, 0.3, 0],
+                    'table': [3, 2, 0],
+                    'chair_bottom': [3, 1, 0],
+                    'chair_top': [3, 3, 0],
                     'table_new_1': [8.5, 4, 0.86],
                     'table_new_2': [8.5, 5.5, 0.86],
-                    'bookcase': [3, 7.5, 0],
-                    'sofa': [1.5, 6, 0],
-                    'bathtub': [8, 7, 0],
-                    'sink_area': [8, 3, 0],
-                    'cabinate': [0.5, 7, 0],
+                    'chair_3': [8.5, 3, 0],
+                    'chair_4': [7.5, 5, 0],
+                    'bookshelf_1': [0.5, 0.5, 0.96],
+                    'bookshelf_2': [0.5, 1.5, 0.96],
+                    'bookshelf_3': [0.5, 2.5, 0.96],
+                    'cutting_board': [8.5, 5.5, 0.86],
+                    'toilet': [7.0, 8, 0],
+                    'bathtub': [1.0, 7, 0],
+                    # === SCENE2 (kitchen / sort_solids) ===
+                    'elementb1_kitchen': [1, 0.5, 0],
+                    'elementa_kitchen': [2.5, 0.5, 0],
+                    'microwave_kitchen': [3.2, 0.3, 0],
+                    'elementc_kitchen': [3.7, 0.5, 0],
+                    'fridge_kitchen': [4.5, 0.5, 0],
+                    'table1': [1, 4, 0],
+                    'table2': [3, 5, 0],
+                    'bookcase': [1, 6.5, 0],
+                    'sofa': [7.5, 9, 0],
+                    'rug': [6, 2, 0],
+                    'shelf_table': [9.5, 7.5, 0],
+                    # === SCENE3 (living_room / pack_objects) ===
+                    'kitchen_cabinet': [1.2, 0.5, 0],
+                    'kitchen_counter': [3.1, 0.5, 0],
+                    'microwave_lr': [3.8, 0.3, 0],
+                    'dishwasher': [4.6, 0.7, 0],
+                    'fridge_lr': [5.5, 0.5, 0],
+                    'cabinet_2': [7.3, 0.6, 0],
+                    'sofa_lr': [8.6, 0.8, 0],
+                    'packing_table': [8, 3, 0],
+                    'source_table_1': [2, 4, 0],
+                    'source_table_2': [4, 4, 0],
+                    'chair': [2, 3, 0],
+                    'bookcase_lr': [7.5, 5.5, 0],
+                    'bathtub_lr': [1.5, 9.4, 0],
+                    'sink_base': [4.7, 9.5, 0],
+                    'sink': [4.7, 9.6, 0.8],
+                    'tray': [2, 4, 0.87],
+                    'wall_shelf': [5.7, 6.0, 0],
+                    'rug_lr': [8, 2.4, 0],
+                    # === 旧名称/别名（兼容性）===
+                    'counter_elementa': [7.4, 0.5, 0],
+                    'counter_elementb': [5.9, 0.5, 0],
+                    'table_dining': [3, 2, 0],
+                    'chair_bob_1': [8.5, 3, 0],
+                    'chair_bob_2': [7.5, 5, 0],
+                    'bobs_table': [8.5, 5.5, 0.86],
+                    'bob_table': [8.5, 5.5, 0.86],
                 }
                 tgt = target.lower()
-                # 先尝试精确匹配
+                # 1. 精确匹配
                 pos = known_pos.get(tgt)
+                # 2. 模糊匹配
                 if pos is None:
-                    # 模糊匹配
                     for key, val in known_pos.items():
                         if tgt in key or key in tgt:
                             pos = val
                             break
+                # 3. 场景3的Bob's table = source_table_1
+                if pos is None and ('bob' in tgt or 'table_new_2' in tgt or 'table_2' in tgt):
+                    pos = known_pos.get('source_table_1')
+                    if pos is None:
+                        pos = known_pos.get('table_new_2') or known_pos.get('table2') or known_pos.get('bobs_table')
                 if pos:
                     p.resetBasePositionAndOrientation(robot_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+                    # 如果机器人携带着物体，也移动物体
+                    for rk, cid in list(state.gripper_constraints.items()):
+                        if rk == robot_id or rk == resolved_name:
+                            pass  # 物体通过约束跟随机器人
                     print(f"  ✓ 导航到 {target} @ {pos}")
                 else:
-                    # Fallback: 用目标名的坐标
                     print(f"  ⚠️ 未知位置: {target}, 跳过")
             
             if robot_id not in state.robot_positions:
