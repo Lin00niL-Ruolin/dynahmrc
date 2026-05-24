@@ -104,7 +104,7 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
     
     const pythonPath = '/home/developer/miniconda/bin/python3';
     // 检测可用的 DISPLAY（优先使用 VNC/桌面环境的显示器）
-    const displayEnv = process.env.DISPLAY || ':1';
+    const displayEnv = process.env.DISPLAY || ':0';
     console.log(`[BestMan] Using DISPLAY=${displayEnv}`);
 
     bestmanProcess = spawn(pythonPath, [serviceScript], {
