@@ -52,6 +52,7 @@ class InitRequest(BaseModel):
     scene: str = "scene1"
     gui: bool = True
     config_path: str = "Config/default.yaml"
+    force: bool = False
 
 
 class StateResponse(BaseModel):
@@ -142,9 +143,22 @@ def get_status():
 
 @app.post("/init")
 def initialize(req: InitRequest):
-    """初始化 BestMan 并加载场景"""
-    if state.is_initialized:
+    """初始化 BestMan 并加载场景（force=true 强制重新初始化，不断开 GUI）"""
+    force = getattr(req, 'force', False)
+    if state.is_initialized and not force:
         return {"message": "Already initialized, call /reset to restart"}
+    if force and state.client:
+        # force 模式：不清除 GUI 连接，只清除物体和重置状态
+        for body_id in range(p.getNumBodies()):
+            if body_id > 0 and body_id not in state.robots.values():
+                try:
+                    p.removeBody(body_id)
+                except:
+                    pass
+        state.scene_objects = {}
+        state.robot_positions = {}
+        state.gripper_constraints = {}
+        state.step_count = 0
 
     try:
         print(f"\n[BestMan Service] 初始化中... 场景={req.scene}")
@@ -498,10 +512,9 @@ def execute_action(req: ActRequest):
                         pos = known_pos.get('table_new_2') or known_pos.get('table2') or known_pos.get('bobs_table')
                 if pos:
                     p.resetBasePositionAndOrientation(robot_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-                    # 如果机器人携带着物体，也移动物体
-                    for rk, cid in list(state.gripper_constraints.items()):
-                        if rk == robot_id or rk == resolved_name:
-                            pass  # 物体通过约束跟随机器人
+                    # 更新状态位置
+                    state.robot_positions[robot_id] = pos
+                    # 如果机器人携带着物体，也移动物体（约束自动跟随）
                     print(f"  ✓ 导航到 {target} @ {pos}")
                 else:
                     print(f"  ⚠️ 未知位置: {target}, 跳过")

@@ -69,9 +69,8 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
     const existingCheck = await fetch(`${BESTMAN_SERVICE_URL}/`);
     if (existingCheck.ok) {
       console.log('[BestMan] Found running service, reinitializing...');
-      // 先 reset 再 init（确保场景正确）
-      await fetch(`${BESTMAN_SERVICE_URL}/reset`, { method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' } }).catch(() => {});
-      const initOk = await initScene(scene, useGui);
+      // 强制重新初始化场景（不断开 PyBullet GUI）
+      const initOk = await initScene(scene, useGui, true);
       if (initOk) {
         serviceReady = true;
         return true;
@@ -167,12 +166,12 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
 /**
  * 初始化场景
  */
-async function initScene(scene: string, gui: boolean = false): Promise<boolean> {
+async function initScene(scene: string, gui: boolean = false, force: boolean = false): Promise<boolean> {
   try {
     const resp = await fetch(`${BESTMAN_SERVICE_URL}/init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scene, gui }),
+      body: JSON.stringify({ scene, gui, force }),
     });
     const data = await resp.json() as any;
     console.log(`[BestMan] Scene initialized: ${data.message}`);
