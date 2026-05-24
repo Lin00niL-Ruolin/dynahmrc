@@ -82,19 +82,34 @@ except:
 
 # 获取机器人 body_id
 robot_bodies = {}
-for attr in dir(client):
-    if attr in ['bob_arm', 'bob', 'new_robot_base', 'new_robot_arm', 'david', 'drone_body']:
-        val = getattr(client, attr, None)
-        if isinstance(val, int) and val > 0:
-            robot_bodies[attr] = val
-            print(f"  机器人: {attr} = {val}")
+for attr in ['bob_arm', 'bob', 'new_robot_base', 'new_robot_arm', 'david', 'drone_body']:
+    val = getattr(client, attr, None)
+    if isinstance(val, int) and val > 0:
+        robot_bodies[attr] = val
+        print(f"  机器人: {attr} = {val}")
+
+# 名称映射
+ROBOT_NAME_MAP = {
+    'Alice': 'new_robot_base',
+    'Bob': 'bob_arm',
+    'David': 'david',
+    'Lucy': 'drone_body',
+}
+ROBOT_PAIRS = {'new_robot_base': 'new_robot_arm'}
 
 # 获取物品 body_id
 scene_objects = {}
 for attr in dir(client):
     val = getattr(client, attr, None)
     if isinstance(val, int) and val > 0 and val not in robot_bodies.values():
-        scene_objects[attr] = val
+        # 排除墙壁等
+        if not attr.startswith('wall_') and attr != 'wood_floor' and attr != 'enable_cache':
+            scene_objects[attr] = val
+
+# 物品名映射（脚本名 → scene 中的名）
+ITEM_NAME_MAP = {
+    'bacon': 'bacon_0',
+}
 
 def get_pos(name):
     """获取家具位置"""
@@ -113,11 +128,15 @@ def get_pos(name):
     return known_pos.get(t)
 
 
-def navigate(robot_name, target_name, robot_key):
+def navigate(robot_name, target_name):
     """导航：移动机器人到目标位置"""
-    body = robot_bodies.get(robot_key)
+    key = ROBOT_NAME_MAP.get(robot_name)
+    if not key:
+        print(f"  ⚠️ 未知机器人名 {robot_name}")
+        return False
+    body = robot_bodies.get(key)
     if body is None:
-        print(f"  ⚠️ 找不到机器人 {robot_key}")
+        print(f"  ⚠️ 找不到 {robot_name} 的 body (key={key})")
         return False
     pos = get_pos(target_name)
     if pos is None:
@@ -125,32 +144,33 @@ def navigate(robot_name, target_name, robot_key):
         return False
     p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
     # 同时移动配对部件（底座→手臂）
-    pairs = {'new_robot_base': 'new_robot_arm'}
-    if robot_key in pairs:
-        paired = robot_bodies.get(pairs[robot_key])
-        if paired is not None:
-            p.resetBasePositionAndOrientation(paired, pos, p.getQuaternionFromEuler([0, 0, 0]))
+    paired_key = ROBOT_PAIRS.get(key)
+    if paired_key:
+        paired_body = robot_bodies.get(paired_key)
+        if paired_body is not None:
+            p.resetBasePositionAndOrientation(paired_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
     for _ in range(20):
         p.stepSimulation()
-    print(f"  ✓ {robot_name} → {target_name} @ {pos}")
+    print(f"  ✓ {robot_name} → {target_name}")
     return True
 
 
 def pick(robot_name, object_name):
     """拾取物体"""
-    obj_body = scene_objects.get(object_name)
+    real_name = ITEM_NAME_MAP.get(object_name, object_name)
+    obj_body = scene_objects.get(real_name)
     if obj_body is None:
-        print(f"  ⚠️ 找不到物体 {object_name}")
+        print(f"  ⚠️ 找不到物体 {object_name} (搜索 {real_name})")
+        print(f"  可用物品: {[k for k in scene_objects.keys()][:20]}")
         return False
-    robot_key = None
-    for rk, rbody in robot_bodies.items():
-        if rk.startswith(robot_name.lower().split('_')[0]) or rk == robot_name:
-            robot_key = rk
-            break
-    if robot_key is None:
-        print(f"  ⚠️ 找不到机器人 {robot_name}")
+    key = ROBOT_NAME_MAP.get(robot_name)
+    if not key:
+        print(f"  ⚠️ 未知机器人名 {robot_name}")
         return False
-    robot_body = robot_bodies[robot_key]
+    robot_body = robot_bodies.get(key)
+    if robot_body is None:
+        print(f"  ⚠️ 找不到 {robot_name} 的 body")
+        return False
     obj_pos = p.getBasePositionAndOrientation(obj_body)[0]
     rob_pos = p.getBasePositionAndOrientation(robot_body)[0]
     offset = [obj_pos[i] - rob_pos[i] for i in range(3)]
@@ -170,7 +190,8 @@ def pick(robot_name, object_name):
 
 def place(robot_name, object_name, target_name):
     """放置物体"""
-    obj_body = scene_objects.get(object_name)
+    real_name = ITEM_NAME_MAP.get(object_name, object_name)
+    obj_body = scene_objects.get(real_name)
     if obj_body is None:
         print(f"  ⚠️ 找不到物体 {object_name}")
         return False
@@ -184,7 +205,21 @@ def place(robot_name, object_name, target_name):
                                        p.getQuaternionFromEuler([0, 0, 0]))
     for _ in range(10):
         p.stepSimulation()
+    # 释放约束
+    if obj_body in [v for v in globals().get('_constraints', {}).values()]:
+        pass  # 约束在 pick 时已创建，这里不做复杂管理
     print(f"  ✓ {robot_name} 放置 {object_name} 到 {target_name}")
+
+
+def release_constraint(obj_body):
+    """释放物体上的所有约束"""
+    for i in range(p.getNumConstraints()):
+        try:
+            info = p.getConstraintInfo(i)
+            if info and info[5] == obj_body:
+                p.removeConstraint(i)
+        except:
+            pass
 
 
 # ========== 动作序列 ==========
@@ -192,63 +227,55 @@ print("\n" + "=" * 60)
 print("  开始执行动作序列")
 print("=" * 60)
 
+# 简化动作序列：按实际 Phase 4 输出整理
 actions = [
-    # Step 1: Alice 去 table_new_1, Bob 捡 bread_0
+    # === 第1轮：Alice 去 table_new_1, Bob 捡 bread_0 ===
     ("Alice", "navigate", "table_new_1"),
     ("Bob", "pick", "bread_0"),
     
-    # Step 2: Alice 捡 bacon, Bob 放 bread_0 到 cutting_board
+    # === 第2轮：Alice 捡 bacon, Bob 放 bread_0 → cutting_board ===
     ("Alice", "pick", "bacon"),
-    ("Bob", "place", ("bacon", "cutting_board")),  # wait, Bob 放的是 bread_0
+    ("Bob", "place_obj", ("bread_0", "cutting_board")),  # Bob 放 bread_0 到 cutting_board
     
-    # 修正：Bob 放 bread_0 到 cutting_board
-    ("Bob", "navigate", "table_new_2"),  # Bob 不动，导航到自己的位置
-    ("Bob", "place", "cutting_board"),
-    
-    # Step 3: Lucy 去 table_new_1 捡 bread_1
+    # === 第3轮：Lucy 拿 bread_1 ===
     ("Lucy", "navigate", "table_new_1"),
     ("Lucy", "pick", "bread_1"),
     
-    # Step 4: Alice 导航到 table_new_2 放 bacon
+    # === 第4轮：Alice 送 bacon 到 Bob 桌 ===
     ("Alice", "navigate", "table_new_2"),
-    ("Alice", "place", "table_new_2"),
+    ("Alice", "place_obj", ("bacon_0", "table_new_2")),
     
-    # Step 5: Bob 捡 bacon 放 cutting_board
-    ("Bob", "pick", "bacon"),
-    ("Bob", "navigate", "table_new_2"),
-    ("Bob", "place", "cutting_board"),
+    # === 第5轮：Bob 捡 bacon 放 cutting_board ===
+    ("Bob", "pick", "bacon_0"),
+    ("Bob", "place_obj", ("bacon_0", "cutting_board")),  # 2/3
     
-    # Step 6: Lucy 导航到 table_new_2 放 bread_1
+    # === 第6轮：Lucy 送 bread_1 到 Bob 桌 ===
     ("Lucy", "navigate", "table_new_2"),
-    ("Lucy", "place", "table_new_2"),
+    ("Lucy", "place_obj", ("bread_1", "table_new_2")),
     
-    # Step 7: Bob 捡 bread_1 放 cutting_board
+    # === 第7轮：Bob 捡 bread_1 放 cutting_board ===
     ("Bob", "pick", "bread_1"),
-    ("Bob", "place", "cutting_board"),
+    ("Bob", "place_obj", ("bread_1", "cutting_board")),  # 3/3 DONE
 ]
 
-for i, action in enumerate(actions):
-    robot, cmd, target = action[0], action[1], action[2]
+for i, action_tuple in enumerate(actions):
+    robot, cmd, target = action_tuple[0], action_tuple[1], action_tuple[2]
     print(f"\n[{i+1}/{len(actions)}] {robot} → {cmd}({target})")
-    time.sleep(1.5)  # 每步间隔1.5秒，让用户看到过程
+    time.sleep(1.2)
     
     if cmd == "navigate":
-        # 确定 robot_key
-        rk = None
-        for k in robot_bodies:
-            if robot.lower() in k.lower() or k.lower() in robot.lower():
-                rk = k
-                break
-        if rk:
-            navigate(robot, target, rk)
-        else:
-            print(f"  ⚠️ 找不到 {robot} 的 body")
+        navigate(robot, target)
     elif cmd == "pick":
         pick(robot, target)
-    elif cmd == "place":
-        # 如果是 tuple，第一个是物体名
-        obj_name = target[0] if isinstance(target, tuple) else target
-        place(robot, obj_name, target if not isinstance(target, tuple) else "cutting_board")
+    elif cmd == "place_obj":
+        # target 是 (object_name, target_location)
+        obj_name, tgt = target
+        # 先释放约束
+        real_obj = ITEM_NAME_MAP.get(obj_name, obj_name)
+        obj_body = scene_objects.get(real_obj)
+        if obj_body:
+            release_constraint(obj_body)
+        place(robot, obj_name, tgt)
 
 print("\n" + "=" * 60)
 print("  ✅ 动作序列播放完毕！")
