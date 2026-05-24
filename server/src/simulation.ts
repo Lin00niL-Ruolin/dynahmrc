@@ -721,11 +721,11 @@ export class SimEnvironment {
           } else {
             // If placing on Bob's table, put items within Bob's reach
             const targetLower = target.toLowerCase();
-            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table2') && !targetLower.includes('table_20'))) {
+            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table2') && !targetLower.includes('table_20')) || targetLower.includes('table_2')) {
               // Place near Bob's actual position (within his 0.7m reach)
               const bobPos = this.robotPositions['Bob'] || [4, 4];
-              this.scene.objects[objName].posX = bobPos[0] + 0.3;
-              this.scene.objects[objName].posY = bobPos[1] - 0.3;
+              this.scene.objects[objName].posX = bobPos[0] + 0.1;
+              this.scene.objects[objName].posY = bobPos[1] - 0.1;
             } else {
               this.scene.objects[objName].posX = pos[0] + 0.3;
               this.scene.objects[objName].posY = pos[1];

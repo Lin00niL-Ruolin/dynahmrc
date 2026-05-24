@@ -276,11 +276,17 @@ export class DynaHMRCEngine {
       const unclaimedStr = remainingStr.length > 0
         ? `Unclaimed items: [${remainingStr.join(', ')}]`
         : 'All items placed!';
-      // On Bob's table: items that have been placed on table_new_2 but not on cutting_board yet
-      const onBobTable = this.sim.taskTargets.filter(t => 
-        !this.sim.placedObjects.includes(t) && 
-        !Object.values(this.sim.robotGrippers).includes(t)
-      ).filter(t => t !== 'bread_0'); // bread_0 is originally on Bob's table
+      // On Bob's table: items physically near Bob's position (delivered but not final-placed)
+      const bobPos = this.sim.robotPositions['Bob'] || null;
+      const onBobTable = this.sim.taskTargets.filter(t => {
+        if (this.sim.placedObjects.includes(t)) return false;
+        if (Object.values(this.sim.robotGrippers).includes(t)) return false;
+        const obj = this.sim.scene.objects[t];
+        if (!obj || !bobPos) return false;
+        const dx = Math.abs(obj.posX - bobPos[0]);
+        const dy = Math.abs(obj.posY - bobPos[1]);
+        return dx < 0.8 && dy < 0.8;
+      });
       const bobTableStr = onBobTable.length > 0
         ? `On Bob's table (delivered): [${onBobTable.join(', ')}]`
         : 'Nothing on Bob\'s table yet';
@@ -297,22 +303,35 @@ export class DynaHMRCEngine {
         } else if (Object.values(this.sim.robotGrippers).includes(t)) {
           const holder = Object.entries(this.sim.robotGrippers).find(([,v]) => v === t)?.[0] || '?';
           status = `carried by ${holder}`;
-        } else if (Math.abs(obj.posX - 8.5) < 0.3 && Math.abs(obj.posY - 5.3) < 0.3) {
-          status = "on Bob's table (delivered)";
         } else {
-          // Match original location based on task type
+          // Check if item is near any robot's position (delivered to their table)
           const originals: Record<string, Record<string, string>> = {
             make_sandwich: { bread_0: 'table_new_2', bacon: 'table_new_1', bread_1: 'table_new_1' },
             sort_solids: { small_cube_red: 'scattered' },
             pack_objects: { fork: 'kitchen_cabinet', apple: 'source_table_2', book: 'bookcase', soap: 'wall_shelf' },
           };
-          status = originals[this.taskType]?.[t] || 'original position';
+          let atRobotTable = '';
+          for (const [rName, rPos] of Object.entries(this.sim.robotPositions)) {
+            if (Math.abs(obj.posX - rPos[0]) < 0.5 && Math.abs(obj.posY - rPos[1]) < 0.5) {
+              atRobotTable = `${rName}'s table`;
+              break;
+            }
+          }
+          status = atRobotTable
+            ? `delivered to ${atRobotTable}`
+            : (originals[this.taskType]?.[t] || 'original position');
         }
         realtimeLocations.push(`${t}@${pos}:${status}`);
       }
       const locationStr = realtimeLocations.join(' | ');
 
-      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
+      // Robot positions
+      const robotPosStrs = agentNames.map(n => {
+        const p = this.sim.robotPositions[n];
+        return p ? `${n}@(${p[0].toFixed(1)},${p[1].toFixed(1)})` : `${n}:unknown`;
+      }).join(', ');
+
+      const sharedStatus = `Robots: [${robotPosStrs}]\nGrippers: ${gripperStatuses}\n${placedStr}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
 
       // Run all robot actions in parallel
       const actionResults = await Promise.all(
@@ -439,10 +458,33 @@ export class DynaHMRCEngine {
       return `${n}:${g ? `holding ${g}` : 'empty'}`;
     }).join(', ');
     const isDone = this.sim.taskCompleted;
-    const taskStatus = `${isDone ? '✅ TASK COMPLETE - ' : ''}Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects on cutting_board: [${placedStr}]
+
+    // Build real-time object locations
+    const bobPos = this.sim.robotPositions['Bob'] || null;
+    const objLocStrs: string[] = [];
+    for (const t of this.sim.taskTargets) {
+      const obj = this.sim.scene.objects[t];
+      if (!obj) continue;
+      let where = 'unknown';
+      if (this.sim.placedObjects.includes(t)) {
+        where = '✅ ON FINAL TARGET';
+      } else if (Object.values(this.sim.robotGrippers).includes(t)) {
+        const holder = Object.entries(this.sim.robotGrippers).find(([,v]) => v === t)?.[0];
+        where = `carried by ${holder}`;
+      } else if (bobPos && Math.abs(obj.posX - bobPos[0]) < 0.8 && Math.abs(obj.posY - bobPos[1]) < 0.8) {
+        where = `at Bob\'s table (${obj.posX.toFixed(1)},${obj.posY.toFixed(1)}) — Bob can pick!`;
+      } else {
+        where = `at (${obj.posX.toFixed(1)},${obj.posY.toFixed(1)}) — needs transport`;
+      }
+      objLocStrs.push(`${t}: ${where}`);
+    }
+
+    const taskStatus = `${isDone ? '✅ TASK COMPLETE - ' : ''}Placed ${this.sim.placedObjects.length}/${this.sim.taskTargets.length} objects on final target: [${placedStr}]
 Remaining: [${remainingStr}]
 Grippers: ${gripStrs}
-${isDone ? 'NOTE: All objects are already placed and stacked. No further action needed.' : ''}`;
+Object Locations:
+${objLocStrs.join('\n')}
+${isDone ? 'NOTE: All objects are already placed. No further action needed.' : ''}`;
 
     const reflections: Record<string, { summary: string; plan: string }> = {};
 
