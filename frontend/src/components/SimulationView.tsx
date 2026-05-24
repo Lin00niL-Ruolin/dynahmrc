@@ -42,7 +42,7 @@ export function SimulationView({ state, style }: Props) {
     return [40 + (x / rw) * (CANVAS_W - 80), 40 + (y / rh) * (CANVAS_H - 80)];
   };
 
-  const scale = useCallback((val: number) => val * 40, []);
+  const scale = useCallback((val: number) => Math.max(val * 50, 30), []);
 
   // Update animation targets when new state arrives
   useEffect(() => {
@@ -198,14 +198,20 @@ export function SimulationView({ state, style }: Props) {
       ctx.strokeRect(cx - w / 2, cy - h / 2, w, h);
     }
 
-    // Furniture
+    // Furniture — larger, no text overlap
     for (const obj of Object.values(s.scene.objects)) {
       if (obj.category !== 'furniture') continue;
       if (obj.name.startsWith('wall_')) continue;
       const [cx, cy] = toC(obj.posX, obj.posY);
-      const w = sc(obj.width);
-      const h = sc(obj.height);
+      const w = Math.max(sc(obj.width), 36);
+      const h = Math.max(sc(obj.height), 28);
 
+      // Shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      (ctx as any).roundRect(cx - w / 2 + 2, cy - h / 2 + 2, w, h, 4);
+      ctx.fill();
+
+      // Body
       ctx.fillStyle = obj.isContainer ? (obj.isOpen ? COLORS.container_open : COLORS.container_closed) : COLORS.furniture;
       ctx.strokeStyle = '#64748b';
       ctx.lineWidth = 1.5;
@@ -213,52 +219,48 @@ export function SimulationView({ state, style }: Props) {
       (ctx as any).roundRect(cx - w / 2, cy - h / 2, w, h, 4);
       ctx.fill(); ctx.stroke();
 
+      // Name ABOVE (not below), so it never overlaps with furniture body
       ctx.fillStyle = COLORS.label;
       ctx.font = '10px Inter, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(obj.name, cx, cy + h / 2 + 12);
+      const textY = cy - h / 2 - 6;
+      // Background for text
+      const tw = ctx.measureText(obj.name).width;
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+      (ctx as any).roundRect(cx - tw / 2 - 3, textY - 9, tw + 6, 14, 3);
+      ctx.fill();
+      ctx.fillStyle = COLORS.label;
+      ctx.fillText(obj.name, cx, textY);
 
+      // Container lock icon — top-right corner of furniture
       if (obj.isContainer) {
         ctx.fillStyle = obj.isOpen ? '#4ade80' : '#f87171';
-        ctx.font = '9px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(obj.isOpen ? '🔓' : '🔒', cx, cy - h / 2 - 8);
+        ctx.font = '12px Inter, sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(obj.isOpen ? '🔓' : '🔒', cx + w / 2 - 3, cy + 4);
       }
-      if (obj.isContainer && obj.isOpen && obj.contains.length > 0) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.font = '8px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(`[${obj.contains.join(', ')}]`, cx, cy);
-      }
+
+      // Stand pose dot (small, subtle)
       if (obj.standPoseX != null && obj.standPoseY != null) {
         const [sx, sy] = toC(obj.standPoseX, obj.standPoseY);
         ctx.fillStyle = COLORS.stand_pose;
-        ctx.globalAlpha = 0.4;
-        ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.3;
+        ctx.beginPath(); ctx.arc(sx, sy, 2, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 1;
       }
     }
 
-    // Items
+    // Items — small dots, no permanent label (shown on hover via tooltip)
     for (const obj of Object.values(s.scene.objects)) {
       if (obj.category !== 'item') continue;
       const [cx, cy] = toC(obj.posX, obj.posY);
-      const grad = ctx.createRadialGradient(cx, cy, 2, cx, cy, 8);
-      grad.addColorStop(0, COLORS.item);
-      grad.addColorStop(1, 'rgba(245, 158, 11, 0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI * 2); ctx.fill();
 
+      // Small dot (3px)
       ctx.fillStyle = COLORS.item;
-      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#fbbf24';
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#fbbf2440';
       ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.stroke();
-
-      ctx.fillStyle = COLORS.text;
-      ctx.font = '9px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(obj.name, cx, cy + 14);
+      ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.stroke();
     }
   }
 
@@ -365,24 +367,44 @@ export function SimulationView({ state, style }: Props) {
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !state?.robots) return;
+    if (!canvas || !state) return;
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    for (const [name, p] of Object.entries(animatedPositions)) {
-      const robot = state.robots[name];
-      if (!robot) continue;
-      const [rx, ry] = toCanvas(p.x, p.y);
-      const dist = Math.sqrt((mx - rx) ** 2 + (my - ry) ** 2);
-      if (dist < 16) {
-        setTooltip({
-          x: mx + 14, y: my - 10,
-          text: `${robot.name} (${robot.robotType})\nPos: (${robot.posX.toFixed(1)}, ${robot.posY.toFixed(1)})\nGripper: ${robot.graspingObject || 'empty'}`,
-        });
-        return;
+    // Check robot hover
+    if (state.robots) {
+      for (const [name, p] of Object.entries(animatedPositions)) {
+        const robot = state.robots[name];
+        if (!robot) continue;
+        const [rx, ry] = toCanvas(p.x, p.y);
+        const dist = Math.sqrt((mx - rx) ** 2 + (my - ry) ** 2);
+        if (dist < 16) {
+          setTooltip({
+            x: mx + 14, y: my - 10,
+            text: `${robot.name} (${robot.robotType})\nPos: (${robot.posX.toFixed(1)}, ${robot.posY.toFixed(1)})\nGripper: ${robot.graspingObject || 'empty'}`,
+          });
+          return;
+        }
       }
     }
+
+    // Check item hover (small dots)
+    if (state.scene?.objects) {
+      for (const obj of Object.values(state.scene.objects)) {
+        if (obj.category !== 'item') continue;
+        const [cx, cy] = toCanvas(obj.posX, obj.posY);
+        const dist = Math.sqrt((mx - cx) ** 2 + (my - cy) ** 2);
+        if (dist < 8) {
+          setTooltip({
+            x: mx + 14, y: my - 10,
+            text: `${obj.name} @ (${obj.posX.toFixed(1)}, ${obj.posY.toFixed(1)})`,
+          });
+          return;
+        }
+      }
+    }
+
     setTooltip(null);
   };
 
