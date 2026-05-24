@@ -169,27 +169,33 @@ def setup_scene1(client, scene_json_path=None):
             for obj in scene_data:
                 try:
                     obj_name = obj['obj_name']
+                    model_path = obj['model_path']
                     pos = obj['object_position']
+                    ori = obj['object_orientation']
                     scale = obj.get('scale', 1.0)
-                    w = scale * 0.5
-                    h = scale * 0.5
-                    d = scale * 0.3
-                    # 直接用方块替代 URDF（更可靠）
-                    col = p.createCollisionShape(p.GEOM_BOX, halfExtents=[w, h, d])
-                    color = [0.6, 0.6, 0.6, 1.0]  # 灰色
-                    # 给不同类别分配颜色
-                    if 'fridge' in obj_name: color = [0.5, 0.7, 0.9, 1.0]
-                    elif 'table' in obj_name or 'chair' in obj_name: color = [0.6, 0.4, 0.2, 1.0]
-                    elif 'book' in obj_name or 'bookshelf' in obj_name: color = [0.4, 0.2, 0.1, 1.0]
-                    elif 'microwave' in obj_name: color = [0.3, 0.3, 0.3, 1.0]
-                    elif 'bath' in obj_name or 'toilet' in obj_name: color = [0.8, 0.8, 0.8, 1.0]
-                    elif 'fridge' in obj_name: color = [0.9, 0.9, 0.9, 1.0]
-                    vis = p.createVisualShape(p.GEOM_BOX, halfExtents=[w, h, d], rgbaColor=color)
-                    body_id = p.createMultiBody(0.1, col, vis, pos)
-                    # 保存到 client 上以便 service.py 跟踪
-                    setattr(client, obj_name, body_id)
-                    print(f"  ✓ {obj_name} @ ({pos[0]:.1f}, {pos[1]:.1f}, {pos[2]:.1f})")
-                    loaded += 1
+                    fixed = obj.get('fixed_base', True)
+
+                    processed_ori = []
+                    for val in ori:
+                        if isinstance(val, str):
+                            processed_ori.append(eval(val))
+                        else:
+                            processed_ori.append(val)
+
+                    obj_id = client.load_object(
+                        obj_name=obj_name,
+                        model_path=model_path,
+                        object_position=pos,
+                        object_orientation=processed_ori,
+                        scale=scale,
+                        fixed_base=fixed
+                    )
+                    # 保存 body_id 到 client 属性上，以便 service.py 跟踪
+                    setattr(client, obj_name, obj_id)
+                    # 同时保存到场景物体字典
+                    if obj_id > 0:
+                        print(f"  ✓ {obj_name} @ ({pos[0]}, {pos[1]}, {pos[2]})")
+                        loaded += 1
                 except Exception as e:
                     print(f"  ✗ {obj.get('obj_name', '?')}: {e}")
 
