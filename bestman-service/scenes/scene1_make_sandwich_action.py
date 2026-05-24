@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 import pybullet as p
 from Env.Client import Client
 from scenes.scene1_setup import setup_scene1
-from scenes.path_planner import AStarPathPlanner, navigate_along_path
+from scenes.path_planner import AStarPathPlanner
 
 
 def resolve_asset_path(relative_path):

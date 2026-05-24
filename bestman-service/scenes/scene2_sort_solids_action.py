@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 import pybullet as p
 from Env.Client import Client
 from scenes.scene2_setup import setup_scene2
-from scenes.path_planner import AStarPathPlanner, navigate_along_path
+from scenes.path_planner import AStarPathPlanner
 
 
 def load_yaml_config(config_path):
@@ -148,10 +148,16 @@ def navigate(robot_name, target_name):
         p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
         print(f"  ⚠️ A* 无路径，直接瞬移")
     else:
-        paired_body = robot_bodies.get(ROBOT_PAIRS_2.get(key)) if key in ROBOT_PAIRS_2 else None
-        navigate_along_path(p, body, path, paired_body, steps_per_point=8)
+        for i in range(1, len(path)):
+            px, py = path[i]
+            if planner.is_collision(px, py):
+                continue
+            p.resetBasePositionAndOrientation(body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
+            for _ in range(12):
+                p.stepSimulation()
+            time.sleep(0.08)
     
-    for _ in range(10):
+    for _ in range(20):
         p.stepSimulation()
     
     final_pos = p.getBasePositionAndOrientation(body)[0]
