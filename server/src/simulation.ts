@@ -534,15 +534,6 @@ export class SimEnvironment {
           }
         }
         
-        if (!obj) {
-          for (const o of Object.values(this.scene.objects)) {
-            if (o.category === 'furniture' && o.standPoseX != null) {
-              obj = o;
-              break;
-            }
-          }
-        }
-        
         if (obj && obj.standPoseX != null && obj.standPoseY != null) {
           // Check if destination is in a restricted zone
           const inRestricted = this.restrictedZones.some(z => {
