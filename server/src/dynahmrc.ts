@@ -109,25 +109,19 @@ export class DynaHMRCEngine {
       console.log(`[DynaHMRC] Sort task: ${pairList}`);
     }
 
-    // 如果启用 BestMan，启动服务
+    // 检查 BestMan 服务是否已由 🧊 3D 按钮启动
     if (this.useBestMan && !this.bestManStarted) {
       try {
-        const { startService } = await import('./bestman-bridge.js');
-        const ok = await startService(this.layout);
+        const resp = await fetch('http://localhost:5001/');
+        const ok = resp.ok;
         this.bestManStarted = ok;
         if (ok) {
-          console.log('[DynaHMRC] BestMan 3D simulation started ✅');
-          await this.emitDialogue({
-            stage: DynaHMRCStage.SELF_DESCRIPTION,
-            robotName: '[SYSTEM]',
-            robotType: RobotType.ALICE,
-            thoughts: '',
-            content: '🎮 BestMan 3D 仿真已启动，PyBullet 窗口已打开',
-            timestamp: Date.now(),
-          });
+          console.log('[DynaHMRC] BestMan 3D simulation is running ✅');
+        } else {
+          console.warn('[DynaHMRC] BestMan service not running - click 🧊 3D first');
         }
-      } catch (e) {
-        console.warn('[DynaHMRC] BestMan start failed:', e);
+      } catch {
+        console.warn('[DynaHMRC] BestMan service not running - click 🧊 3D first');
       }
     }
 
