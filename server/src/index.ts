@@ -200,10 +200,14 @@ wss.on('connection', (ws, req) => {
 app.get('/api/bestman/status', async (_req, res) => {
   try {
     const { checkEnvironment } = await import('./bestman-bridge.js');
-    const { getStatus } = await import('./bestman-bridge.js');
     const env = checkEnvironment();
-    const svc = getStatus();
-    res.json({ ...svc, env: env.ok ? 'ok' : env.message });
+    // 实时检测服务是否运行
+    let running = false;
+    try {
+      const resp = await fetch('http://localhost:5001/');
+      running = resp.ok;
+    } catch {}
+    res.json({ running, port: 5001, env: env.ok ? 'ok' : env.message });
   } catch (e: any) {
     res.json({ running: false, env: e.message });
   }

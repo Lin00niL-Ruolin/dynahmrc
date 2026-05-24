@@ -190,12 +190,7 @@ export async function sendAction(
   actionType: string,
   params: Record<string, any> = {}
 ): Promise<{ success: boolean; message: string }> {
-  if (!serviceReady) {
-    return { success: false, message: 'BestMan service not running' };
-  }
-
   try {
-    // 映射机器人名称到 BestMan 中的 ID
     // 直接发原始机器人名，让服务端通过别名映射解析
     const robotId = robotName;
 
