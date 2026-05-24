@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 import pybullet as p
 from Env.Client import Client
 from scenes.scene2_setup import setup_scene2
+from scenes.path_planner import AStarPathPlanner, navigate_along_path
 
 
 def load_yaml_config(config_path):
@@ -60,6 +61,9 @@ setup_scene2(client, scene_json)
 
 print("[3/3] 初始化完成，开始播放动作...")
 time.sleep(1)
+
+print("初始化 A* 路径规划器...")
+planner = AStarPathPlanner(scene='kitchen', grid_size=0.3)
 
 # 设置相机视角
 try:
@@ -112,34 +116,46 @@ def get_pos(name):
     return known_pos.get(t)
 
 
+ROBOT_NAME_MAP_2 = {
+    'Alice': 'new_robot_base',
+    'Bob': 'bob_arm',
+    'David': 'david',
+    'Lucy': 'drone_body',
+}
+ROBOT_PAIRS_2 = {'new_robot_base': 'new_robot_arm', 'alice_base': 'alice_arm'}
+
+
 def navigate(robot_name, target_name):
-    """导航：移动机器人到目标位置"""
-    body = None
-    rk = None
-    for k, v in robot_bodies.items():
-        if robot_name.lower() in k.lower() or k.lower() in robot_name.lower():
-            body = v
-            rk = k
-            break
+    """导航：A* 路径规划平滑移动"""
+    key = ROBOT_NAME_MAP_2.get(robot_name)
+    if not key:
+        print(f"  ⚠️ 未知机器人名 {robot_name}")
+        return False
+    body = robot_bodies.get(key)
     if body is None:
-        print(f"  ⚠️ 找不到机器人 {robot_name}")
+        print(f"  ⚠️ 找不到 {robot_name} 的 body")
         return False
     pos = get_pos(target_name)
     if pos is None:
         print(f"  ⚠️ 未知目标 {target_name}")
         return False
-    p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-    # 同时移动手臂
-    arm_key = None
-    if rk == 'new_robot_base':
-        arm_key = 'new_robot_arm'
-    elif rk == 'alice_base':
-        arm_key = 'alice_arm'
-    if arm_key and arm_key in robot_bodies:
-        p.resetBasePositionAndOrientation(robot_bodies[arm_key], pos, p.getQuaternionFromEuler([0, 0, 0]))
-    for _ in range(20):
+    
+    old_pos = p.getBasePositionAndOrientation(body)[0]
+    
+    # A* 寻路
+    path = planner.plan(old_pos[0], old_pos[1], pos[0], pos[1])
+    if path is None:
+        p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+        print(f"  ⚠️ A* 无路径，直接瞬移")
+    else:
+        paired_body = robot_bodies.get(ROBOT_PAIRS_2.get(key)) if key in ROBOT_PAIRS_2 else None
+        navigate_along_path(p, body, paired_body, path, paired_body)
+    
+    for _ in range(10):
         p.stepSimulation()
-    print(f"  ✓ {robot_name} → {target_name} @ ({pos[0]:.1f}, {pos[1]:.1f})")
+    
+    final_pos = p.getBasePositionAndOrientation(body)[0]
+    print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({final_pos[0]:.1f},{final_pos[1]:.1f})")
     return True
 
 

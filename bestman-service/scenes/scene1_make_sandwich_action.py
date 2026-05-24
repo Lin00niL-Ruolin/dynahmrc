@@ -27,6 +27,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 import pybullet as p
 from Env.Client import Client
 from scenes.scene1_setup import setup_scene1
+from scenes.path_planner import AStarPathPlanner, navigate_along_path
 
 
 def resolve_asset_path(relative_path):
@@ -71,6 +72,10 @@ print("[3/3] 初始化完成，开始播放动作...")
 # 步进仿真让场景稳定
 for _ in range(30):
     p.stepSimulation()
+
+print("\n初始化 A* 路径规划器...")
+planner = AStarPathPlanner(scene='scene1', grid_size=0.3)
+print("A* 路径规划器就绪 (网格分辨率 0.3m)")
 
 print("\n观察 PyBullet 窗口！机器人即将开始移动...")
 time.sleep(3)
@@ -133,7 +138,7 @@ def get_pos(name):
 
 
 def navigate(robot_name, target_name):
-    """导航：移动机器人到目标位置"""
+    """导航：用 A* 路径规划平滑移动"""
     key = ROBOT_NAME_MAP.get(robot_name)
     if not key:
         print(f"  ⚠️ 未知机器人名 {robot_name}")
@@ -146,20 +151,29 @@ def navigate(robot_name, target_name):
     if pos is None:
         print(f"  ⚠️ 未知目标 {target_name}")
         return False
-    # 记下移动前位置
+    
+    # 当前位置
     old_pos = p.getBasePositionAndOrientation(body)[0]
-    # 移动
-    p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-    # 同时移动配对部件（底座→手臂）
-    paired_key = ROBOT_PAIRS.get(key)
-    if paired_key:
-        paired_body = robot_bodies.get(paired_key)
-        if paired_body is not None:
-            p.resetBasePositionAndOrientation(paired_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+    
+    # A* 寻路
+    path = planner.plan(old_pos[0], old_pos[1], pos[0], pos[1])
+    if path is None:
+        # A* 失败，直接瞬移（兜底）
+        p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+        print(f"  ⚠️ A* 无路径，直接瞬移")
+    else:
+        # 沿路径平滑移动
+        paired_key = ROBOT_PAIRS.get(key)
+        paired_body = robot_bodies.get(paired_key) if paired_key else None
+        navigate_along_path(p, body, paired_body, path, paired_body)
+    
     # 步进仿真
-    for _ in range(30):
+    for _ in range(10):
         p.stepSimulation()
-    print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({pos[0]:.1f},{pos[1]:.1f})")
+    
+    # 确认到达
+    final_pos = p.getBasePositionAndOrientation(body)[0]
+    print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({final_pos[0]:.1f},{final_pos[1]:.1f})")
     return True
 
 

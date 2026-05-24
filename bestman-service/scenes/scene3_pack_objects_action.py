@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(script_dir))
 
 import pybullet as p
 from Env.Client import Client
+from scenes.path_planner import AStarPathPlanner, navigate_along_path
 
 
 def load_yaml_config(config_path):
