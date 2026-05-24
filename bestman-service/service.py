@@ -156,9 +156,14 @@ def initialize(req: InitRequest):
         # 覆盖 GUI 设置
         cfg.Client.enable_GUI = req.gui
 
-        # DIRECT 模式（稳定运行，不依赖 X 服务器）
-        cfg.Client.enable_GUI = False
-        client = Client(cfg.Client)
+        # 先尝试 GUI 模式（云桌面有 TigerVNC :1），失败则 fallback 到 DIRECT
+        try:
+            cfg.Client.enable_GUI = req.gui
+            client = Client(cfg.Client)
+        except Exception as gui_err:
+            print(f"[BestMan] GUI failed ({gui_err}), falling back to DIRECT...")
+            cfg.Client.enable_GUI = False
+            client = Client(cfg.Client)
         state.client = client
         state.is_initialized = True
 

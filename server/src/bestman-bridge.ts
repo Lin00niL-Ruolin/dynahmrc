@@ -60,9 +60,9 @@ export function checkEnvironment(): { ok: boolean; message: string } {
  * 启动 BestMan 微服务
  */
 export async function startService(scene: string = 'scene1', gui?: boolean): Promise<boolean> {
-  // 强制 DIRECT 模式（稳定运行，不依赖 X 服务器）
-  const useGui = false;
-  console.log(`[BestMan] Starting service in DIRECT (headless) mode`);
+  // 尝试 GUI 模式（云桌面 TigerVNC :1），Python 端自动 fallback 到 DIRECT
+  const useGui = true;
+  console.log(`[BestMan] Starting service with GUI=${useGui} (TigerVNC :1)`);
 
   // 先清理旧进程
   try { execSync('pkill -f service.py 2>/dev/null || true'); } catch {}
@@ -88,14 +88,15 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
     console.log(`[BestMan] Starting service on port ${BESTMAN_SERVICE_PORT}...`);
     
     const pythonPath = '/home/developer/miniconda/bin/python3';
-    // 检测可用的 DISPLAY（优先使用 VNC/桌面环境的显示器）
-    const displayEnv = process.env.DISPLAY || ':0';
-    console.log(`[BestMan] Using DISPLAY=${displayEnv}`);
+    // 检测可用的 DISPLAY（cloud desktop 用 TigerVNC :1）
+    const displayEnv = process.env.DISPLAY || ':1';
+    const xauthPath = '/home/developer/.Xauthority';
+    console.log(`[BestMan] Using DISPLAY=${displayEnv}, XAUTHORITY=${xauthPath}`);
 
     bestmanProcess = spawn(pythonPath, [serviceScript], {
       cwd: serviceDir,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, DISPLAY: displayEnv, PYTHONUNBUFFERED: '1' },
+      env: { ...process.env, DISPLAY: displayEnv, XAUTHORITY: xauthPath, PYTHONUNBUFFERED: '1' },
     });
 
     let output = '';
