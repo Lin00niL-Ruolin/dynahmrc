@@ -369,7 +369,7 @@ function BestManControl({ taskType }: { taskType: string }) {
         const resp = await fetch('/api/bestman/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1', gui: true }),
+          body: JSON.stringify({ scene: sceneMap[taskType] || 'scene1' }),
         });
         const data = await resp.json();
         setConnected(data.ok || false);
