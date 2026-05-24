@@ -63,27 +63,12 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
   // 默认开启 GUI（云桌面有显示器），Python 端会自动 fallback 到 DIRECT
   const useGui = gui !== undefined ? gui : true;
   console.log(`[BestMan] Starting service, DISPLAY=${process.env.DISPLAY || '(none)'}, gui=${useGui}`);
-  if (serviceReady) {
-    console.log('[BestMan] Service already running (serviceReady=true)');
-    return true;
-  }
 
-  // 检查端口 5001 是否已被占用（可能是旧进程）
-  try {
-    const existingResp = await fetch(`http://localhost:${BESTMAN_SERVICE_PORT}/`);
-    if (existingResp.ok) {
-      const data = await existingResp.json() as any;
-      console.log('[BestMan] Found existing service on port 5001, reusing');
-      // 重新初始化场景（匹配当前任务）
-      const initOk = await initScene(scene, useGui);
-      if (initOk) {
-        serviceReady = true;
-        return true;
-      }
-    }
-  } catch {
-    // 端口没有响应，需要启动新服务
-  }
+  // 先清理旧进程
+  try { execSync('pkill -f service.py 2>/dev/null || true'); } catch {}
+  await new Promise(r => setTimeout(r, 1000));
+  serviceReady = false;
+  bestmanProcess = null;
 
   const envCheck = checkEnvironment();
   if (!envCheck.ok) {
