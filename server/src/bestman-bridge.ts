@@ -59,7 +59,11 @@ export function checkEnvironment(): { ok: boolean; message: string } {
 /**
  * 启动 BestMan 微服务
  */
-export async function startService(scene: string = 'scene1', gui: boolean = true): Promise<boolean> {
+export async function startService(scene: string = 'scene1', gui?: boolean): Promise<boolean> {
+  // 自动检测 GUI 可用性：有 DISPLAY 环境变量才用 GUI
+  const hasDisplay = !!(process.env.DISPLAY && process.env.DISPLAY !== '');
+  const useGui = gui !== undefined ? gui : hasDisplay;
+  console.log(`[BestMan] Starting service, DISPLAY=${process.env.DISPLAY || '(none)'}, gui=${useGui}`);
   if (serviceReady) {
     console.log('[BestMan] Service already running (serviceReady=true)');
     return true;
@@ -139,7 +143,7 @@ export async function startService(scene: string = 'scene1', gui: boolean = true
           console.log(`[BestMan] Service started ✅ (port ${BESTMAN_SERVICE_PORT})`);
 
           // 初始化场景
-          const initResult = await initScene(scene, gui);
+          const initResult = await initScene(scene, useGui);
           if (initResult) {
             resolve(true);
           } else {
@@ -164,7 +168,7 @@ export async function startService(scene: string = 'scene1', gui: boolean = true
 /**
  * 初始化场景
  */
-async function initScene(scene: string, gui: boolean): Promise<boolean> {
+async function initScene(scene: string, gui: boolean = false): Promise<boolean> {
   try {
     const resp = await fetch(`${BESTMAN_SERVICE_URL}/init`, {
       method: 'POST',
