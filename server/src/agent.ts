@@ -238,18 +238,21 @@ export class RobotAgent {
       }
     }
 
-    // ⛔ Non-Bob robots: NEVER place on ANY final target — only Bob does that
+    // ⛔ Non-Bob robots: NEVER place on final target or wrong table — only place on Bob's table
     const FINAL_TARGETS: Record<string, string[]> = {
       make_sandwich: ['cutting_board'],
       sort_solids: ['cube_red', 'cube_green', 'cube_blue', 'cube_yellow', 'cube_purple', 'cube_orange'],
       pack_objects: ['tray'],
     };
+    // Wrong tables for each layout (robots should NOT place items here — only Bob's table)
+    const WRONG_TABLES = ['packing_table', 'table_dining', 'source_table_2'];
     if (this.roleTypeName !== 'Bob' && action.actionType === ActionType.PLACE) {
       const target = (action.params.target as string || '').toLowerCase();
       const validTargets = FINAL_TARGETS[this.taskType] || FINAL_TARGETS.pack_objects;
       const isFinal = validTargets.some(t => target.includes(t.toLowerCase()));
-      if (isFinal) {
-        console.log(`[Agent ${this.name}] Blocked place() on final target "${target}". Non-Bob robots cannot place on final target. Forcing place on Bob's table.`);
+      const isWrongTable = WRONG_TABLES.some(t => target.includes(t.toLowerCase()));
+      if (isFinal || isWrongTable) {
+        console.log(`[Agent ${this.name}] Blocked place() on "${target}". Non-Bob robots must only place on Bob's table. Forcing place on Bob's table.`);
         action.params.target = "Bob's table";
       }
     }

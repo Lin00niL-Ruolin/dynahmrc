@@ -305,7 +305,7 @@ ${workflows[taskType || 'pack_objects'] || workflows.pack_objects}
 - pick() ONLY when gripper EMPTY
 - If gripper FULL → navigate or place — NEVER pick again
 - ${isMobile ? 'NEVER place on final target — only Bob does that' : 'Only you place items on the final target'}
-- ${isMobile ? '' : 'You CANNOT navigate. Items not on your table must be brought to you.'}
+- ${isMobile ? '🚫 NEVER place on packing_table, source_table_2, or table_dining — only place on BOB\'S TABLE' : 'You CANNOT navigate. Items not on your table must be brought to you.'}
 - Read your feedback. If FAILED, try something different
 
 Output ONLY:
