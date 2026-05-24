@@ -270,7 +270,8 @@ export class RobotAgent {
         // Check if already at Bob's table (hardcoded positions for known layouts)
         const atBobTable = 
           (Math.abs(this.status.posX - 8.5) < 1.5 && Math.abs(this.status.posY - 5.5) < 1.5) || // scene1 (table_new_2)
-          (Math.abs(this.status.posX - 3.5) < 1.5 && Math.abs(this.status.posY - 5.0) < 1.5);  // scene2/kitchen (table2 stand_pose)
+          (Math.abs(this.status.posX - 3.5) < 1.5 && Math.abs(this.status.posY - 5.0) < 1.5) ||  // scene2/kitchen (table2 stand_pose)
+          (Math.abs(this.status.posX - 2.5) < 1.5 && Math.abs(this.status.posY - 4.0) < 1.5);   // scene3/living_room (source_table_1 stand_pose)
         if (atBobTable) {
           // Already there — force place on Bob's table
           action = {

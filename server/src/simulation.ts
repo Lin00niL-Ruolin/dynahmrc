@@ -515,11 +515,15 @@ export class SimEnvironment {
 
       case ActionType.NAVIGATE: {
         let target = action.params.target as string;
-        // Alias map: common name variations
+        // Alias map: common name variations (layout-aware)
+        const bobTable = this.layoutName === 'living_room' ? 'source_table_1'
+          : this.layoutName === 'kitchen' ? 'table2'
+          : 'table_new_2';
         const aliases: Record<string, string> = {
-          "table_new_1": "table1", "table_1": "table1", "table_new_2": "table2", "table_2": "table2",
-          "Bob's table": "table2", "bobs table": "table2", "bob table": "table2",
-          "table_dining": "table2", "cutting_board": "cutting_board",
+          "table_new_1": "table1", "table_1": "table1",
+          "table_new_2": bobTable, "table_2": bobTable, "table2": bobTable,
+          "Bob's table": bobTable, "bobs table": bobTable, "bob table": bobTable,
+          "table_dining": bobTable, "cutting_board": "cutting_board",
         };
         if (aliases[target.toLowerCase()]) {
           target = aliases[target.toLowerCase()];
@@ -724,7 +728,7 @@ export class SimEnvironment {
           } else {
             // If placing on Bob's table, put items within Bob's reach
             const targetLower = target.toLowerCase();
-            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table2') && !targetLower.includes('table_20')) || targetLower.includes('table_2')) {
+            if (targetLower.includes('bob') || targetLower.includes('table_new_2') || (targetLower.includes('table2') && !targetLower.includes('table_20')) || targetLower.includes('table_2') || targetLower.includes('source_table_1')) {
               // Place near Bob's actual position (within his 0.7m reach)
               const bobPos = this.robotPositions['Bob'] || [4, 4];
               this.scene.objects[objName].posX = bobPos[0] + 0.1;
