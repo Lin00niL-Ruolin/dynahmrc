@@ -149,14 +149,7 @@ export class DynaHMRCEngine {
       this.stage = DynaHMRCStage.COMPLETED;
       this.running = false;
 
-      // 如果启用了 BestMan，清理资源
-      if (this.useBestMan && this.bestManStarted) {
-        try {
-          const { stopService } = await import('./bestman-bridge.js');
-          stopService();
-          this.bestManStarted = false;
-        } catch { /* ignore */ }
-      }
+      // BestMan 服务由用户手动控制（🧊 3D 按钮），运行完不自动关闭
 
       await this.emitState();
     }
