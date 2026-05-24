@@ -74,8 +74,8 @@ for _ in range(30):
     p.stepSimulation()
 
 print("\n初始化 A* 路径规划器...")
-planner = AStarPathPlanner(scene='scene1', grid_size=0.3)
-print("A* 路径规划器就绪 (网格分辨率 0.3m)")
+planner = AStarPathPlanner(scene='scene1', grid_size=0.15, robot_radius=0.25)
+print("A* 路径规划器就绪 (网格分辨率 0.15m, 机器人半径 0.25m)")
 
 print("\n观察 PyBullet 窗口！机器人即将开始移动...")
 time.sleep(3)
@@ -200,14 +200,30 @@ def navigate_to(robot_name, target_key):
     # A* 寻路
     path = planner.plan(old_pos[0], old_pos[1], pos[0], pos[1])
     if path is None:
-        p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-        print(f"  ⚠️ A* 无路径，直接瞬移")
+        # 尝试直线插值（逐点碰撞检测）
+        steps = max(int(math.dist(old_pos[:2], pos[:2]) / 0.08), 5)
+        for s in range(1, steps + 1):
+            t = s / steps
+            mx = old_pos[0] + (pos[0] - old_pos[0]) * t
+            my = old_pos[1] + (pos[1] - old_pos[1]) * t
+            if planner.is_collision(mx, my):
+                print(f"  ⚠️ 直线路径在 ({mx:.1f},{my:.1f}) 碰撞，直接瞬移")
+                break
+            p.resetBasePositionAndOrientation(body, [mx, my, 0], p.getQuaternionFromEuler([0, 0, 0]))
+            for _ in range(5):
+                p.stepSimulation()
+        else:
+            p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
+            print(f"  ⚠️ A* 无路径，直接瞬移")
     else:
-        # 只移动底座！手臂通过固定约束自动跟随
+        # 沿 A* 路径每步碰撞检测
         for i in range(1, len(path)):
             px, py = path[i]
+            if planner.is_collision(px, py):
+                print(f"  ⚠️ 路径点 ({px:.1f},{py:.1f}) 碰撞，跳过")
+                continue
             p.resetBasePositionAndOrientation(body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
-            for _ in range(10):  # 多步仿真让约束起作用
+            for _ in range(8):  # 慢速移动
                 p.stepSimulation()
     
     for _ in range(20):
