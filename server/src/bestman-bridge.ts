@@ -71,12 +71,16 @@ export async function startService(scene: string = 'scene1', gui?: boolean): Pro
 
   // 检查端口 5001 是否已被占用（可能是旧进程）
   try {
-    const existingResp = await fetch(`http://localhost:${BESTMAN_SERVICE_PORT}/status`);
+    const existingResp = await fetch(`http://localhost:${BESTMAN_SERVICE_PORT}/`);
     if (existingResp.ok) {
       const data = await existingResp.json() as any;
       console.log('[BestMan] Found existing service on port 5001, reusing');
-      serviceReady = true;
-      return true;
+      // 重新初始化场景（匹配当前任务）
+      const initOk = await initScene(scene, useGui);
+      if (initOk) {
+        serviceReady = true;
+        return true;
+      }
     }
   } catch {
     // 端口没有响应，需要启动新服务

@@ -112,7 +112,7 @@ export class DynaHMRCEngine {
     if (this.useBestMan && !this.bestManStarted) {
       try {
         const { startService } = await import('./bestman-bridge.js');
-        const ok = await startService(this.layout, true);
+        const ok = await startService(this.layout);
         this.bestManStarted = ok;
         if (ok) {
           console.log('[DynaHMRC] BestMan 3D simulation started ✅');
