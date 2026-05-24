@@ -316,7 +316,7 @@ export class SimEnvironment {
         addItem('soap', 5.9, 0.5, 'counter_elementB');
       } else if (taskType === 'sort_solids') {
         addItem('small_cube_red', 3, 2, 'table_dining');
-        // 3D scene also has cubes at: green(1,6.5), blue(7.5,9.5), yellow(8.5,2.8), purple(9.5,7.5), orange(5,6)
+        // 3D scene also has cubes at: green(1,6.5), blue(7.5,9.5), purple(9.5,7.5)
         addItem('small_cube_green', 1, 6.5, 'bookcase');
         addItem('small_cube_blue', 7.5, 9.5, 'sofa');
         addItem('small_cube_yellow', 8.5, 2.8, 'table1');
@@ -357,9 +357,9 @@ export class SimEnvironment {
         addItem('small_cube_red', 9.5, 7.5, 'shelf_table');
         addItem('small_cube_green', 1, 6.5, 'bookcase');
         addItem('small_cube_blue', 7.5, 9.5, 'sofa');
-        addItem('small_cube_yellow', 8.5, 2.8, 'table1');
+        addItem('small_cube_yellow', 1.3, 4.2, 'table1');
         addItem('small_cube_purple', 9.5, 7.5, 'shelf_table');
-        addItem('small_cube_orange', 5, 6, 'table2');
+        addItem('small_cube_orange', 3.3, 5.2, 'table2');
       } else if (taskType === 'make_sandwich') {
         addItem('bread_bottom', 2.5, 1.48, 'counter_elementA');
         addItem('ham', 1, 4, 'table1');
