@@ -68,18 +68,9 @@ setup_scene1(client, scene_json)
 
 print("[3/3] 初始化完成，开始播放动作...")
 
-# 设置相机视角 — 全局视图
+# 步进仿真让场景稳定
 for _ in range(30):
     p.stepSimulation()
-try:
-    p.resetDebugVisualizerCamera(
-        cameraDistance=10,
-        cameraYaw=45,
-        cameraPitch=-35,
-        cameraTargetPosition=[5, 4, 0]
-    )
-except:
-    pass
 
 print("\n观察 PyBullet 窗口！机器人即将开始移动...")
 time.sleep(3)
@@ -115,21 +106,30 @@ ITEM_NAME_MAP = {
     'bacon': 'bacon_0',
 }
 
+# 地面位置（Alice/David/Lucy 导航用，Z=0）
+GROUND_POS = {
+    'fridge': [9.4, 0.5, 0],
+    'elementa': [7.4, 0.5, 0],
+    'elementb1': [5.9, 0.5, 0],
+    'elementc': [8.6, 0.5, 0],
+    'microwave': [8.1, 0.3, 0],
+    'table': [3, 2, 0],
+    'table_new_1': [8.5, 4, 0],        # Z=0，地面！不是桌面
+    'table_new_2': [8.5, 5.5, 0],      # Z=0，地面！
+    'cutting_board': [8.5, 5.5, 0],    # 导航到附近地面
+}
+
+# 桌面位置（Bob 和物品放置用，Z=0.86）
+TABLE_POS = {
+    'table_new_1': [8.5, 4, 0.86],
+    'table_new_2': [8.5, 5.5, 0.86],
+    'cutting_board': [8.5, 5.5, 0.86],
+}
+
+
 def get_pos(name):
-    """获取家具位置"""
-    known_pos = {
-        'fridge': [9.4, 0.5, 0],
-        'elementa': [7.4, 0.5, 0],
-        'elementb1': [5.9, 0.5, 0],
-        'elementc': [8.6, 0.5, 0],
-        'microwave': [8.1, 0.3, 0],
-        'table': [3, 2, 0],
-        'table_new_1': [8.5, 4, 0.86],
-        'table_new_2': [8.5, 5.5, 0.86],
-        'cutting_board': [8.5, 5.5, 0.86],
-    }
-    t = target.lower() if isinstance(target := name, str) else ''
-    return known_pos.get(t)
+    t = name.lower() if isinstance(name, str) else ''
+    return GROUND_POS.get(t)
 
 
 def navigate(robot_name, target_name):
@@ -156,17 +156,9 @@ def navigate(robot_name, target_name):
         paired_body = robot_bodies.get(paired_key)
         if paired_body is not None:
             p.resetBasePositionAndOrientation(paired_body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-    # 步进仿真 & 刷新 GUI
+    # 步进仿真
     for _ in range(30):
         p.stepSimulation()
-    # 刷新相机对准移动位置
-    try:
-        p.resetDebugVisualizerCamera(
-            cameraDistance=6, cameraYaw=45, cameraPitch=-30,
-            cameraTargetPosition=[pos[0], pos[1], 0]
-        )
-    except:
-        pass
     print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({pos[0]:.1f},{pos[1]:.1f})")
     return True
 
@@ -205,15 +197,15 @@ def pick(robot_name, object_name):
 
 
 def place(robot_name, object_name, target_name):
-    """放置物体"""
+    """放置物体到桌面"""
     real_name = ITEM_NAME_MAP.get(object_name, object_name)
     obj_body = scene_objects.get(real_name)
     if obj_body is None:
         print(f"  ⚠️ 找不到物体 {object_name}")
         return False
-    target_pos = get_pos(target_name)
+    target_pos = TABLE_POS.get(target_name.lower())
     if target_pos is None:
-        target_pos = [8.5, 5.5, 0.86]  # 默认放 table_new_2
+        target_pos = [8.5, 5.5, 0.86]  # 默认放 table_new_2 桌面
     # 释放约束
     for rk in list(robot_bodies.keys()):
         pass  # 约束通过 body ID 查找
