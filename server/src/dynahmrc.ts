@@ -297,18 +297,9 @@ export class DynaHMRCEngine {
         } else if (Object.values(this.sim.robotGrippers).includes(t)) {
           const holder = Object.entries(this.sim.robotGrippers).find(([,v]) => v === t)?.[0] || '?';
           status = `carried by ${holder}`;
+        } else if (Math.abs(obj.posX - 8.5) < 0.3 && Math.abs(obj.posY - 5.3) < 0.3) {
+          status = "on Bob's table (delivered)";
         } else {
-          // Check if item is near any robot's position (delivered to their table)
-          let atRobotTable = '';
-          for (const [rName, rPos] of Object.entries(this.sim.robotPositions)) {
-            if (Math.abs(obj.posX - rPos[0]) < 0.5 && Math.abs(obj.posY - rPos[1]) < 0.5) {
-              atRobotTable = `${rName}'s table`;
-              break;
-            }
-          }
-          if (atRobotTable) {
-            status = `delivered to ${atRobotTable}`;
-          } else {
           // Match original location based on task type
           const originals: Record<string, Record<string, string>> = {
             make_sandwich: { bread_0: 'table_new_2', bacon: 'table_new_1', bread_1: 'table_new_1' },
@@ -321,13 +312,7 @@ export class DynaHMRCEngine {
       }
       const locationStr = realtimeLocations.join(' | ');
 
-      // Robot positions
-      const robotPosStrs = agentNames.map(n => {
-        const p = this.sim.robotPositions[n];
-        return p ? `${n}@(${p[0].toFixed(1)},${p[1].toFixed(1)})` : `${n}:unknown`;
-      }).join(', ');
-
-      const sharedStatus = `Robots: [${robotPosStrs}]\nGrippers: ${gripperStatuses}\n${placedStr}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
+      const sharedStatus = `${placedStr}\nGrippers: ${gripperStatuses}\n${bobTableStr}\n${unclaimedStr}\nLocations: ${locationStr}`;
 
       // Run all robot actions in parallel
       const actionResults = await Promise.all(
