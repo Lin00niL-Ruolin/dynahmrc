@@ -214,21 +214,42 @@ def initialize(req: InitRequest):
         # 扫描场景中的所有可抓取物体
         print("\n[BestMan Service] 扫描场景中的可抓取物体...")
         loaded = 0
+        # 从场景 JSON 和 setup 脚本中注册所有物体
         for attr_name in dir(client):
-            if attr_name in ServiceState.PICKABLE_NAMES or attr_name.startswith('_') or attr_name == 'client':
+            if attr_name.startswith('_') or attr_name == 'client':
                 continue
             val = getattr(client, attr_name, None)
             if isinstance(val, int) and val > 0:
                 if val not in state.robots.values():
-                    state.scene_objects[attr_name] = val
-                    print(f"  ✓ {attr_name} = {val}")
-                    loaded += 1
-        # 额外检查已知可抓取名称
+                    if attr_name not in state.scene_objects:
+                        state.scene_objects[attr_name] = val
+                        print(f"  ✓ {attr_name} = {val}")
+                        loaded += 1
+        # 直接通过 PyBullet 枚举所有物体（比扫描 client 属性更可靠）
+        try:
+            for body_id in range(p.getNumBodies()):
+                if body_id in state.robots.values() or body_id in state.scene_objects.values():
+                    continue
+                try:
+                    info = p.getBodyInfo(body_id)
+                    name = info[1].decode('utf-8') if isinstance(info[1], bytes) else str(info[1])
+                    # 清理名字：去掉路径、特殊字符
+                    name = name.split('/')[-1].split('.')[0].split('_gen')[0].split('_convex')[0]
+                    if name not in state.scene_objects and body_id > 0:
+                        state.scene_objects[name] = body_id
+                        print(f"  ✓ {name} = {body_id}")
+                        loaded += 1
+                except:
+                    pass
+        except Exception as e:
+            print(f"  [PyBullet scan error] {e}")
+        # 检查已知可抓取物体
         for name in ServiceState.PICKABLE_NAMES:
             val = getattr(client, name, None)
             if val is not None and isinstance(val, int) and val not in state.robots.values():
-                state.scene_objects[name] = val
-                loaded += 1
+                if name not in state.scene_objects:
+                    state.scene_objects[name] = val
+                    loaded += 1
         print(f"[场景] ✅ 已注册 {loaded} 个可抓取物体")
 
         # 步进仿真让物体稳定
