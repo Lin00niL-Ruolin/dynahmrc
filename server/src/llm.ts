@@ -1,6 +1,5 @@
 import { LLMMessage, LLMResponse } from './types.js';
 
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 const DEEPSEEK_MODEL = 'deepseek-chat';
 
@@ -9,7 +8,8 @@ export class DeepSeekClient {
   private model: string;
 
   constructor(apiKey?: string, model?: string) {
-    this.apiKey = apiKey || DEEPSEEK_API_KEY;
+    // 每次构造函数从 process.env 读取，确保 .env 加载在导入前生效
+    this.apiKey = apiKey || process.env.DEEPSEEK_API_KEY || '';
     this.model = model || DEEPSEEK_MODEL;
   }
 
@@ -19,6 +19,7 @@ export class DeepSeekClient {
     maxTokens = 1024,
   ): Promise<LLMResponse> {
     if (!this.apiKey) {
+      console.warn('[LLM] No API key — using mock responses');
       return this.mockResponse(messages);
     }
 
@@ -47,12 +48,13 @@ export class DeepSeekClient {
 
         const data = await response.json() as any;
         const raw = data.choices[0].message.content;
+        console.log(`[LLM] API call OK (${raw.length} chars)`);
         return this.parseResponse(raw);
       } finally {
         clearTimeout(timeout);
       }
     } catch (error) {
-      console.error('[ERROR] DeepSeek API call failed:', error);
+      console.error('[LLM] API call failed, using mock:', error);
       return this.mockResponse(messages);
     }
   }
@@ -98,7 +100,7 @@ export class DeepSeekClient {
       }
 
       if (!thoughts && !content) {
-        content = raw;
+        content = raw.trim();
       }
     } catch {
       content = raw;
@@ -112,49 +114,62 @@ export class DeepSeekClient {
   }
 
   private mockResponse(messages: LLMMessage[]): LLMResponse {
-    // Try to produce a valid action if this is an execution-stage call
-    const isExecution = messages.some(m => m.content.includes('AVAILABLE ACTIONS'));
-    const isSelfDescribe = messages.some(m => m.content.includes('self-introduction'));
-    const isTaskAllocation = messages.some(m => m.content.includes('campaign speech'));
-    const isLeaderElection = messages.some(m => m.content.includes('Leader Election'));
-    const isReflection = messages.some(m => m.content.includes('Reflection') || m.content.includes('reflection'));
+    const fullText = messages.map(m => m.content).join(' ').toLowerCase();
+
+    // Detect stage from prompt content (handle both old and new wording)
+    const isSelfDescribe = fullText.includes('self-introduction') || fullText.includes('your robot identity');
+    const isTaskAllocation = fullText.includes('campaign speech');
+    const isLeaderElection = fullText.includes('leader election') || fullText.includes('elect');
+    const isReflection = fullText.includes('reflection system') || fullText.includes('summarize and analyze');
+    const isExecution = fullText.includes('allowed actions') || fullText.includes('your allowed actions');
 
     if (isSelfDescribe) {
       return {
-        thoughts: '[Mock] I am a capable robot. I can navigate, pick, and place objects to help complete the mission.',
-        content: 'Hello teammates! I am a versatile mobile robot. I can efficiently navigate the environment, pick up objects, and place them at targets. I will assist in locating and transporting items to complete our shared mission.',
-        raw: 'Thoughts: I am...\nContent: Hello teammates!...',
+        thoughts: '[Mock] I know my specific role and capabilities.',
+        content: 'Hello teammates! I am a mobile manipulation robot. I can navigate the environment, pick up objects, open containers, and place items precisely. I coordinate ground operations and assist transport. Looking forward to working with you all!',
+        raw: 'Thoughts: I know my role.\nContent: Hello teammates! I am a mobile manipulation robot...',
       };
     }
     if (isTaskAllocation) {
       return {
-        thoughts: '[Mock] Analyzing the team composition and task requirements to propose an effective plan.',
-        content: 'Collaboration Plan:\n- Alice will explore and collect task items from the environment\n- Bob will handle precise placement at the target location\n- David will assist in navigation and communication\n- Lucy will scout from above and provide aerial support\n\nCampaign Speech:\nI have the best combination of mobility and manipulation for this task. I propose an efficient parallel workflow where each robot works simultaneously on different subtasks. Vote for me as leader!',
-        raw: 'Thoughts: Analyzing...\nContent: Collaboration Plan:...',
+        thoughts: '[Mock] Each robot has unique strengths. I will propose a plan that leverages our diversity.',
+        content: 'Collaboration Plan:\n- Alice (mobile manipulation): explore ground, pick up items from furniture, bring to Bob table\n- Bob (fixed arm): precision placement on final target\n- David (mobile scout): search all rooms, locate items, report positions\n- Lucy (drone): aerial search, retrieve items from high shelves\n\nCampaign Speech:\nAs Alice, I combine mobility and manipulation - I can navigate to any ground location AND handle objects. This makes me the best coordinator for the team. Vote for me!',
+        raw: 'Thoughts: Analyzing...\nContent: Collaboration Plan:\n- Alice...\n- Bob...\n- David...\n- Lucy...\n\nCampaign Speech:\n...',
       };
     }
     if (isLeaderElection) {
       return {
-        thoughts: '[Mock] Reviewing all plans and speeches to select the best leader.',
-        content: `After careful analysis, Alice has the most comprehensive plan that leverages all robots\' strengths effectively. Reasons: Alice proposed clear parallel task assignments and demonstrated strong coordination skills. Leader: Alice`,
-        raw: 'Thoughts: Reviewing...\nContent: Reasons:...\nLeader: Alice',
+        thoughts: '[Mock] Alice has the best combination of skills for leadership.',
+        content: `Reasons: Alice proposed the most comprehensive plan that accounts for each robot's unique abilities. She can both scout and manipulate, making her the most versatile coordinator. Leader: Alice`,
+        raw: 'Thoughts: Alice is best.\nReasons: Versatile plan...\nLeader: Alice',
       };
     }
     if (isReflection) {
       return {
-        thoughts: '[Mock] Reflecting on the progress so far and planning next steps.',
-        content: 'Summary: We have made progress on collecting items. Some remain to be found and placed. Plan: Continue exploring, pick up remaining items, and deliver them to the target location.',
+        thoughts: '[Mock] Progress is slow. Robots need to focus on finding and transporting remaining items.',
+        content: 'Summary: Some items still need to be retrieved and placed. Mobile robots should continue searching. Bob prepares for final placement.\nPlan: Continue exploration, pick up remaining items, bring to Bob.',
         raw: 'Thoughts: Reflecting...\nSummary: Progress...\nPlan: Continue...',
       };
     }
     if (isExecution) {
-      // Pick a random furniture name from the scene graph in messages
-      const furnMatch = messages[messages.length-1]?.content.match(/navigate\(\w+\)/);
-      const target = furnMatch ? furnMatch[0].replace('navigate(','').replace(')','') : 'table_0';
+      // Extract robot name to give role-specific responses
+      const fullContent = messages.map(m => m.content).join(' ');
+      const isBob = fullContent.includes('You are Bob') || fullContent.includes('You are bob');
+      
+      if (isBob) {
+        // Bob: wait for items to arrive on his table
+        return {
+          thoughts: '[Mock] Waiting for mobile robots to bring items to my table.',
+          content: 'wait()',
+          raw: 'Thoughts: Waiting for items to arrive.\nContent: wait()',
+        };
+      }
+      
+      // Alice/Lucy/David: navigate to explore
       return {
-        thoughts: `[Mock] Moving to ${target} to search for task items.`,
-        content: `navigate(${target})`,
-        raw: `Thoughts: Moving to ${target}...\nContent: navigate(${target})`,
+        thoughts: '[Mock] Exploring the environment to locate and retrieve task items.',
+        content: 'navigate(table_new_1)',
+        raw: 'Thoughts: Exploring for items.\nContent: navigate(table_new_1)',
       };
     }
 

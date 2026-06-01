@@ -73,6 +73,7 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
 
   const handleTaskChange = (id: string) => {
     setTaskType(id);
+    setDynamicVariations([]);
     // 自动选择对应的场景
     const sceneId = TASK_SCENE_MAP[id];
     if (sceneId) {
@@ -82,6 +83,20 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
       }
     }
   };
+
+  const toggleDynamic = (id: string) => {
+    setDynamicVariations(prev =>
+      prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+    );
+  };
+  const [dynamicVariations, setDynamicVariations] = useState<string[]>([]);
+  const DYNAMIC_OPTIONS = [
+    { id: 'goal_change', label: 'CTO', desc: '目标变更', icon: '🎯' },
+    { id: 'restricted_zone', label: 'IRZ', desc: '禁区', icon: '🚧' },
+    { id: 'action_constraint', label: 'ANC', desc: '动作约束', icon: '🔗' },
+    { id: 'team_change', label: 'REC', desc: '团队重构', icon: '🔄' },
+  ];
+
   const [maxSteps, setMaxSteps] = useState(50);
   const [useBestMan, setUseBestMan] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -118,6 +133,7 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
       taskType,
       layout,
       robots: selectedRobots,
+      dynamicVariations,
       maxSteps,
       useBestMan,
     });
@@ -256,6 +272,41 @@ export function LandingPage({ hmrc, onStartMission, onBack }: Props) {
               />
             ))}
           </div>
+        </section>
+
+        {/* Dynamic Variations — 每个任务类型可选 CTO/IRZ/ANC/REC */}
+        <section>
+          <SectionTitle icon="⚡" text="Dynamic Variations" />
+          <p style={{ fontSize: 15, color: '#94a3b8', marginBottom: 12 }}>
+            Select dynamic changes to occur during the mission:
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 10,
+          }}>
+            {DYNAMIC_OPTIONS.map(opt => (
+              <DynamicCard
+                key={opt.id}
+                option={opt}
+                selected={dynamicVariations.includes(opt.id)}
+                onToggle={() => toggleDynamic(opt.id)}
+              />
+            ))}
+          </div>
+          {dynamicVariations.length > 0 && (
+            <div style={{
+              marginTop: 10,
+              fontSize: 14,
+              color: '#fbbf24',
+              background: '#1e293b',
+              border: '1px solid #fbbf2440',
+              borderRadius: 8,
+              padding: '8px 12px',
+            }}>
+              ⚠️ 已选择 {dynamicVariations.length} 种动态变化，将在任务执行过程中触发
+            </div>
+          )}
         </section>
 
         {/* Scene Selection — 自动根据任务匹配 */}
@@ -618,6 +669,70 @@ function RobotCard({ robot, selected, onToggle }: {
         height: 18,
         borderRadius: 10,
         background: selected ? '#3b82f6' : '#334155',
+        position: 'relative',
+        transition: 'all 0.2s',
+        display: 'inline-block',
+      }}>
+        <div style={{
+          width: 14, height: 14, borderRadius: '50%',
+          background: '#fff',
+          position: 'absolute',
+          top: 2,
+          left: selected ? 20 : 2,
+          transition: 'left 0.2s',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function DynamicCard({ option, selected, onToggle }: {
+  option: { id: string; label: string; desc: string; icon: string };
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      onClick={onToggle}
+      style={{
+        background: selected ? '#1e293b' : '#151d2d',
+        border: `1px solid ${selected ? '#fbbf24' : '#334155'}`,
+        borderRadius: 10,
+        padding: 14,
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+        textAlign: 'center',
+        ...(selected ? { boxShadow: '0 0 15px rgba(251,191,36,0.2)' } : {}),
+      }}
+      onMouseEnter={e => {
+        if (!selected) {
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#475569';
+          (e.currentTarget as HTMLDivElement).style.background = '#1e293b';
+        }
+      }}
+      onMouseLeave={e => {
+        if (!selected) {
+          (e.currentTarget as HTMLDivElement).style.borderColor = '#334155';
+          (e.currentTarget as HTMLDivElement).style.background = '#151d2d';
+        }
+      }}
+    >
+      <div style={{ fontSize: 28, marginBottom: 6 }}>{option.icon}</div>
+      <div style={{
+        fontSize: 16, fontWeight: 700,
+        color: selected ? '#fbbf24' : '#e2e8f0',
+      }}>
+        {option.label}
+      </div>
+      <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 2 }}>
+        {option.desc}
+      </div>
+      <div style={{
+        marginTop: 8,
+        width: 36,
+        height: 18,
+        borderRadius: 10,
+        background: selected ? '#fbbf24' : '#334155',
         position: 'relative',
         transition: 'all 0.2s',
         display: 'inline-block',

@@ -1,377 +1,220 @@
 #!/usr/bin/env python3
 """
-scene1_make_sandwich_action.py
-Make Sandwich 任务 - 机器人协作动作脚本（硬编码）
-在 BestMan PyBullet 场景1中播放机器人协作过程
-
-使用方法: 
-  cd /home/developer/.openclaw/workspace/dynahmrc/bestman-service
-  python3 scenes/scene1_make_sandwich_action.py
+scene1_make_sandwich_action.py — v8
+三明治制作：Bob(IK) + Alice(导航+臂)
 """
+import os,sys,math,time,pybullet as p
 
-import os
-import sys
-import json
-import math
-import time
-
-# 路径设置
-script_dir = os.path.dirname(os.path.abspath(__file__))
-# scene1_make_sandwich_action.py 在 dynahmrc/bestman-service/scenes/
-# BestMan 在 workspace/BestMan/
-workspace_dir = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
-bestman_dir = os.path.join(workspace_dir, 'BestMan')
-sys.path.insert(0, bestman_dir)
-sys.path.insert(0, os.path.dirname(script_dir))
-
-import pybullet as p
+script_dir=os.path.dirname(os.path.abspath(__file__))
+workspace_dir=os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+bestman_dir=os.path.join(workspace_dir,'BestMan')
+sys.path.insert(0,bestman_dir);sys.path.insert(0,os.path.dirname(script_dir))
 from Env.Client import Client
 from scenes.scene1_setup import setup_scene1
 from scenes.path_planner import AStarPathPlanner
 
-
-def resolve_asset_path(relative_path):
-    if relative_path.startswith("Asset/"):
-        return os.path.join(bestman_dir, relative_path)
-    return os.path.join(bestman_dir, "Asset", relative_path)
-
-
-def load_yaml_config(config_path):
-    import yaml
-    from types import SimpleNamespace
-    def dict_to_namespace(d):
-        if isinstance(d, dict):
-            return SimpleNamespace(**{k: dict_to_namespace(v) for k, v in d.items()})
+_grasp={}
+def load_yaml_config(cfg_path):
+    import yaml;from types import SimpleNamespace
+    def d2ns(d):
+        if isinstance(d,dict):return SimpleNamespace(**{k:d2ns(v) for k,v in d.items()})
         return d
-    full_path = config_path
-    if not os.path.exists(full_path):
-        full_path = os.path.join(bestman_dir, config_path)
-    with open(full_path, 'r') as f:
-        cfg_dict = yaml.safe_load(f)
-    return dict_to_namespace(cfg_dict)
+    fp=cfg_path
+    if not os.path.exists(fp):fp=os.path.join(bestman_dir,cfg_path)
+    with open(fp) as f:return d2ns(yaml.safe_load(f))
 
+print("="*60+"\n  Make Sandwich v8\n"+"="*60)
+cfg=load_yaml_config('Config/default.yaml')
+cfg.Client.enable_GUI=bool(os.environ.get('DISPLAY'))
+print(f"[1] PyBullet ({'GUI'if cfg.Client.enable_GUI else'DIRECT'})…")
+client=Client(cfg.Client)
+print("[2] 加载场景1…")
+setup_scene1(client,os.path.join(script_dir,"scene1.json"))
+for _ in range(30):p.stepSimulation()
+print("[3] 路径规划器…")
+planner=AStarPathPlanner(scene='scene1',grid_size=0.15,robot_radius=0.3)
+time.sleep(2)
 
-# ========== 初始化场景 ==========
-print("=" * 60)
-print("  Make Sandwich - 动作回放脚本")
-print("=" * 60)
+robot={}
+for a in['bob_arm','new_robot_base','new_robot_arm']:
+    v=getattr(client,a,None)
+    if isinstance(v,int)and v>0:robot[a]=v
+ITEMS={'bread_0':'bread_0','bread_1':'bread_1','bacon_0':'bacon_0'}
+objects={}
+for a in dir(client):
+    v=getattr(client,a,None)
+    if(isinstance(v,int)and v>0 and v not in robot.values()
+       and not a.startswith('wall_')and a not in('wood_floor','enable_cache')
+       and a in(*ITEMS.values(),'cutting_board')):objects[a]=v
+print(f"  机器人:{list(robot.keys())}\n  物品:{list(objects.keys())}")
 
-# 加载配置
-cfg = load_yaml_config('Config/default.yaml')
-cfg.Client.enable_GUI = True
-
-print("[1/3] 连接 PyBullet (GUI模式)...")
-client = Client(cfg.Client)
-
-print("[2/3] 加载场景1...")
-scene_json = os.path.join(script_dir, "scene1.json")
-setup_scene1(client, scene_json)
-
-print("[3/3] 初始化完成，开始播放动作...")
-
-# 步进仿真让场景稳定
-for _ in range(30):
-    p.stepSimulation()
-
-print("\n初始化 A* 路径规划器...")
-planner = AStarPathPlanner(scene='scene1', grid_size=0.15, robot_radius=0.25)
-print("A* 路径规划器就绪 (网格分辨率 0.15m, 机器人半径 0.25m)")
-
-print("\n观察 PyBullet 窗口！机器人即将开始移动...")
-time.sleep(3)
-
-# 获取机器人 body_id
-robot_bodies = {}
-for attr in ['bob_arm', 'bob', 'new_robot_base', 'new_robot_arm', 'david', 'drone_body']:
-    val = getattr(client, attr, None)
-    if isinstance(val, int) and val > 0:
-        robot_bodies[attr] = val
-        print(f"  机器人: {attr} = {val}")
-
-# 名称映射
-ROBOT_NAME_MAP = {
-    'Alice': 'new_robot_base',
-    'Bob': 'bob_arm',
-    'David': 'david',
-    'Lucy': 'drone_body',
-}
-ROBOT_PAIRS = {'new_robot_base': 'new_robot_arm'}
-
-# 获取物品 body_id
-scene_objects = {}
-for attr in dir(client):
-    val = getattr(client, attr, None)
-    if isinstance(val, int) and val > 0 and val not in robot_bodies.values():
-        # 排除墙壁等
-        if not attr.startswith('wall_') and attr != 'wood_floor' and attr != 'enable_cache':
-            scene_objects[attr] = val
-
-# 物品名映射（脚本名 → scene 中的名）
-ITEM_NAME_MAP = {
-    'bacon': 'bacon_0',
-}
-
-# ===== 硬编码坐标 =====
-# 地面导航点（Z=0，地面机器人用）
-NAV = {
-    'table_new_1_ground': [8.5, 3.5, 0],     # table_new_1 旁边地面
-    'table_new_2_ground': [8.5, 5.0, 0],     # table_new_2 旁边地面
-    'table_new_1_front': [7.5, 4.0, 0],       # table_new_1 前方
-    'table_new_2_side': [7.5, 5.5, 0],        # table_new_2 侧面
-    'bacon_pos': [8.5, 4.0, 0],               # 培根所在桌子旁
-    'bread1_pos': [8.6, 4.2, 0],              # bread_1 旁边
-}
-
-# 桌面位置（Bob 抓取和物品放置用，Z=0.86）
-TABLE_POS = {
-    'table_new_1': [8.5, 4, 0.86],
-    'table_new_2': [8.5, 5.5, 0.86],
-    'cutting_board': [8.5, 5.5, 0.86],
-}
-
-# 用固定约束把机械臂绑定在底座上
-ARM_CONSTRAINT = None
-def fix_arm_to_base():
-    """创建固定约束，让手臂跟随底座移动"""
-    global ARM_CONSTRAINT
-    base = robot_bodies.get('new_robot_base')
-    arm = robot_bodies.get('new_robot_arm')
-    if base is not None and arm is not None:
-        # 获取手臂相对底座的偏移
-        base_pos = p.getBasePositionAndOrientation(base)[0]
-        arm_pos = p.getBasePositionAndOrientation(arm)[0]
-        offset = [arm_pos[i] - base_pos[i] for i in range(3)]
-        try:
-            ARM_CONSTRAINT = p.createConstraint(
-                parentBodyUniqueId=base, parentLinkIndex=-1,
-                childBodyUniqueId=arm, childLinkIndex=-1,
-                jointType=p.JOINT_FIXED,
-                jointAxis=[0, 0, 0],
-                parentFramePosition=[0, 0, 0],
-                childFramePosition=offset,
-            )
-            print(f"  ✅ 手臂约束 #{ARM_CONSTRAINT} (偏移: {[f'{x:.2f}' for x in offset]})")
-            for _ in range(50):
-                p.stepSimulation()
-            return True
-        except Exception as e:
-            print(f"  ⚠️ 约束创建失败: {e}")
-    else:
-        print(f"  ⚠️ 找不到底座({base})或手臂({arm})")
-    return False
-
-# 执行约束
-fix_arm_to_base()
-
-
-def get_pos(name):
-    t = name.lower() if isinstance(name, str) else ''
-    return GROUND_POS.get(t)
-
-
-# 预先获取手臂 Z 偏移（只取一次，保持固定）
-_arm_z = None
-def get_arm_z():
-    global _arm_z
-    if _arm_z is None:
-        arm_body = robot_bodies.get('new_robot_arm')
-        if arm_body is not None:
-            _arm_z = p.getBasePositionAndOrientation(arm_body)[0][2]
-    return _arm_z or 1.02
-
-
-def navigate_to(robot_name, target_key):
-    """导航到硬编码坐标点（手臂通过约束自动跟随）"""
-    key = ROBOT_NAME_MAP.get(robot_name)
-    if not key:
-        print(f"  ⚠️ 未知机器人名 {robot_name}")
-        return False
-    body = robot_bodies.get(key)
-    if body is None:
-        print(f"  ⚠️ 找不到 {robot_name} 的 body")
-        return False
-    pos = NAV.get(target_key)
-    if pos is None:
-        print(f"  ⚠️ 未知导航点 {target_key}")
-        return False
-    
-    old_pos = p.getBasePositionAndOrientation(body)[0]
-    
-    # A* 寻路
-    path = planner.plan(old_pos[0], old_pos[1], pos[0], pos[1])
-    if path is None:
-        # 尝试直线插值（逐点碰撞检测）
-        steps = max(int(math.dist(old_pos[:2], pos[:2]) / 0.08), 5)
-        for s in range(1, steps + 1):
-            t = s / steps
-            mx = old_pos[0] + (pos[0] - old_pos[0]) * t
-            my = old_pos[1] + (pos[1] - old_pos[1]) * t
-            if planner.is_collision(mx, my):
-                print(f"  ⚠️ 直线路径在 ({mx:.1f},{my:.1f}) 碰撞，直接瞬移")
-                break
-            p.resetBasePositionAndOrientation(body, [mx, my, 0], p.getQuaternionFromEuler([0, 0, 0]))
-            for _ in range(6):
-                p.stepSimulation()
-        else:
-            p.resetBasePositionAndOrientation(body, pos, p.getQuaternionFromEuler([0, 0, 0]))
-            print(f"  ⚠️ A* 无路径，直接瞬移")
-    else:
-        # 沿 A* 路径每步碰撞检测
-        for i in range(1, len(path)):
-            px, py = path[i]
-            if planner.is_collision(px, py):
-                print(f"  ⚠️ 路径点 ({px:.1f},{py:.1f}) 碰撞，跳过")
-                continue
-            p.resetBasePositionAndOrientation(body, [px, py, 0], p.getQuaternionFromEuler([0, 0, 0]))
-            for _ in range(12):
-                p.stepSimulation()
-            time.sleep(0.08)  # 每路径点暂停，看起来更平滑
-    
-    for _ in range(20):
-        p.stepSimulation()
-    
-    final_pos = p.getBasePositionAndOrientation(body)[0]
-    print(f"  ✓ {robot_name}: ({old_pos[0]:.1f},{old_pos[1]:.1f}) → ({final_pos[0]:.1f},{final_pos[1]:.1f})")
-    return True
-
-
-def pick(robot_name, object_name):
-    """拾取物体"""
-    real_name = ITEM_NAME_MAP.get(object_name, object_name)
-    obj_body = scene_objects.get(real_name)
-    if obj_body is None:
-        print(f"  ⚠️ 找不到物体 {object_name} (搜索 {real_name})")
-        print(f"  可用物品: {[k for k in scene_objects.keys()][:20]}")
-        return False
-    key = ROBOT_NAME_MAP.get(robot_name)
-    if not key:
-        print(f"  ⚠️ 未知机器人名 {robot_name}")
-        return False
-    robot_body = robot_bodies.get(key)
-    if robot_body is None:
-        print(f"  ⚠️ 找不到 {robot_name} 的 body")
-        return False
-    obj_pos = p.getBasePositionAndOrientation(obj_body)[0]
-    rob_pos = p.getBasePositionAndOrientation(robot_body)[0]
-    offset = [obj_pos[i] - rob_pos[i] for i in range(3)]
-    constraint = p.createConstraint(
-        parentBodyUniqueId=robot_body, parentLinkIndex=-1,
-        childBodyUniqueId=obj_body, childLinkIndex=-1,
-        jointType=p.JOINT_FIXED,
-        jointAxis=[0, 0, 0],
-        parentFramePosition=offset,
-        childFramePosition=[0, 0, 0],
-    )
-    for _ in range(10):
-        p.stepSimulation()
-    print(f"  ✓ {robot_name} 捡起 {object_name} (#{constraint})")
-    return True
-
-
-def place(robot_name, object_name, target_name):
-    """放置物体到桌面"""
-    real_name = ITEM_NAME_MAP.get(object_name, object_name)
-    obj_body = scene_objects.get(real_name)
-    if obj_body is None:
-        print(f"  ⚠️ 找不到物体 {object_name}")
-        return False
-    target_pos = TABLE_POS.get(target_name.lower())
-    if target_pos is None:
-        target_pos = [8.5, 5.5, 0.86]  # 默认放 table_new_2 桌面
-    # 释放约束
-    for rk in list(robot_bodies.keys()):
-        pass  # 约束通过 body ID 查找
-    p.resetBasePositionAndOrientation(obj_body, [target_pos[0], target_pos[1], target_pos[2] + 0.01],
-                                       p.getQuaternionFromEuler([0, 0, 0]))
-    for _ in range(10):
-        p.stepSimulation()
-    # 释放约束
-    if obj_body in [v for v in globals().get('_constraints', {}).values()]:
-        pass  # 约束在 pick 时已创建，这里不做复杂管理
-    print(f"  ✓ {robot_name} 放置 {object_name} 到 {target_name}")
-
-
-def release_constraint(obj_body):
-    """释放物体上的所有约束"""
-    for i in range(p.getNumConstraints()):
-        try:
-            info = p.getConstraintInfo(i)
-            if info and info[5] == obj_body:
-                p.removeConstraint(i)
-        except:
-            pass
-
-
-# ========== 动作序列 ==========
-print("\n" + "=" * 60)
-print("  开始执行动作序列")
-print("=" * 60)
-
-# 动作序列（使用硬编码坐标）
-actions = [
-    # === 第1轮 ===
-    # Alice 到 table_new_1 旁边地面 → Bob 捡 bread_0
-    ("navigate", "Alice", "table_new_1_front"),
-    ("pick", "Bob", "bread_0"),
-    
-    # Alice 捡 bacon（她在 table_new_1 旁边）
-    ("pick", "Alice", "bacon"),
-    
-    # Bob 放 bread_0 到 cutting_board
-    ("place", "Bob", "bread_0", "cutting_board"),  # 1/3
-    
-    # === 第2轮 ===
-    # Lucy 到 table_new_1 旁边捡 bread_1
-    ("navigate", "Lucy", "bread1_pos"),
-    ("pick", "Lucy", "bread_1"),
-    
-    # Alice 送 bacon 到 Bob 桌
-    ("navigate", "Alice", "table_new_2_side"),
-    ("place", "Alice", "bacon_0", "table_new_2"),
-    
-    # Bob 捡 bacon 放 cutting_board
-    ("pick", "Bob", "bacon_0"),
-    ("place", "Bob", "bacon_0", "cutting_board"),  # 2/3
-    
-    # === 第3轮 ===
-    # Lucy 送 bread_1 到 Bob 桌
-    ("navigate", "Lucy", "table_new_2_side"),
-    ("place", "Lucy", "bread_1", "table_new_2"),
-    
-    # Bob 捡 bread_1 放 cutting_board
-    ("pick", "Bob", "bread_1"),
-    ("place", "Bob", "bread_1", "cutting_board"),  # 3/3 DONE
+# 坐标
+T=0.826; BH=0.025; BAH=0.010; BOARD_TOP=0.880
+# 堆叠在案板上(8.5,5.5) —— 三明治在案板上制作
+# 案板顶面 z=0.86+0.02=0.88，bread 半高 0.025
+BOARD_TOP = 0.880
+ST=[
+    (8.5, 5.5, BOARD_TOP+BH),              # bread_0 中心
+    (8.5, 5.5, BOARD_TOP+BH*2+BAH),        # bacon 中心在 bread_0 上
+    (8.5, 5.5, BOARD_TOP+BH*2+BAH*2+BH+0.005), # bread_1 中心在 bacon 上
 ]
+DROP=(8.5,5.8,T)           # Alice 临时放桌子二上（不在案板）
+NAV={'s':(6.5,7),'t1':(7.7,4.0),'t2':(6.8,5.5)}
+POS={
+    'bread_0':[8.2,5.85,T+BH],   # 物品中心(桌面+半高)
+    'bread_1':[8.55,4.2,T+BH],
+    'bacon_0':[8.5,4.0,T+BAH],
+}
 
-for i, action_t in enumerate(actions):
-    cmd = action_t[0]
-    print(f"\n[{i+1}/{len(actions)}] {' '.join(str(x) for x in action_t)}")
-    time.sleep(1.2)
-    
-    if cmd == "navigate":
-        robot, target_key = action_t[1], action_t[2]
-        navigate_to(robot, target_key)
-    elif cmd == "pick":
-        robot, obj = action_t[1], action_t[2]
-        pick(robot, obj)
-    elif cmd == "place":
-        robot, obj_name, tgt = action_t[1], action_t[2], action_t[3]
-        real_obj = ITEM_NAME_MAP.get(obj_name, obj_name)
-        obj_body = scene_objects.get(real_obj)
-        if obj_body:
-            release_constraint(obj_body)
-        place(robot, obj_name, tgt)
+BOB=robot['bob_arm'];AARM=robot.get('new_robot_arm')
+ABASE=robot['new_robot_base'];AJ=list(range(6));AE=6
+p.resetBasePositionAndOrientation(ABASE,[6.5,7,0],p.getQuaternionFromEuler([0,0,-math.pi/2]))
+if AARM:p.resetBasePositionAndOrientation(AARM,[6.5,7,1.02],p.getQuaternionFromEuler([0,0,-math.pi/2]))
 
-print("\n" + "=" * 60)
-print("  ✅ 动作序列播放完毕！")
-print("  按 Ctrl+C 退出，或关闭 PyBullet 窗口")
-print("=" * 60)
+# ── 工具 ──
+def _release(obj):
+    uid=_grasp.pop(obj,None)
+    if uid is not None:
+        try:p.removeConstraint(uid)
+        except:pass
+def _grasp_obj(pid,cid):
+    _grasp[cid]=p.createConstraint(pid,AE,cid,-1,p.JOINT_FIXED,[0,0,0],
+                                    parentFramePosition=[0,0,0],childFramePosition=[0,0,0])
+def _tp(body,pos,yaw=None):
+    orn=p.getQuaternionFromEuler([0,0,yaw]if yaw is not None else[0,0,0])
+    p.resetBasePositionAndOrientation(body,list(pos),orn)
+def _step(n):
+    for _ in range(n):p.stepSimulation()
+def _lock(oid,pos):
+    _release(oid);_tp(oid,pos)
+    p.changeDynamics(oid,-1,mass=0.001,lateralFriction=0.8,activationState=p.ACTIVATION_STATE_SLEEP)
+    _step(20)
 
-# 保持窗口打开
+# ── IK（resetJointState 绕过URDF限制）──
+def _ik(body,tgt,steps=50):
+    rest=[0,-0.3,-0.5,0,0.3,0]
+    ik=p.calculateInverseKinematics(body,AE,list(tgt),
+        lowerLimits=[-6.28]*6,upperLimits=[6.28]*6,
+        jointRanges=[12.56]*6,restPoses=rest,
+        maxNumIterations=300,residualThreshold=0.0005)
+    cur=[p.getJointState(body,j)[0]for j in AJ]
+    for s in range(1,steps+1):
+        t=s/steps;ease=t*t*(3-2*t)
+        for j in range(6):
+            p.resetJointState(body,j,cur[j]+(ik[j]-cur[j])*ease)
+        _step(6);time.sleep(0.012)
+    for j in range(6):p.resetJointState(body,j,ik[j])
+    _step(30)
+def _grip(body,close):
+    v=0.0 if close else 0.6
+    for j in[7,8,11]:p.setJointMotorControl2(body,j,p.POSITION_CONTROL,targetPosition=v,force=25)
+    _step(40)
+def _neutral(body):
+    n=[0,-0.5,0,0,0.5,0];cur=[p.getJointState(body,j)[0]for j in AJ]
+    for s in range(1,45):
+        t=s/45;ease=t*t*(3-2*t)
+        for j in range(6):p.resetJointState(body,j,cur[j]+(n[j]-cur[j])*ease)
+        _step(6);time.sleep(0.012)
+    _step(30)
+
+# Bob 固定基座坐标
+BOB_XY = (8.5, 5.85)
+SAFE_Z = 1.10      # 安全提升高度（远高于桌面）
+
+def bob_pick(pos,name):
+    o=objects[ITEMS[name]];_neutral(BOB);_grip(BOB,False)
+    # 三段：直上Bob上方→水平伸到物品上方→直降到物品
+    above_bob   = [BOB_XY[0], BOB_XY[1], SAFE_Z]    # Bob 正上方
+    above_item  = [pos[0], pos[1], SAFE_Z]           # 物品正上方
+    _ik(BOB, above_bob, 25)      # ↑ 直上（不撞案板）
+    _ik(BOB, above_item, 30)     # → 水平伸出
+    _ik(BOB, list(pos), 35)      # ↓ 直降到物品
+    _grip(BOB,True);_release(o);_grasp_obj(BOB,o)
+    _ik(BOB, above_item, 25)     # ↑ 直上
+    print(f"  ✓ Bob 捡 {name}");return True
+
+def bob_place(pos,name):
+    o=objects[ITEMS[name]]
+    # 三段运动：竖直提升→水平移动→竖直下降
+    current_pos = p.getLinkState(BOB,AE)[0]
+    lift = [BOB_XY[0], BOB_XY[1], SAFE_Z]     # 先升到 Bob 上方
+    target_above = [pos[0], pos[1], SAFE_Z]    # 移到目标上方
+    _ik(BOB, lift, 25)                          # ↑ 竖直提升
+    _ik(BOB, target_above, 30)                  # → 水平移动
+    _ik(BOB, list(pos), 35)                     # ↓ 竖直下降
+    _release(o);_grip(BOB,False);_lock(o,pos)
+    _ik(BOB, target_above, 25)                  # ↑ 竖直抬升
+    _neutral(BOB)
+    print(f"  ✓ Bob 放 {name}");return True
+
+# ── Alice 导航（硬编码安全路径绕过椅子）──
+# 安全路径（绕过椅子左下方再右移到桌子）
+SAFE_WP={
+    's_t1':[(6.5,7),(6.5,5.8),(6.5,4.5),(7.0,4.2),(7.7,4.0)],
+    's_t2':[(6.5,7),(6.5,5.8),(7.5,5.8)],
+    't1_t2':[(7.7,4.0),(7.0,4.2),(6.5,4.5),(6.5,5.8),(7.5,5.8)],
+    't2_t1':[(7.5,5.8),(6.5,5.8),(6.5,4.5),(7.0,4.2),(7.7,4.0)],
+    't1_s':[(7.7,4.0),(7.0,4.2),(6.5,4.5),(6.5,5.8),(6.5,7)],
+    't2_s':[(7.5,5.8),(6.5,5.8),(6.5,7)],
+}
+def alice_drive(wp):
+    cur_yaw=p.getEulerFromQuaternion(p.getBasePositionAndOrientation(ABASE)[1])[2]
+    for wi in range(len(wp)-1):
+        sx,sy=wp[wi];ex,ey=wp[wi+1];dx,dy=ex-sx,ey-sy;d=math.hypot(dx,dy)
+        if d<0.001:continue
+        tgt_yaw=math.atan2(dy,dx);st=max(int(d/0.02),20)
+        ang_diff=tgt_yaw-cur_yaw
+        while ang_diff>math.pi:ang_diff-=2*math.pi
+        while ang_diff<-math.pi:ang_diff+=2*math.pi
+        rot_st=min(st,max(int(st*0.3),6))
+        for s in range(st):
+            t=(s+1)/st
+            yaw=cur_yaw+ang_diff*min((s+1)/rot_st,1.0)if s<rot_st else tgt_yaw
+            _tp(ABASE,[sx+dx*t,sy+dy*t,0],yaw)
+            if AARM:_tp(AARM,[sx+dx*t,sy+dy*t,1.02],yaw)
+            _step(6);time.sleep(0.01)
+        cur_yaw=tgt_yaw
+    _step(30)
+    pos=p.getBasePositionAndOrientation(ABASE)[0]
+    print(f"  ✓ Alice → ({pos[0]:.1f},{pos[1]:.1f})");return True
+def a_nav(wp_key):
+    wp=SAFE_WP.get(wp_key)
+    if not wp:return False
+    return alice_drive(wp)
+
+# ── Alice 臂──
+def alice_grab(xyz,name):
+    o=objects[ITEMS[name]]
+    if not AARM:return False
+    _neutral(AARM);_grip(AARM,False)
+    bp=p.getBasePositionAndOrientation(ABASE)[0]
+    dx=xyz[0]-bp[0];dy=xyz[1]-bp[1];dz=xyz[2]-1.02;d=math.hypot(dx,dy,dz)
+    MAX=0.85
+    if d>MAX:s=MAX*0.95/d;at=[bp[0]+dx*s,bp[1]+dy*s,1.02+dz*s]
+    else:at=list(xyz)
+    ab=[at[0],at[1],at[2]+0.08];_ik(AARM,ab,45);_ik(AARM,at,40)
+    # 物品滑到爪下
+    ee=p.getLinkState(AARM,AE)[0];_release(o)
+    _tp(o,[ee[0],ee[1],at[2]-0.02]);_step(5)
+    _grip(AARM,True);_release(o);_grasp_obj(AARM,o);_ik(AARM,ab,30)
+    print(f"  ✓ Alice 捡 {name}");return True
+def alice_place(pos,name):
+    o=objects[ITEMS[name]];ab=[pos[0],pos[1],pos[2]+0.08]
+    _ik(AARM,ab,45);_ik(AARM,pos,40);_release(o);_grip(AARM,False);_lock(o,pos)
+    _ik(AARM,ab,40);_neutral(AARM)
+    print(f"  ✓ Alice 放 {name}");return True
+
+# ── 执行 ──
+print("\n"+"="*60+"\n  🎬 开始\n");t0=time.time()
+bob_pick(POS['bread_0'],'bread_0');bob_place(ST[0],'bread_0')
+a_nav('s_t1');alice_grab(POS['bacon_0'],'bacon_0')
+a_nav('t1_t2');alice_place(DROP,'bacon_0')
+bob_pick(DROP,'bacon_0');bob_place(ST[1],'bacon_0')
+a_nav('t2_t1');alice_grab(POS['bread_1'],'bread_1')
+a_nav('t1_t2');alice_place(DROP,'bread_1')
+bob_pick(DROP,'bread_1');bob_place(ST[2],'bread_1')
+a_nav('t2_s')
+print(f"\n⏱ {time.time()-t0:.0f}s\n"+"="*60+"\n  🥪 完成！Ctrl+C 退出\n"+"="*60)
 try:
-    while True:
-        p.stepSimulation()
-        time.sleep(0.1)
-except KeyboardInterrupt:
-    print("\n退出...")
-    client.disconnect()
+    while True:p.stepSimulation();time.sleep(0.05)
+except KeyboardInterrupt:print("\n退出…");client.disconnect()

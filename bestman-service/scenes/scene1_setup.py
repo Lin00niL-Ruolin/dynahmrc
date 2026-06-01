@@ -310,7 +310,7 @@ def setup_scene1(client, scene_json_path=None):
     # 9. 食物物品
     print("\n--- 培根 (桌子一) ---")
     try:
-        meat_half = [0.08, 0.03, 0.005]
+        meat_half = [0.08, 0.03, 0.01]  # 厚度加倍 0.005→0.01
         meat_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=meat_half)
         meat_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=meat_half, rgbaColor=[0.92, 0.25, 0.15, 1.0])
         bacon = p.createMultiBody(0.1, meat_col, meat_vis, [8.5, 4, 0.86], p.getQuaternionFromEuler([0, 0, 0.3]))
@@ -321,9 +321,9 @@ def setup_scene1(client, scene_json_path=None):
 
     print("\n--- 面包片 ---")
     try:
-        bread_half = [0.07, 0.07, 0.012]
+        bread_half = [0.07, 0.07, 0.025]  # 厚度加倍 0.012→0.025
         bread_col = p.createCollisionShape(p.GEOM_BOX, halfExtents=bread_half)
-        bread_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=bread_half, rgbaColor=[0.75, 0.6, 0.4, 1.0])
+        bread_vis = p.createVisualShape(p.GEOM_BOX, halfExtents=bread_half, rgbaColor=[0.55, 0.35, 0.15, 1.0])
 
         # 桌子二上的面包片
         b0 = p.createMultiBody(0.05, bread_col, bread_vis, [8.2, 5.85, 0.86])

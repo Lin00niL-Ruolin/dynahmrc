@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" width="600" height="350">
+  <rect width="600" height="350" fill="#fafafa" rx="8"/>
+  <text x="300" y="340" text-anchor="middle" font-size="13" fill="#666" font-style="italic">图3-1 系统用例图</text>
+  <!-- 用户 -->
+  <ellipse cx="80" cy="175" rx="50" ry="30" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="80" y="180" text-anchor="middle" font-size="14" font-weight="bold" fill="#333">用户</text>
+  <!-- 用例 -->
+  <ellipse cx="280" cy="60" rx="75" ry="25" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="280" y="65" text-anchor="middle" font-size="12" fill="#333">配置任务场景</text>
+  <ellipse cx="280" cy="140" rx="75" ry="25" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="280" y="145" text-anchor="middle" font-size="12" fill="#333">启动协作流程</text>
+  <ellipse cx="280" cy="220" rx="75" ry="25" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="280" y="225" text-anchor="middle" font-size="12" fill="#333">监控运行状态</text>
+  <ellipse cx="280" cy="300" rx="75" ry="25" fill="#fff" stroke="#333" stroke-width="1.5"/>
+  <text x="280" y="305" text-anchor="middle" font-size="12" fill="#333">查看执行结果</text>
+  <!-- 连线 -->
+  <line x1="130" y1="165" x2="200" y2="60" stroke="#333" stroke-width="1"/>
+  <line x1="130" y1="172" x2="200" y2="140" stroke="#333" stroke-width="1"/>
+  <line x1="130" y1="180" x2="200" y2="220" stroke="#333" stroke-width="1"/>
+  <line x1="130" y1="188" x2="200" y2="300" stroke="#333" stroke-width="1"/>
+  <!-- 系统边界 -->
+  <rect x="190" y="30" width="200" height="310" rx="8" fill="none" stroke="#666" stroke-width="1.5" stroke-dasharray="5,3"/>
+  <text x="290" y="50" text-anchor="middle" font-size="10" fill="#666">DynaHMRC系统</text>
+</svg>

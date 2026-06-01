@@ -20,6 +20,10 @@ export class RobotAgent {
   currentPlan = '';
   failedPickItems: Map<string, number> = new Map(); // item → stepCount when failed
   pendingPlaceWait = 0; // steps to wait after placing on Bob's table
+  /** 上一步操作是否由反循环逻辑强制注入（防止无限循环） */
+  private _lastActionWasForced = false;
+  /** 连续被强制注入的次数（超过阈值时触发应急策略） */
+  private _consecutiveForcedCount = 0;
 
   private roleTypeName: string;
 
@@ -177,27 +181,63 @@ export class RobotAgent {
     if (this.roleTypeName !== 'Bob') {
       const lastType = this.actionHistory.length > 0 ? this.actionHistory[this.actionHistory.length - 1].actionType : null;
       const lastTarget = this.actionHistory.length > 0 ? (this.actionHistory[this.actionHistory.length - 1].params.target as string || '') : '';
-      const currentTarget = action.params.target as string || '';
       
-      // Block repeat navigate to same target or already there
-      if (action.actionType === ActionType.NAVIGATE && lastType === ActionType.NAVIGATE && lastTarget === currentTarget) {
-        console.log(`[Agent ${this.name}] Repeated navigate to ${currentTarget}. Forcing wait.`);
-        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+      // 应急策略：连续强制注入超过阈值后，直接执行有意义的动作
+      // 这样即使 LLM 一直输出 wait() 也能有进展
+      if (this._lastActionWasForced && this._consecutiveForcedCount >= 3) {
+        console.log(`[Agent ${this.name}] ⚠️ Emergency: ${this._consecutiveForcedCount} consecutive forced actions. Taking initiative.`);
+        
+        if (this.status.gripperOccupied && this.status.graspingObject) {
+          // 持有物品 → 送到 Bob 桌子
+          action = {
+            robotName: this.name, actionType: ActionType.NAVIGATE,
+            params: { target: 'table_new_2' }, timestamp: Date.now(),
+          };
+        } else {
+          // 空手 → 去书架（场景二目标位置）或 Bob 桌子
+          const targets = ['table_new_1', 'table2', 'bookcase'];
+          const idx = this._consecutiveForcedCount % targets.length;
+          action = {
+            robotName: this.name, actionType: ActionType.NAVIGATE,
+            params: { target: targets[idx] }, timestamp: Date.now(),
+          };
+        }
+        this._consecutiveForcedCount = 0;
+        this._lastActionWasForced = false;
       }
-      // Block wait
-      if (action.actionType === ActionType.WAIT) {
-        console.log(`[Agent ${this.name}] Blocked wait(). Forcing navigate.`);
+      
+      const isLLMOutput = !this._lastActionWasForced;
+      
+      // 阻止重复通信（仅 LLM 自然输出）
+      if (isLLMOutput && action.actionType === ActionType.COMMUNICATE && lastType === ActionType.COMMUNICATE) {
+        console.log(`[Agent ${this.name}] Repeated communicate(). Guiding to productive action.`);
         action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_1' }, timestamp: Date.now() };
+        this._lastActionWasForced = true;
+        this._consecutiveForcedCount++;
       }
-      // Block repeat communicate
-      else if (action.actionType === ActionType.COMMUNICATE && lastType === ActionType.COMMUNICATE) {
-        console.log(`[Agent ${this.name}] Repeated communicate(). Forcing navigate.`);
-        action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_1' }, timestamp: Date.now() };
+      // 阻止重复导航到同一个目标
+      else if (isLLMOutput && action.actionType === ActionType.NAVIGATE && lastTarget && action.params.target === lastTarget) {
+        console.log(`[Agent ${this.name}] Repeated navigate to ${lastTarget}. Switching target.`);
+        action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_2' }, timestamp: Date.now() };
+        this._lastActionWasForced = true;
+        this._consecutiveForcedCount++;
       }
-      // Block repeat navigate to same target
-      else if (action.actionType === ActionType.NAVIGATE && lastType === ActionType.NAVIGATE && lastTarget === currentTarget) {
-        console.log(`[Agent ${this.name}] Repeated/already-there navigate. Forcing wait.`);
-        action = { robotName: this.name, actionType: ActionType.WAIT, params: {}, timestamp: Date.now() };
+      // 阻止 wait (核心防卡死)
+      else if (action.actionType === ActionType.WAIT) {
+        if (this.status.gripperOccupied && this.status.graspingObject) {
+          console.log(`[Agent ${this.name}] Holding ${this.status.graspingObject} but waiting. Forcing go to Bob's table.`);
+          action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_2' }, timestamp: Date.now() };
+        } else {
+          console.log(`[Agent ${this.name}] Blocked wait(). Guiding to explore.`);
+          action = { robotName: this.name, actionType: ActionType.NAVIGATE, params: { target: 'table_new_1' }, timestamp: Date.now() };
+        }
+        this._lastActionWasForced = true;
+        this._consecutiveForcedCount++;
+      }
+      // LLM 自然输出（有意义的动作）→ 重置强制计数器
+      else if (isLLMOutput) {
+        this._lastActionWasForced = false;
+        this._consecutiveForcedCount = 0;
       }
     }
 

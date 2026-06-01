@@ -1,0 +1,19 @@
+graph TB
+    subgraph 前端层
+    A1[配置面板]
+    A2[仿真画布]
+    end
+    subgraph 后端层
+    B1[DynaHMRC引擎]
+    B2[Agent管理]
+    end
+    subgraph LLM层
+    C1[DeepSeek API]
+    end
+    subgraph 3D层
+    D1[BestMan/PyBullet]
+    end
+    A1-->B1
+    B1-->B2
+    B2-->C1
+    B1-->D1

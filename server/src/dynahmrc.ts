@@ -90,23 +90,39 @@ export class DynaHMRCEngine {
 
     // Randomize sort_solids: pick 1-2 random color pairs
     if (this.taskType === 'sort_solids') {
-      const colors = ['red', 'green', 'blue', 'yellow', 'purple', 'orange'];
-      const count = Math.random() < 0.6 ? 1 : 2;
-      const shuffled = [...colors].sort(() => Math.random() - 0.5).slice(0, count);
-      const pairs = shuffled.map(c => ({ small: `small_cube_${c}`, large: `cube_${c}` }));
-      const pairTexts = pairs.map(p => `${p.small} → ${p.large}`);
-      this.taskDescription = `Match ${count} pair(s): ${pairTexts.join(', ')}. Mobile robots find the small cubes and bring them to Bob's table. Bob places each on its matching large cube.`;
-      this.sim.taskTargets = pairs.map(p => p.small);
-      const allPrompts = await import('./prompts.js');
-      allPrompts.TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
-      allPrompts.TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
-      // Update static hints to match randomized colors
-      const first = pairs[0];
-      const pairList = pairs.map(p => `${p.small} → ${p.large}`).join(', ');
-      allPrompts.TASK_ALLOCATION_HINTS['sort_solids'] = `Match: ${pairList}. Mobile robots search and transport, Bob does precision placement.`;
-      allPrompts.REFLECTION_TASK_HINTS['sort_solids'] = `Task: Place ${pairList}. Mobile robots find and bring to Bob's table, Bob places on matching large cube.`;
-      allPrompts.LEADER_REFLECTION_HINTS['sort_solids'] = `Match ${pairList}. Bob can reach his table. Mobile robots fetch small cubes and bring to Bob.`;
-      console.log(`[DynaHMRC] Sort task: ${pairList}`);
+      // 如果场景脚本已经设置了 taskTargets，跳过随机化（用于场景二这样的确定性场景）
+      const alreadyConfigured = this.sim.taskTargets.length > 0;
+      if (!alreadyConfigured) {
+        const colors = ['red', 'green', 'blue', 'yellow', 'purple', 'orange'];
+        const count = Math.random() < 0.6 ? 1 : 2;
+        const shuffled = [...colors].sort(() => Math.random() - 0.5).slice(0, count);
+        const pairs = shuffled.map(c => ({ small: `small_cube_${c}`, large: `cube_${c}` }));
+        const pairTexts = pairs.map(p => `${p.small} → ${p.large}`);
+        this.taskDescription = `Match ${count} pair(s): ${pairTexts.join(', ')}. Mobile robots find the small cubes and bring them to Bob's table. Bob places each on its matching large cube.`;
+        this.sim.taskTargets = pairs.map(p => p.small);
+        const allPrompts = await import('./prompts.js');
+        allPrompts.TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
+        allPrompts.TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
+        // Update static hints to match randomized colors
+        const pairList = pairs.map(p => `${p.small} → ${p.large}`).join(', ');
+        allPrompts.TASK_ALLOCATION_HINTS['sort_solids'] = `Match: ${pairList}. Mobile robots search and transport, Bob does precision placement.`;
+        allPrompts.REFLECTION_TASK_HINTS['sort_solids'] = `Task: Place ${pairList}. Mobile robots find and bring to Bob's table, Bob places on matching large cube.`;
+        allPrompts.LEADER_REFLECTION_HINTS['sort_solids'] = `Match ${pairList}. Bob can reach his table. Mobile robots fetch small cubes and bring to Bob.`;
+        console.log(`[DynaHMRC] Sort task: ${pairList}`);
+      } else {
+        console.log(`[DynaHMRC] Sort task already configured by scenario: ${this.sim.taskTargets.join(', ')}`);
+        // 场景已配好，更新 prompts 以匹配
+        const allPrompts = await import('./prompts.js');
+        allPrompts.TASK_DESCRIPTIONS['sort_solids'] = this.taskDescription;
+        allPrompts.TASK_GOALS['sort_solids'] = [...this.sim.taskTargets];
+        const pairList = this.sim.taskTargets.map(t => {
+          const color = t.replace('small_cube_', '');
+          return `${t} → cube_${color}`;
+        }).join(', ');
+        allPrompts.TASK_ALLOCATION_HINTS['sort_solids'] = `Scenario 2: ${pairList}. Lucy does aerial retrieval, Bob places.`;
+        allPrompts.REFLECTION_TASK_HINTS['sort_solids'] = `Task: Place ${pairList}. Lucy flies to bookcase, brings green cube to Bob's table.`;
+        allPrompts.LEADER_REFLECTION_HINTS['sort_solids'] = `Scenario 2: Match ${pairList}. Alice scouts, Lucy retrieves air, Bob places.`;
+      }
     }
 
     // 检查 BestMan 服务是否已由 🧊 3D 按钮启动
@@ -235,9 +251,17 @@ export class DynaHMRCEngine {
 
       this.stepCount++;
 
-      // Dynamic variations - trigger at configured step
+      // Dynamic variations — 每个类型在不同步骤触发，展示渐进式变化
+      // CTO(step 3), IRZ(step 6), ANC(step 10), REC(step 14)
+      const DYNAMIC_STEP_MAP: Record<string, number> = {
+        'goal_change': 3,
+        'restricted_zone': 6,
+        'action_constraint': 10,
+        'team_change': 14,
+      };
       for (const varType of this.dynamicVariations) {
-        if (this.stepCount === this.dynamicStep) {
+        const triggerStep = DYNAMIC_STEP_MAP[varType] || 3;
+        if (this.stepCount === triggerStep) {
           const msg = this.sim.enableDynamicVariation(varType);
           await this.emitDialogue({
             stage: DynaHMRCStage.EXECUTION_REFLECTION,

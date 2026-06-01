@@ -55,16 +55,45 @@ app.get('/api/config', (_req, res) => {
       { id: 'Lucy', name: 'Lucy (Drone)', desc: 'Quadrotor drone with gripper, aerial navigation and manipulation' },
     ],
     dynamicVariations: [
-      { id: 'goal_change', name: 'Goal Change', desc: 'Task target changes mid-execution' },
-      { id: 'restricted_zone', name: 'Restricted Zone', desc: 'Area becomes inaccessible' },
-      { id: 'team_change', name: 'Team Change', desc: 'Robot joins or leaves team' },
-      { id: 'action_constraint', name: 'Action Constraint', desc: 'Some actions become unavailable' },
+      { id: 'goal_change', name: 'CTO (Change Task Objective)', desc: 'Task target changes mid-execution' },
+      { id: 'restricted_zone', name: 'IRZ (Interdicted Restricted Zone)', desc: 'Area becomes inaccessible' },
+      { id: 'action_constraint', name: 'ANC (Action Constraint)', desc: 'Some actions become temporarily unavailable' },
+      { id: 'team_change', name: 'REC (Reconfiguration)', desc: 'Robot joins or leaves the team' },
+    ],
+    scenarios: [
+      { id: 'scenario2', name: '场景二: 绿色方块分类', desc: 'sort_solids | kitchen | Alice引导Lucy空中取物Bob放置', scene: 'scene2' },
     ],
     defaultApiKeyConfigured: !!process.env.DEEPSEEK_API_KEY,
   });
 });
 
 app.post('/api/run', (req, res) => {
+  // 场景模式: 使用预定义场景脚本
+  const { scenario, taskType: rawTaskType, layout: rawLayout, robots: rawRobots,
+          dynamicVariations: rawDV, maxSteps: rawMS, useBestMan: rawBM } = req.body;
+
+  if (scenario === 'scenario2') {
+    (async () => {
+      try {
+        const { runScenario2, validateScenario2 } = await import('./scenarios/scenario2.js');
+        const issues = validateScenario2();
+        if (issues.length > 0) {
+          console.warn('[Scenario 2] Validation issues:', issues.join(', '));
+        }
+        const engine = await runScenario2(undefined, rawMS || 50);
+        const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        engine.maxSteps = rawMS || 50;
+        if (rawDV) engine.dynamicVariations = rawDV;
+        engines.set(runId, engine);
+        engineConnections.set(runId, new Set());
+        res.json({ runId, status: 'created', scenario: 'scenario2', robots: 4, issues });
+      } catch (e: any) {
+        res.status(500).json({ error: `Scenario load failed: ${e.message}` });
+      }
+    })();
+    return;
+  }
+
   const { taskType = 'pack_objects', layout = 'kitchen', robots = [],
           dynamicVariations = [], maxSteps = 50, useBestMan = false } = req.body;
 

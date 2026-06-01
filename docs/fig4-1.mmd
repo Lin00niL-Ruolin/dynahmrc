@@ -1,0 +1,154 @@
+---
+title: 图4-1 系统总体架构图
+---
+flowchart TB
+    %% Styles
+    classDef userLayer fill:#1e3a5f,stroke:#3b82f6,stroke-width:2px,color:#e0f2fe
+    classDef commLayer fill:#1e3a5f,stroke:#3b82f6,stroke-width:2px,color:#e0f2fe
+    classDef appLayer fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#d1fae5
+    classDef engineLayer fill:#4c1d95,stroke:#8b5cf6,stroke-width:2px,color:#ede9fe
+    classDef llmLayer fill:#7c2d12,stroke:#f97316,stroke-width:2px,color:#ffedd5
+    classDef simLayer fill:#422006,stroke:#eab308,stroke-width:2px,color:#fef9c3
+    classDef dbLayer fill:#1e1b4b,stroke:#6366f1,stroke-width:2px,color:#e0e7ff
+    classDef robotAlice fill:#1e3a8a,stroke:#3b82f6,stroke-width:1px,color:#dbeafe
+    classDef robotBob fill:#166534,stroke:#22c55e,stroke-width:1px,color:#dcfce7
+    classDef robotDavid fill:#6b21a8,stroke:#a855f7,stroke-width:1px,color:#f3e8ff
+    classDef robotLucy fill:#9a3412,stroke:#f97316,stroke-width:1px,color:#fff7ed
+    classDef stage fill:#5b21b6,stroke:#8b5cf6,stroke-width:2px,stroke-dasharray: 6 3,color:#ede9fe
+
+    subgraph LayerA["👤 用户界面层 (Frontend)"]
+        direction TB
+        UI_Splash["🎬 开场动画"]
+        UI_Landing["🏠 任务配置页"]
+        UI_Mission["🎯 任务监控页"]
+
+        subgraph MissionComponents["任务监控子组件"]
+            ConfigPanel["⚙️ ConfigPanel\n任务/场景/机器人选择"]
+            SimulationView["🗺️ SimulationView\nCanvas 2D 仿真画布"]
+            DialoguePanel["💬 DialoguePanel\n机器人对话流"]
+            StatusPanel["📊 StatusPanel\n机器人实时状态面板"]
+            ControlBar["🎮 ControlBar\n开始/暂停/停止/3D控制"]
+        end
+    end
+
+    subgraph LayerB["📡 通信层 (Communication)"]
+        HTTP["🌐 Express HTTP\nREST API (端口 3001)"]
+        WS["🔗 WebSocket\n实时双向通信"]
+    end
+
+    subgraph LayerC["🧠 应用服务层 (Backend)"]
+        direction TB
+        API["📋 API Controller\n任务创建/配置/状态查询"]
+        BestManAPI["🧊 BestMan 3D Bridge\n代理 3D 仿真请求"]
+        EngineCtrl["⚙️ Engine Controller\n四阶段编排调度"]
+    end
+
+    subgraph LayerD["🎯 DynaHMRC 引擎层"]
+        direction TB
+        subgraph FourStages["四阶段管线"]
+            S1["阶段1: Self-Description\n自我介绍"]
+            S2["阶段2: Task Allocation\n分工提案 & 竞选演讲"]
+            S3["阶段3: Leader Election\n投票选举"]
+            S4["阶段4: Execution & Reflection\n闭环执行 + 定期反思"]
+        end
+
+        subgraph Robots["机器人 Agent 池 (并行)"]
+            Alice_Agent["🤖 Alice\nMobile Manipulation"]
+            Bob_Agent["🦾 Bob\nFixed Arm"]
+            David_Agent["🛞 David\nMobile Robot"]
+            Lucy_Agent["🚁 Lucy\nDrone"]
+        end
+
+        subgraph DynamicChanges["动态变化机制"]
+            DC_Goal["CTO 目标变更"]
+            DC_Zone["IRZ 禁区"]
+            DC_Action["ANC 动作约束"]
+            DC_Team["REC 重组"]
+        end
+    end
+
+    subgraph LayerE["🤖 LLM 驱动层"]
+        LLM_Client["DeepSeek Client"]
+        Prompts["📜 提示词模板库\nself-description / allocation\nleader-election / execution\nreflection"]
+        subgraph Models["模型"]
+            V3["deepseek-chat"]
+            V4["deepseek-v4-flash"]
+        end
+    end
+
+    subgraph LayerF["🌍 仿真环境层"]
+        Sim2D["🗺️ 2D Canvas 仿真\n室内空间 + 家具 + 物品"]
+        Sim3D["🧊 BestMan 3D 仿真\n3D物理引擎 (端口5001)"]
+        Scene1["场景一: Kitchen\n(10×8) Make Sandwich"]
+        Scene2["场景二: L-Kitchen\n(10×10) Sort Solids"]
+        Scene3["场景三: Living Room\n(10×10) Pack Objects"]
+    end
+
+    subgraph LayerG["💾 数据层"]
+        SimState["📦 仿真状态\n机器人坐标/夹爪/物品"]
+        DialogueLog["📝 对话日志\n四阶段完整记录"]
+        ActionLog["📋 动作历史\n步骤/成功/反馈"]
+    end
+
+    %% Layer connections
+    UI_Splash --> UI_Landing
+    UI_Landing --> UI_Mission
+    UI_Mission --> MissionComponents
+
+    ConfigPanel --> HTTP
+    ControlBar --> HTTP
+    HTTP --> API
+    ControlBar --> WS
+    WS --> EngineCtrl
+
+    API --> EngineCtrl
+    EngineCtrl --> S1
+    EngineCtrl --> BestManAPI
+
+    S1 --> S2
+    S2 --> S3
+    S3 --> S4
+    S4 -->|循环| S4
+
+    S1 -.->|并行调用| Robots
+    S2 -.->|并行提案| Robots
+    S3 -.->|并行投票| Robots
+    S4 -.->|并行执行| Robots
+
+    Robots -->|LLM 调用| LLM_Client
+    LLM_Client -->|API Request| Models
+    Models -.->|Prompt| Prompts
+    Prompts -.->|注入| LLM_Client
+
+    S4 -.->|触发| DynamicChanges
+    DynamicChanges -.->|通知| Robots
+
+    Robots -->|动作| Sim2D
+    Sim2D --> Scene1
+    Sim2D --> Scene2
+    Sim2D --> Scene3
+
+    BestManAPI -->|代理| Sim3D
+
+    Sim2D -->|状态同步| SimState
+    Robots -->|日志| DialogueLog
+    Sim2D -->|步骤记录| ActionLog
+
+    SimState -->|广播| WS
+    DialogueLog -->|广播| WS
+    ActionLog -->|广播| WS
+
+    WS --> SimulationView
+    WS --> DialoguePanel
+    WS --> StatusPanel
+
+    %% Highlight boxes
+    subgraph Legend["图例"]
+        L1["👤 用户界面层"]:::userLayer
+        L2["📡 通信层"]:::commLayer
+        L3["🧠 应用服务层"]:::appLayer
+        L4["🎯 DynaHMRC 引擎"]:::engineLayer
+        L5["🤖 LLM 驱动层"]:::llmLayer
+        L6["🌍 仿真环境层"]:::simLayer
+        L7["💾 数据层"]:::dbLayer
+    end

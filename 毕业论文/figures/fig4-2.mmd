@@ -1,0 +1,15 @@
+sequenceDiagram
+    participant Engine as 引擎
+    participant Agents as 所有Agent
+    rect rgb(200,220,255)
+    Engine->>Agents: 自我介绍
+    Agents-->>Engine: 返回
+    end
+    rect rgb(255,220,200)
+    Engine->>Agents: 分工方案
+    Agents-->>Engine: 方案+演讲
+    end
+    rect rgb(200,255,200)
+    Engine->>Agents: 投票选举
+    Agents-->>Engine: 投票
+    end

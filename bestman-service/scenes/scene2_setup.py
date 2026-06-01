@@ -205,10 +205,10 @@ def create_sort_objects(client):
     small_positions = [
         [9.5, 6.0, 1.85],    # 红 → 台面上
         [1.0, 6.5, 2.2],      # 绿 → 书架最顶层
-        [7.5, 9.5, 1.8],      # 蓝 → 沙发上
+        [7.0, 8.6, 0.80],     # 蓝 → 沙发前边缘
         [8.5, 2.8, 1.3],      # 黄 → 床上
         [9.5, 7.5, 1.85],     # 紫 → 台面上(分开)
-        [5, 6, 0.1],          # 橙 → (5,6)
+        [6, 2, 0.1],          # 橙 → 地毯上
     ]
     for i, (color, name) in enumerate(zip(colors, names)):
         x, y, z = small_positions[i]

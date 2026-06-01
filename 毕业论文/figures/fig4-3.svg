@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 280" width="700" height="280">
+  <defs>
+    <marker id="a4" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
+    </marker>
+  </defs>
+
+  <rect width="700" height="280" fill="#fafafa" rx="8"/>
+
+  <!-- 引擎 -->
+  <rect x="30" y="80" width="150" height="70" rx="8" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="105" y="115" text-anchor="middle" font-size="14" font-weight="bold" fill="#1565c0">DynaHMRC引擎</text>
+  <text x="105" y="135" text-anchor="middle" font-size="10" fill="#555">流程编排·调度</text>
+
+  <!-- Agent -->
+  <rect x="250" y="30" width="150" height="70" rx="8" fill="#fff3e0" stroke="#f57c00" stroke-width="2"/>
+  <text x="325" y="65" text-anchor="middle" font-size="14" font-weight="bold" fill="#e65100">机器人Agent</text>
+  <text x="325" y="85" text-anchor="middle" font-size="10" fill="#555">×4（每机器人1个）</text>
+
+  <!-- 仿真环境 -->
+  <rect x="250" y="140" width="150" height="70" rx="8" fill="#e8f5e9" stroke="#388e3c" stroke-width="2"/>
+  <text x="325" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="#2e7d32">Simulation环境</text>
+  <text x="325" y="195" text-anchor="middle" font-size="10" fill="#555">场景图·状态管理</text>
+
+  <!-- 机器人状态 -->
+  <rect x="470" y="30" width="180" height="70" rx="8" fill="#fce4ec" stroke="#c62828" stroke-width="2"/>
+  <text x="560" y="60" text-anchor="middle" font-size="13" font-weight="bold" fill="#b71c1c">RobotStatus</text>
+  <text x="560" y="78" text-anchor="middle" font-size="10" fill="#555">位置·夹爪·抓取物</text>
+
+  <!-- 场景物体 -->
+  <rect x="470" y="140" width="180" height="70" rx="8" fill="#fff" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="560" y="170" text-anchor="middle" font-size="13" font-weight="bold" fill="#6a1b9a">SceneObject</text>
+  <text x="560" y="188" text-anchor="middle" font-size="10" fill="#555">家具·物品·容器</text>
+
+  <!-- LLM -->
+  <rect x="470" y="200" width="180" height="50" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+  <text x="560" y="230" text-anchor="middle" font-size="13" font-weight="bold" fill="#6a1b9a">DeepSeek API</text>
+
+  <!-- 连线 -->
+  <line x1="180" y1="110" x2="245" y2="75" stroke="#555" stroke-width="1.5" marker-end="url(#a4)"/>
+  <text x="200" y="88" font-size="10" fill="#555">管理 1:N</text>
+
+  <line x1="180" y1="120" x2="245" y2="165" stroke="#555" stroke-width="1.5" marker-end="url(#a4)"/>
+  <text x="195" y="145" font-size="10" fill="#555">维护 1:1</text>
+
+  <line x1="400" y1="70" x2="465" y2="60" stroke="#555" stroke-width="1.5" marker-end="url(#a4)"/>
+  <text x="425" y="62" font-size="10" fill="#555">包含</text>
+
+  <line x1="400" y1="170" x2="465" y2="170" stroke="#555" stroke-width="1.5" marker-end="url(#a4)"/>
+  <text x="425" y="162" font-size="10" fill="#555">包含</text>
+
+  <line x1="325" y1="100" x2="325" y2="135" stroke="#555" stroke-width="1.5" marker-end="url(#a4)" stroke-dasharray="4,3"/>
+  <text x="335" y="120" font-size="10" fill="#555">调用</text>
+
+  <line x1="560" y1="200" x2="560" y2="215" stroke="#555" stroke-width="1" marker-end="url(#a4)"/>
+
+  <text x="350" y="270" text-anchor="middle" font-size="13" fill="#666" font-style="italic">图4-3 数据实体关系图</text>
+</svg>

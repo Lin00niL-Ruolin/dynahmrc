@@ -48,7 +48,8 @@ Limitations:
 };
 
 // Per-robot-type atomic action sets (论文 Table I)
-export const ROBOT_ACTION_SETS: Record<string, string> = {
+// NOTE: wait() is intentionally excluded — robots must always act
+const BASE_ACTION_SETS: Record<string, string> = {
   Alice: `
 1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
 2. open(<container_name>) - Open a hinged container (drawer, cabinet, etc.)
@@ -56,41 +57,32 @@ export const ROBOT_ACTION_SETS: Record<string, string> = {
 4. place(<object_name>, <target_location>) - Place held object at a target
 5. move(<delta_x>, <delta_y>) - Adjust position by small offsets
 6. communicate(<content>, <recipient>) - Send a message to another robot
-7. wait() - Wait for one time step
 `,
   Bob: `
 1. pick(<object_name>) - Pick up a specified object
 2. place(<object_name>, <target_location>) - Place held object at a target
 3. communicate(<content>, <recipient>) - Send a message to another robot
-4. wait() - Wait for one time step
 `,
   David: `
 1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
 2. communicate(<content>, <recipient>) - Send a message to another robot
-3. wait() - Wait for one time step
 `,
   Lucy: `
 1. navigate(<stand_pose_id>) - Move to a target stand pose near a furniture item
 2. pick(<object_name>) - Pick up a specified object
 3. place(<object_name>, <target_location>) - Place held object at a target
 4. communicate(<content>, <recipient>) - Send a message to another robot
-5. wait() - Wait for one time step
 `,
 };
+
+export const ROBOT_ACTION_SETS: Record<string, string> = BASE_ACTION_SETS;
 
 // Stage 1: Self-Description
 export const SELF_DESCRIPTION_SYSTEM = `
 You are an intelligent robot on a heterogeneous multi-robot team.
 Phase: Initial stage — each robot introduces itself.
 
-Just output a single paragraph introducing yourself. Include:
-- What type of robot you are
-- Your key capabilities
-- Your limitations
-- What role you best serve in a team
-
-Keep it natural and conversational, like greeting your teammates for the first time.
-Do NOT reference any specific task or mission.
+CRITICAL: You have SPECIFIC capabilities below. DO NOT describe yourself as a generic robot.
 `;
 
 export function selfDescriptionUser(taskDescription: string, teammates: string, capabilities: string, taskType?: string): string {
@@ -98,22 +90,30 @@ export function selfDescriptionUser(taskDescription: string, teammates: string, 
   return `
 Your teammates: ${teammates}
 
+===== YOUR ROBOT IDENTITY (READ CAREFULLY - THIS IS WHO YOU ARE) =====
 ${capabilities}
 
-Write a brief self-introduction paragraph for your teammates.
+===== INSTRUCTION =====
+Write ONE short paragraph introducing YOURSELF to your teammates.
+
+🚨 DO NOT say "I am a versatile mobile robot" or anything generic.
+🚨 You are a SPECIFIC robot with specific capabilities.
+🚨 Mention your type, what you can do, what you CANNOT do, and your best role in a team.
+
+Keep it natural, like greeting teammates for the first time. Do not reference any task.
 `;
 }
 
 // Stage 2: Task Allocation
 export const TASK_ALLOCATION_SYSTEM = `
-Contexts:
-1) You are an intelligent robot that can think and make decisions like a human.
-2) You need to cooperate with other robots of various configurations to complete complex and long-term tasks.
+You are a SPECIFIC robot (Alice/Bob/David/Lucy) with unique capabilities.
+Each robot has different strengths — some move, some fly, some manipulate, some explore.
 
-Phase: Now it is the second step of collaboration.
+Phase: Division of labor and leadership campaign.
 Tasks:
-1) You need to propose a follow-up division of labor plan.
-2) You need to propose a campaign speech to run for leader.
+1) Propose a division of labor that leverages EACH robot's unique strengths.
+2) Write a campaign speech to run for leader, highlighting YOUR unique advantages.
+
 CoT: Let's think step by step!
 `;
 
@@ -125,57 +125,44 @@ export const TASK_ALLOCATION_HINTS: Record<string, string> = {
 
 export function taskAllocationUser(name: string, selfIntroductions: string, taskType?: string): string {
   return `
-Identity and Information:
-1) You are an intelligent robot named ${name}.
-2) Below are the self-introductions from yourself and your collaborators:
+🚨 You are ${name}. NOT a generic robot.
+
+Below are the self-introductions from yourself and your collaborators:
 ${selfIntroductions}
 
 Task Context:
 ${TASK_ALLOCATION_HINTS[taskType || 'pack_objects'] || TASK_ALLOCATION_HINTS.pack_objects}
 
-Plan Proposal and Leadership Campaign:
-1) Please analyze them carefully and thoroughly to develop your collaboration plan.
-2) Reflect on your strengths from multiple perspectives and write a campaign speech to run for the leader role.
+Analyze these introductions carefully. Each robot has DIFFERENT capabilities. Assign tasks that play to each robot's strengths (e.g., Lucy flies, Bob places precisely, Alice navigates+manipulates, David scouts).
 
-Principles:
-1) The plan enables robots to work in parallel to maximize efficiency.
-2) Utilize shared capabilities among heterogeneous robots, e.g., navigation robots jointly explore the environment.
-3) Leverage unique abilities efficiently, e.g., flying robots explore high areas, opening robots handle hinged objects.
+Write:
+1) Your collaboration plan assigning specific tasks to each robot
+2) Your campaign speech for becoming the leader, explaining why YOU are the best fit
 
-Output Response Format:
-1) Thoughts: think step by step to analyze the problem;
-2) Contents: Include two parts: your proposed collaboration plan (aimed at improving teamwork), and your campaign speech for becoming the leader.
-CoT: Let's think step by step!
+Output:
+Thoughts: [step-by-step reasoning]
+Contents: [collaboration plan + campaign speech]
 `;
 }
 
 // Stage 3: Leader Election
 export const LEADER_ELECTION_SYSTEM = `
-Contexts:
-1) You are an intelligent robot capable of human-like thinking and decision-making.
-2) You need to collaborate with other robots of various configurations to accomplish complex, long-term tasks.
-
-Phase: Now it's the third step of collaboration.
-Tasks:
-1) Carefully analyze the collaboration plans and leadership proposals from all participants.
-2) Objectively elect a leader (self-nomination allowed).
-CoT: Let's think step by step!
+You are a SPECIFIC robot. Review all plans and campaign speeches below.
+Elect the most qualified leader based on demonstrated planning ability and team fit.
+Self-nomination is allowed.
 `;
 
 export function leaderElectionUser(name: string, plansAndSpeeches: string): string {
   return `
-Identity and Information:
-1) You are an intelligent robot named ${name}.
-2) Below are the collaboration plans and campaign speeches from yourself and other collaborators:
+You are ${name}. Below are ALL robots' plans and campaign speeches:
 ${plansAndSpeeches}
 
-Leader Election: Please analyze and judge fairly, justly, and objectively to elect a qualified leader.
+Elect ONE leader. Explain your choice. Then give the leader's name.
 
-Output Response Format:
-1) Thoughts: think step by step to analyze the problem;
-2) Reasons: state the reason for the choice made;
-3) Leader: directly give the name of the selected leader.
-CoT: Let's think step by step!
+Format:
+Thoughts: [analysis]
+Reasons: [why this leader]
+Leader: [name]
 `;
 }
 
@@ -238,56 +225,24 @@ export function executionSystem(
     actionSet = actionSet.replace(/^\d+\.\s*pick\(.*\n?/gm, '');
   }
 
-  return `
-===== IDENTITY =====
-You are ${robotNameClean}. Your role and capabilities are described below. Remember: you are ${robotNameClean}, not any other robot.
+  const isMobile = robotNameClean !== 'Bob';
+  const example = isMobile ? 'navigate(target) or pick(item) or place(item, target)' : 'pick(item) or place(item, target) or communicate(msg, recipient)';
 
-${roleDescription}
-
-===== TASK =====
-${taskDescription}
-Team: ${teammates}
-Leader: ${leader}
-Plan: ${plan}
-
-=== ITEMS ===
-${info.items} at: ${info.locations}
-${taskType === 'make_sandwich' ? 'Stack on cutting_board at (8.5, 5.5) — any order' : taskType === 'sort_solids' ? 'Place small cube on matching large cube' : 'Place all items into tray'}
-
-=== YOUR ACTIONS ===
-${actionSet}
-
-${(() => {
-    const isMobile = robotNameClean !== 'Bob';
-    const example = isMobile ? 'navigate(target) or pick(item) or place(item, target)' : 'pick(item) or place(item, target) or communicate(msg, recipient)';
-    
-    const workflows: Record<string, string> = {
-      make_sandwich: `=== SANDWICH WORKFLOW ===
-Items: bread_0 (on table_new_2, Bob can reach), bacon and bread_1 (on table_new_1, need transport)
-Final target: cutting_board (only Bob places here)
-
-Mobile robots: go to table_new_1 → pick bacon/bread_1 → bring to table_new_2 → place on table_new_2
+  const workflows: Record<string, string> = {
+    make_sandwich: `Mobile robots: go to table_new_1 → pick bacon/bread_1 → bring to table_new_2 → place on table_new_2
 Bob: pick items from table_new_2 → place on cutting_board`,
-
-      sort_solids: `=== SORT WORKFLOW ===
-Items: ${info.items} ${info.items.includes(',') ? `(scattered around scene)` : `(scattered around scene)`}
-Final target: matching colored cube (only Bob places here)
-Locations: ${info.locations}
-
-Mobile robots: find the small cube → pick() → bring to Bob's table (table_2) → place on table_2
+    sort_solids: `Mobile robots: find the small cube → pick() → bring to Bob's table (table_2) → place on table_2
 Bob: pick small cube from table_2 → place on matching large cube`,
+    pack_objects: `Mobile robots: find an item → pick() → bring to Bob's table → place on Bob's table
+Bob: pick items from table → place into tray`,
+  };
+  const workflow = workflows[taskType || 'pack_objects'] || workflows.pack_objects;
 
-      pack_objects: `=== PACK WORKFLOW ===
-Items: fork_0, apple, book_0, soap (scattered around furniture)
-Final target: tray (only Bob places here)
+  const placedBy = isMobile ? `place(${info.items.includes(',') ? 'your_object' : 'item'}, Bob's table)` : `place(item, ${info.target})`;
 
-Mobile robots: find an item → pick() → bring to Bob's table → place on Bob's table
-Bob: pick items from table → place into tray`
-    };
-    
-    return `
-===== IDENTITY =====
-You are ${robotNameClean}.
+  return `
+===== IDENTITY (CRITICAL - READ THIS) =====
+🚨 You are ${robotNameClean}. NOT a generic robot. NOT any other robot.
 
 ${roleDescription}
 
@@ -296,23 +251,25 @@ ${taskDescription}
 Leader: ${leader}
 Plan: ${plan}
 
-=== YOUR ACTIONS ===
+Items to handle: ${info.items}
+Item locations: ${info.locations}
+${taskType === 'make_sandwich' ? 'Final: stack on cutting_board' : taskType === 'sort_solids' ? 'Final: place on matching colored cube (Bob only)' : 'Final: place into tray (Bob only)'}
+
+===== YOUR ALLOWED ACTIONS =====
 ${actionSet}
 
-${workflows[taskType || 'pack_objects'] || workflows.pack_objects}
+===== WORKFLOW =====
+${workflow}
 
-===== RULES =====
-- pick() ONLY when gripper EMPTY
-- If gripper FULL → navigate or place — NEVER pick again
-- ${isMobile ? 'NEVER place on final target — only Bob does that' : 'Only you place items on the final target'}
-- ${isMobile ? '🚫 NEVER place on packing_table, source_table_2, or table_dining — only place on BOB\'S TABLE' : 'You CANNOT navigate. Items not on your table must be brought to you.'}
-- Read your feedback. If FAILED, try something different
+===== ⚠️ STRICT RULES =====
+🚫 NEVER use wait() - it is not available. Always DO something.
+🚫 pick() ONLY when gripper EMPTY. If FULL, navigate or place.
+${isMobile ? '🚫 NEVER place on final target. Place on Bob\'s table instead.' : '🚫 You CANNOT navigate. Others bring items to your table.'}
+✅ Read your feedback! If FAILED, try a DIFFERENT approach.
 
-Output ONLY:
-Thoughts: [reasoning]
+Output ONLY one action in this format:
+Thoughts: [1 sentence reasoning]
 Contents: [one action, e.g. ${example}]
-`;
-  })()}
 `;
 }
 
@@ -332,31 +289,37 @@ export function executionUser(
 ): string {
   const missing = taskTargets ? taskTargets.filter(t => !(placedObjects || []).includes(t)) : [];
   
+  // 根据状态提供针对性引导
+  const statusGuidance = graspingObject !== 'nothing'
+    ? `⛔ HOLDING ${graspingObject}. You MUST navigate to Bob's table and place() it.`
+    : missing.length > 0
+    ? `✅ Empty gripper. You should navigate to find a missing item (${missing[0]}) and pick() it.`
+    : '✅ All items placed! Report task complete.';
+
   return `
 === CURRENT STATE ===
-Task Progress: ${taskProgress}
-Missing Items: ${missing.length > 0 ? missing.join(', ') : 'NONE - TASK COMPLETE'}
+Task: ${taskProgress}
+Missing: ${missing.length > 0 ? missing.join(', ') : 'ALL PLACED ✅'}
 
-=== 🚨 YOUR LAST FEEDBACK (READ THIS!) ===
+=== 🚨 STATUS-BASED GUIDANCE ===
+${statusGuidance}
+
+=== FEEDBACK ===
 ${feedbackHistory || 'No feedback yet.'}
 
-=== SHARED TASK STATUS (what everyone is doing) ===
-${sharedStatus || 'No shared status'}
+=== SCENE ===
+${sceneGraph}
 
-=== YOUR STATUS ===
-- Position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
-- Gripper: ${gripperStatus}
-${graspingObject !== 'nothing' ? `- ⛔ HOLDING: ${graspingObject} → pick() FORBIDDEN. Your ONLY options: navigate(table_new_2) or place(${graspingObject}, Bob's table)` : '- ✅ Gripper empty → you may pick()'}
+=== STATUS ===
+Position: (${posX.toFixed(2)}, ${posY.toFixed(2)})
+Gripper: ${gripperStatus}
 
-Recent Actions:
-${actionHistory}
+Recent Actions: ${actionHistory || 'none'}
+Messages: ${receivedMessages || 'none'}
 
-Recent Messages:
-${receivedMessages}
-
-Output ONLY one action:
-Thoughts: [reasoning]
-Contents: [action(param, param)]
+=== OUTPUT ===
+Thoughts: [1 sentence reasoning]
+Contents: [action(params)]
 `;
 }
 
